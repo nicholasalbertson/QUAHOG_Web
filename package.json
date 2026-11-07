@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "The Narrows — web 3D open-world crime game (Three.js / R3F) on the real Massachusetts South Coast.",
+  "description": "The Narrows \u2014 web 3D open-world crime game (Three.js / R3F) on the real Massachusetts South Coast.",
   "scripts": {
     "dev": "vite",
     "predev": "node scripts/gen_manifests.mjs",
@@ -16,7 +16,8 @@
     "test:blizzard": "node --experimental-strip-types --test scripts/tests/blizzard-2026.test.mjs",
     "test:production-assets": "node --experimental-strip-types --test scripts/tests/production-assets.test.mjs scripts/tests/production-runtime-policy.test.mjs scripts/tests/production-preflight.test.mjs scripts/tests/production-fulltree-preflight.test.mjs scripts/tests/production-glb-structure.test.mjs scripts/tests/production-materials.test.mjs scripts/tests/production-architecture-v4.test.cjs",
     "test:production-architecture": "node --test scripts/tests/production-architecture-v4.test.cjs",
-    "assets:audit": "node scripts/assets_audit.mjs"
+    "assets:audit": "node scripts/assets_audit.mjs",
+    "assets:download-cc0": "node scripts/download_cc0_packs.mjs"
   },
   "dependencies": {
     "@react-three/drei": "9.114.3",

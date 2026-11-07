@@ -66,6 +66,7 @@ import { Waterfront } from "./world/Waterfront";
 import { PortClutter } from "./world/PortClutter";
 import { Embankment } from "./world/Embankment";
 import { Marina } from "./world/Marina";
+import { GlbHarborDressing, GlbStreetDressing } from "./world/GlbStreetDressing";
 import { Gulls } from "./world/Gulls";
 import { SkidMarks } from "./world/SkidMarks";
 import { Rain } from "./world/Rain";
@@ -307,6 +308,8 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
           so one flip restores it. Parked cars, crosswalks, utility poles,
           traffic signals and the overlay are NOT dressing and stay on. */}
       {DRESSING_ENABLED && slice && <Props roads={slice.roads} center={world} />}
+      {/* Real pack011 + Kenney GLBs on sidewalks (capped); Props keep density. */}
+      {DRESSING_ENABLED && slice && <GlbStreetDressing roads={slice.roads} center={world} />}
       {DRESSING_ENABLED && slice && <HighMasts roads={slice.roads} center={world} />}
       {DRESSING_ENABLED && slice && <Awnings roads={slice.roads} center={world} buildings={gisBuildings} />}
       {slice && <Crosswalks roads={slice.roads} center={world} />}
@@ -323,6 +326,18 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       {DRESSING_ENABLED && slice && <Billboards roads={slice.roads} center={world} />}
       {DRESSING_ENABLED && slice && <Dumpsters roads={slice.roads} center={world} />}
       </CullByDistance>
+      {isNB && (
+        <GlbHarborDressing
+          points={[
+            { x: -180, z: 40, yaw: 0.4, kind: "boat" },
+            { x: -210, z: 55, yaw: -0.6, kind: "sail" },
+            { x: -150, z: 70, yaw: 1.1, kind: "boat" },
+            { x: -240, z: 30, yaw: 0.2, kind: "buoy" },
+            { x: -260, z: 90, yaw: 0.9, kind: "container" },
+            { x: -120, z: 100, yaw: -0.3, kind: "sail" },
+          ]}
+        />
+      )}
       {/* Full-game plan item 2: mall-hub parked cars. Mounted OUTSIDE the
           cull block above on purpose — the mall is far beyond its 820 m
           radius, so inside it these cars would never render. reportCount

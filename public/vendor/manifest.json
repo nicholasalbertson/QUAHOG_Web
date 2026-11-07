@@ -1,0 +1,33 @@
+{
+  "kind": "cc0-vendor-packs",
+  "updatedAt": "2026-11-07",
+  "kenney": {
+    "license": "CC0-1.0",
+    "attribution": "Kenney.nl — CC0",
+    "packs": [
+      "3d-road-tiles",
+      "brick-kit",
+      "building-kit",
+      "car-kit",
+      "castle-kit",
+      "city-kit-commercial",
+      "city-kit-industrial",
+      "city-kit-roads",
+      "city-kit-suburban",
+      "food-kit",
+      "furniture-kit",
+      "graveyard-kit",
+      "holiday-kit",
+      "modular-buildings",
+      "nature-kit",
+      "train-kit",
+      "watercraft-kit"
+    ],
+    "fileCount": 2214
+  },
+  "polyhaven": {
+    "license": "CC0-1.0",
+    "attribution": "Poly Haven — CC0",
+    "fileCount": 154
+  }
+}

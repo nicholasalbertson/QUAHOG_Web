@@ -29,10 +29,10 @@ const road = (
 ): Road => ({ highway, name, points, width, bridge });
 
 describe("minimalist dressing switch", () => {
-  it("is OFF — dressing mounts render nothing until Nic flips it", () => {
+  it("is ON — pack011 + Kenney/Poly Haven CC0 dressing restored", () => {
     // Deliberately asserted: flipping this switch is a decision, not an
     // accident, so the test must be updated in the same change.
-    expect(DRESSING_ENABLED).toBe(false);
+    expect(DRESSING_ENABLED).toBe(true);
   });
 });
 

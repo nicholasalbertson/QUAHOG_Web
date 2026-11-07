@@ -19,4 +19,6 @@
 // ALWAYS ON: roads, buildings (GIS + tiles), water, vehicles
 // (player/traffic/parked), mission elements, car headlights, crosswalks,
 // utility-pole visuals, traffic signals, and the debug overlay.
-export const DRESSING_ENABLED = false;
+// Re-enabled 2026-11-07 with pack011 + Kenney/Poly Haven CC0 vendor packs
+// so street trees/furniture/signs are real GLBs instead of empty sidewalks.
+export const DRESSING_ENABLED = true;

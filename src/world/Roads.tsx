@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
-import { makeAsphaltTexture, makeCobbleTexture, makeDirtTexture, makeNoiseNormal, makeSidewalkTexture, makeFreewayTexture } from "./textures";
+import { makeDirtTexture, makeNoiseNormal, makeSidewalkTexture, makeFreewayTexture } from "./textures";
 import { useGame } from "../store";
 import { winterRoadTexture } from "./districtMaterials";
 import { productionRoadMaps } from "./productionRoadMaps";
 import type { Road } from "../slice";
 import { buildFreewayCorridor, freewayDividers, trimRoadAtFreeway } from "./freeway";
 import { classifyRoadSurface } from "./roadSurface";
+import { vendorAsphaltTexture, vendorCobbleTexture } from "./vendorTextures";
 
 const CELL = 1000;       // road chunk size (m)
 const DRAW_DIST = 1500;  // hide road chunks beyond this from the camera
@@ -142,7 +143,7 @@ export function buildSidewalks(roads: Road[], top: number, inner: number, width:
 export function Roads({ roads }: { roads: Road[] }) {
   const snowy = useGame((s) => s.weather === "snow");
   const snowRoad = useMemo(() => winterRoadTexture(), []);
-  const surfaceTex = useMemo(() => makeAsphaltTexture(false), []);
+  const surfaceTex = useMemo(() => vendorAsphaltTexture(false), []);
   // Map-data upgrade (2026-11-03): one freeway texture per divider count.
   // Records with no lane data use the legacy 2-divider texture, so gaps
   // stay visually unchanged. Textures are shared across chunks.
@@ -150,7 +151,7 @@ export function Roads({ roads }: { roads: Road[] }) {
     [0, 1, 2, 3].map((d) => [d, makeFreewayTexture(d)] as const),
   ), []);
   const cobbleTex = useMemo(() => {
-    const t = makeCobbleTexture();
+    const t = vendorCobbleTexture();
     t.repeat.set(1, 0.5); // bigger cobbles along length
     return t;
   }, []);
