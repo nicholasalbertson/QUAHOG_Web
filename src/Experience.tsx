@@ -5,9 +5,10 @@ import { Physics } from "@react-three/rapier";
 import { loadSlice, type Building, type Landmark, type Slice } from "./slice";
 import { prepareRoads } from "./world/roadPrep";
 import { DISTRICTS, worldCenter } from "./districts";
-import { DRESSING_ENABLED } from "./world/dressing";
+import { dressingDensityScale, dressingEnabledForQuality } from "./world/dressing";
 import { ensureGisBuildings } from "./world/gisDistrict";
 import { useGame } from "./store";
+import { POLICE_ENABLED, Police } from "./world/Police";
 import { AerialGround } from "./world/AerialGround";
 import { Roads } from "./world/Roads";
 import { MedianBarriers } from "./world/MedianBarriers";
@@ -89,6 +90,12 @@ import { Player } from "./actors/Player";
 import { Car } from "./actors/Car";
 import { Boat } from "./actors/Boat";
 import { FollowCamera } from "./actors/FollowCamera";
+import { HeatResponse } from "./world/HeatResponse";
+import { DistrictSeam } from "./world/DistrictSeam";
+import { CorridorGuide } from "./world/CorridorGuide";
+import { LoseHeatZone } from "./world/LoseHeatZone";
+import { NightLights } from "./world/NightLights";
+import { BethelDialogue } from "./world/BethelDialogue";
 
 // Post-processing, toggleable from settings (§26).
 function FxGate() {
@@ -158,6 +165,9 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
   const [gisBuildings, setGisBuildings] = useState<Building[]>([]);
   const paused = useGame((s) => s.paused);
   const gameId = useGame((s) => s.gameId); // remount per-game props (collectibles) on New Game
+  const quality = useGame((s) => s.quality);
+  const dressingOn = dressingEnabledForQuality(quality);
+  const dens = dressingDensityScale(quality);
 
   useEffect(() => {
     let alive = true;
@@ -213,6 +223,12 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       <GameSystems />
       <SimBootstrap />
       <MissionRunner />
+      <BethelDialogue />
+      <HeatResponse />
+      <LoseHeatZone />
+      <DistrictSeam />
+      <CorridorGuide />
+      <NightLights />
       <ObjectiveBeacon />
       <RenderDiagnostics />
       <Consequence />
@@ -287,33 +303,29 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       {isNB && slice && slice.water?.length > 0 && (
         <Waterfront polys={slice.water} center={world} />
       )}
-      {DRESSING_ENABLED && isNB && slice && slice.water?.length > 0 && (
+      {dressingOn && isNB && slice && slice.water?.length > 0 && (
         <PortClutter polys={slice.water} center={world} />
       )}
       <Marina />
       <Gulls />
       <CullByDistance center={center} radius={820}>
-      {/* Minimalist directive (2026-11-03): the dressing layer is gated by
-          the single DRESSING_ENABLED switch (world/dressing.ts, default
-          OFF). Each mount below renders nothing while off; the code stays
-          so one flip restores it. Parked cars, crosswalks, utility poles,
-          traffic signals and the overlay are NOT dressing and stay on. */}
-      {DRESSING_ENABLED && slice && <Props roads={slice.roads} center={world} />}
-      {DRESSING_ENABLED && slice && <HighMasts roads={slice.roads} center={world} />}
-      {DRESSING_ENABLED && slice && <Awnings roads={slice.roads} center={world} buildings={gisBuildings} />}
+      {/* Dressing returns on quality ≥ Medium with density budgets. */}
+      {dressingOn && slice && <Props roads={slice.roads} center={world} densityScale={dens} />}
+      {dressingOn && slice && <HighMasts roads={slice.roads} center={world} />}
+      {dressingOn && slice && <Awnings roads={slice.roads} center={world} buildings={gisBuildings} />}
       {slice && <Crosswalks roads={slice.roads} center={world} />}
       {slice && <UtilityPoles roads={slice.roads} center={world} />}
       {slice && <Decals roads={slice.roads} center={world} />}
       {slice && <Graffiti roads={slice.roads} buildings={slice.buildings} center={world} />}
-      {DRESSING_ENABLED && slice && <StreetSigns roads={slice.roads} center={world} />}
+      {dressingOn && slice && <StreetSigns roads={slice.roads} center={world} />}
       {slice && <TrafficLights roads={slice.roads} center={world} />}
       {slice && <ParkedCars roads={slice.roads} center={world} />}
-      {DRESSING_ENABLED && slice && <StreetExtras roads={slice.roads} center={world} />}
-      {DRESSING_ENABLED && slice && <RoadFixtures roads={slice.roads} center={world} />}
-      {DRESSING_ENABLED && slice && <Foliage roads={slice.roads} center={world} />}
-      {DRESSING_ENABLED && slice && <Fences roads={slice.roads} center={world} />}
-      {DRESSING_ENABLED && slice && <Billboards roads={slice.roads} center={world} />}
-      {DRESSING_ENABLED && slice && <Dumpsters roads={slice.roads} center={world} />}
+      {dressingOn && slice && <StreetExtras roads={slice.roads} center={world} />}
+      {dressingOn && slice && <RoadFixtures roads={slice.roads} center={world} />}
+      {dressingOn && slice && <Foliage roads={slice.roads} center={world} />}
+      {dressingOn && slice && <Fences roads={slice.roads} center={world} />}
+      {dressingOn && slice && <Billboards roads={slice.roads} center={world} />}
+      {dressingOn && slice && <Dumpsters roads={slice.roads} center={world} />}
       </CullByDistance>
       {/* Full-game plan item 2: mall-hub parked cars. Mounted OUTSIDE the
           cull block above on purpose — the mall is far beyond its 820 m
@@ -344,7 +356,7 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       <HealthPickups />
       <Race />
       <Posters />
-      {/* <Police /> removed 2026-11-02 per Nic (see POLICE_ENABLED in world/Police.tsx) */}
+      {POLICE_ENABLED && <Police />}
       <Tracers />
       <Impacts />
       <SkidMarks />

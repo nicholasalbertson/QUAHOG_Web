@@ -54,7 +54,7 @@ export class SpatialAudio {
     x: number,
     y: number,
     z: number,
-    opts: { duration?: number; freq?: number; gain?: number } = {},
+    opts: { duration?: number; freq?: number; gain?: number; muffled?: boolean } = {},
   ): boolean {
     const ctx = this.ensure();
     if (!ctx) return false;
@@ -74,7 +74,9 @@ export class SpatialAudio {
     } else {
       (panner as PannerNode & { setPosition?: (x: number, y: number, z: number) => void }).setPosition?.(x, y, z);
     }
-    osc.frequency.value = opts.freq ?? 440;
+    // Spatial occlusion stub: muffled halves the carrier frequency.
+    const baseFreq = opts.freq ?? 440;
+    osc.frequency.value = opts.muffled ? baseFreq * 0.5 : baseFreq;
     gain.gain.value = opts.gain ?? 0.15;
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
     osc.connect(gain);

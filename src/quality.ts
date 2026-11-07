@@ -4,6 +4,7 @@ export type Quality = 0 | 1 | 2;
 
 export const QUALITY_LABELS = ["Low", "Medium", "High"] as const;
 
+/** Tile ring radius. Quality 0 is slightly reduced (LOD stub). */
 export function viewRadius(q: Quality): number {
   return [2, 3, 4][q];
 }

@@ -27,6 +27,11 @@ import { DebugCapture } from "./debug/DebugCapture";
 import { PerfProbe } from "./ui/PerfProbe";
 import { AssetLoadNotice } from "./assets/AssetLoadNotice";
 import { StartMenu } from "./ui/StartMenu";
+import { MissionFailOverlay } from "./ui/MissionFailOverlay";
+import { WeaponWheel } from "./ui/WeaponWheel";
+import { SoakBadge } from "./ui/SoakBadge";
+import { SaveRecovery } from "./ui/SaveRecovery";
+import { ActiveDialogue } from "./ui/DialogueBox";
 import { Radio } from "./audio/Radio";
 import { installInput } from "./input";
 import { useGame } from "./store";
@@ -101,6 +106,11 @@ export default function App() {
       <TouchControls />
       <Toasts />
       <Radio />
+      <WeaponWheel />
+      <MissionFailOverlay />
+      <SaveRecovery />
+      <ActiveDialogue />
+      <SoakBadge />
       <DebugStats />
       <DebugOverlay />
       <AssetLoadNotice />

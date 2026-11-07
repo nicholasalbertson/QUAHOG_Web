@@ -11,6 +11,8 @@ export interface MissionStep {
   needCar?: boolean; // also requires being in a vehicle
   noHeat?: boolean;  // also requires police heat cleared (lose the cops first)
   reward?: number;   // cash on completing this step
+  /** Optional fail deadline (seconds on this step). Exceeded → mission.fail. */
+  timedFailSec?: number;
 }
 interface Mission { title: string; steps: MissionStep[] }
 
@@ -50,7 +52,7 @@ export const MISSIONS: Mission[] = [
     title: "Harbor Heat",
     steps: [
       { text: "Hit Sully's count house — grab a fast car", needCar: true },
-      { text: "Lose the cops, then go to ground at the safehouse", target: [-188, 0, 40], radius: 12, noHeat: true, reward: 1200 },
+      { text: "Lose the cops, then go to ground at the safehouse", target: [-188, 0, 40], radius: 12, noHeat: true, reward: 1200, timedFailSec: 180 },
     ],
   },
   // --- Act II — Spindle City (Fall River) ---------------------------------
@@ -120,9 +122,16 @@ interface MissionState {
   steps: MissionStep[];
   step: number;
   done: boolean;
+  failed: boolean;
+  failReason: string | null;
+  /** Checkpoint step index captured at mission start / last advance. */
+  checkpoint: number;
   title: string;
   objective: string;
   advance: () => void;
+  fail: (reason: string) => void;
+  retry: () => void;
+  abandon: () => void;
   reset: () => void;
 }
 
@@ -131,20 +140,95 @@ export const useMission = create<MissionState>((set, get) => ({
   steps: MISSIONS[0].steps,
   step: 0,
   done: false,
+  failed: false,
+  failReason: null,
+  checkpoint: 0,
   title: MISSIONS[0].title,
   objective: MISSIONS[0].steps[0].text,
   advance: () => {
-    const { mi, step, steps, done } = get();
-    if (done) return; // campaign already finished — don't run past the end
+    const { mi, step, steps, done, failed } = get();
+    if (done || failed) return;
     const next = step + 1;
-    if (next < steps.length) { set({ step: next, objective: steps[next].text }); return; }
-    // mission finished — chain to the next, or end the campaign
+    if (next < steps.length) {
+      set({ step: next, checkpoint: next, objective: steps[next].text });
+      return;
+    }
     const nm = mi + 1;
     if (nm < MISSIONS.length) {
-      set({ mi: nm, steps: MISSIONS[nm].steps, step: 0, title: MISSIONS[nm].title, objective: MISSIONS[nm].steps[0].text });
+      set({
+        mi: nm,
+        steps: MISSIONS[nm].steps,
+        step: 0,
+        checkpoint: 0,
+        failed: false,
+        failReason: null,
+        title: MISSIONS[nm].title,
+        objective: MISSIONS[nm].steps[0].text,
+      });
     } else {
       set({ step: next, done: true, objective: "Campaign complete — the Narrows is yours." });
     }
   },
-  reset: () => set({ mi: 0, steps: MISSIONS[0].steps, step: 0, done: false, title: MISSIONS[0].title, objective: MISSIONS[0].steps[0].text }),
+  fail: (reason) => {
+    const { done, failed } = get();
+    if (done || failed) return;
+    set({ failed: true, failReason: reason });
+  },
+  retry: () => {
+    const { mi, checkpoint, failed } = get();
+    if (!failed) return;
+    const m = MISSIONS[mi];
+    const step = Math.max(0, Math.min(checkpoint, m.steps.length - 1));
+    set({
+      failed: false,
+      failReason: null,
+      steps: m.steps,
+      step,
+      checkpoint: step,
+      title: m.title,
+      objective: m.steps[step].text,
+      done: false,
+    });
+  },
+  abandon: () => {
+    const { mi, failed } = get();
+    if (!failed && !get().done) {
+      /* allow abandon from fail overlay only */
+    }
+    if (!failed) return;
+    const nm = Math.min(mi + 1, MISSIONS.length - 1);
+    // Skip the failed mission — advance campaign without reward.
+    if (mi + 1 < MISSIONS.length) {
+      set({
+        mi: nm,
+        steps: MISSIONS[nm].steps,
+        step: 0,
+        checkpoint: 0,
+        failed: false,
+        failReason: null,
+        done: false,
+        title: MISSIONS[nm].title,
+        objective: MISSIONS[nm].steps[0].text,
+      });
+    } else {
+      set({
+        failed: false,
+        failReason: null,
+        done: true,
+        objective: "Campaign complete — the Narrows is yours.",
+      });
+    }
+  },
+  reset: () =>
+    set({
+      mi: 0,
+      steps: MISSIONS[0].steps,
+      step: 0,
+      checkpoint: 0,
+      done: false,
+      failed: false,
+      failReason: null,
+      title: MISSIONS[0].title,
+      objective: MISSIONS[0].steps[0].text,
+    }),
 }));

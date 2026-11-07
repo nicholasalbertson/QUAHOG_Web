@@ -24,8 +24,12 @@ import type { Building } from "../slice";
 // memory/draw stays bounded as the map grows to the whole South Coast. The
 // player's own tile + neighbours (COLLIDE_R) get a static collider. Falls back
 // to the monolithic <Buildings> if the manifest isn't present.
+//
+// LOD fade stub: residency is already distance-based via viewRadius(quality).
+// Quality 0 uses a smaller ring (viewRadius → 2 vs default VIEW_R=3) so far
+// tiles never mount — cheap LOD without a separate fade pass.
 
-const VIEW_R = 3;     // tiles loaded around the player (each TILE metres)
+const VIEW_R = 3;     // reference default; live load uses viewRadius(quality)
 const COLLIDE_R = 1;  // tiles that get physics colliders
 const WINDOW_GLOW = new THREE.Color("#ffcf8a");
 // New Bedford palette: brick reds, painted clapboard, weathered wood (short

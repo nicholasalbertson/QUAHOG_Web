@@ -7,6 +7,10 @@ import { useGame, useToasts } from "../store";
 import { useStats } from "../game";
 import { useRace, RACE_START, CHECKPOINTS } from "../race";
 import { sfx } from "../audio/sfx";
+import { SAVE_KEYS } from "../registries";
+import { loadJSON, saveJSON } from "../storage";
+
+const RACE_ID = "nb-waterfront";
 
 // Renders the race start pad + the active checkpoint, and drives the race loop.
 export function Race() {
@@ -39,11 +43,22 @@ export function Race() {
     r.tick(dt);
     const cp = CHECKPOINTS[r.idx];
     if (Math.hypot(t.x - cp[0], t.z - cp[1]) < 9) {
+      const finishTime = r.time;
       const reward = r.hit();
       if (reward != null) {
         useStats.getState().addCash(reward);
         sfx.cash();
-        useToasts.getState().push(`Race won! ${useRace.getState().time.toFixed(1)}s · +$${reward}`, "#7CFC00");
+        useToasts.getState().push(`Race won! ${finishTime.toFixed(1)}s · +$${reward}`, "#7CFC00");
+        // Persist + toast personal best from SAVE_KEYS.raceBests.
+        const bests = loadJSON<Record<string, number>>(SAVE_KEYS.raceBests, {});
+        const prev = bests[RACE_ID];
+        if (prev == null || finishTime < prev) {
+          bests[RACE_ID] = finishTime;
+          saveJSON(SAVE_KEYS.raceBests, bests);
+          useToasts.getState().push(`New best! ${finishTime.toFixed(1)}s`, "#7CFC00");
+        } else {
+          useToasts.getState().push(`Best: ${prev.toFixed(1)}s`, "#ffcf4a");
+        }
       } else { sfx.ui(); }
     }
   });

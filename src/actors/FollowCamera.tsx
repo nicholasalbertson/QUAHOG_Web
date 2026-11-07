@@ -55,7 +55,7 @@ export function FollowCamera() {
     // decaying camera shake (§23): one-shot impulses only (melee, crashes) so
     // ordinary driving stays perfectly smooth.
     shared.shake = Math.max(0, shared.shake - dt * 2.4);
-    const shakeAmt = game.reduceShake ? 0 : shared.shake;
+    const shakeAmt = game.reduceShake || game.reducedMotion ? 0 : shared.shake;
 
     const tp = target.translation();
     const heading = mode === "car" ? shared.carYaw : mode === "boat" ? shared.boatYaw : shared.heading;

@@ -7,6 +7,7 @@ import { shared } from "../shared";
 import { useGame } from "../store";
 import { sfx } from "../audio/sfx";
 import { BOAT_SPAWN } from "../economy";
+import { sim } from "../sim";
 
 // Pilotable harbor boat (§6). Floats on the ground plane that underlies the
 // water (so it rides at ~sea level), exempt from the water barrier. Heavier and
@@ -19,13 +20,23 @@ const EXIT: [number, number, number] = [6092, 2, 4485]; // the marina dock
 export function Boat() {
   const body = useRef<RapierRigidBody>(null);
   const wake = useRef<THREE.Mesh>(null);
+  const pendingDt = useRef(0);
 
   useEffect(() => {
     shared.boat = body.current;
     return () => { shared.boat = null; };
   }, []);
 
-  useFrame((_, dt) => {
+  useEffect(() => {
+    return sim.loop.on("step", (dt) => {
+      pendingDt.current += dt;
+    });
+  }, []);
+
+  useFrame(() => {
+    const dt = pendingDt.current;
+    pendingDt.current = 0;
+    if (dt <= 0) return;
     const rb = body.current;
     if (!rb) return;
     const game = useGame.getState();
@@ -44,13 +55,16 @@ export function Boat() {
     const grip = THREE.MathUtils.clamp(Math.abs(vF) / 4, 0, 1);
     yaw -= ax.x * 1.1 * dt * grip * (vF < -0.1 ? -1 : 1);
 
-    const target = ax.y > 0 ? MAX_SPEED * ax.y : ax.y < 0 ? -6 * -ax.y : 0;
+    // Wet/weather friction lightly caps top speed (ClockWeather water surface).
+    const friction = sim.clock.friction("water");
+    const maxSpd = MAX_SPEED * (0.85 + 0.15 * Math.min(1, friction / 0.2));
+    const target = ax.y > 0 ? maxSpd * ax.y : ax.y < 0 ? -6 * -ax.y : 0;
     const nf = THREE.MathUtils.lerp(vF, target, 1 - Math.exp(-dt * 0.9)); // heavy inertia
     const nfwd = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
     rb.setLinvel({ x: nfwd.x * nf, y: v.y, z: nfwd.z * nf }, true);
     rb.setRotation({ x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) }, true);
     shared.boatYaw = yaw;
-    sfx.engine(Math.min(1, Math.abs(nf) / MAX_SPEED) * 0.7, true);
+    sfx.engine(Math.min(1, Math.abs(nf) / maxSpd) * 0.7, true);
 
     if (wake.current) {
       wake.current.visible = Math.abs(nf) > 2;

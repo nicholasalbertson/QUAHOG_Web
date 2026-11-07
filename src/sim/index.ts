@@ -40,6 +40,9 @@ export {
   clearAllSaves,
   validateSave,
   collectLegacySave,
+  isCorrupt,
+  recoverFromTmp,
+  hasRecoverableTmp,
   SCHEMA_VERSION,
 } from "./SaveGame";
 export { runAllStages, allStagesGreen } from "./AcceptanceHarness";
@@ -50,6 +53,8 @@ export { stepVehicleDynamics, forwardFromYaw, MOBILE_TUNING } from "./VehicleDyn
 export { streamPreset } from "./mobilePresets";
 export { TrafficDirector } from "./TrafficDirector";
 export type { TrafficAgent } from "./TrafficDirector";
+export { SignalFsm, makeSignalBank } from "./SignalFsm";
+export type { SignalPhase, SignalTiming } from "./SignalFsm";
 export { PedestrianAI } from "./PedestrianAI";
 export type { PedAgent } from "./PedestrianAI";
 export { ChaseController } from "./ChaseController";
@@ -62,5 +67,8 @@ export {
   soakActive,
   tickSoak,
   soakSnapshot,
+  persistSummary,
+  readSoakSummary,
+  SOAK_STORAGE_KEY,
 } from "./SoakHarness";
-export type { SoakSample, SoakState } from "./SoakHarness";
+export type { SoakSample, SoakState, SoakSummary } from "./SoakHarness";

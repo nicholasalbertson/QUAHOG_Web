@@ -251,13 +251,16 @@ function Pedestrians({ center, count }: { center: [number, number]; count: numbe
                 : headgear[i],
             skin: pick(PED_SKINS),
           },
-          down: 0, dead: false,
+          down: 0, dead: false, deadAge: 0,
           vel: new THREE.Vector3(), y: 0, tumble: 0, // ragdoll launch state
           body: { pos: pos.clone(), push: new THREE.Vector3(), hit: 0 } as Body,
         };
       });
     })(),
   );
+
+  const CORPSE_TTL = 45;
+  const CORPSE_CAP = 8;
 
   // register pedestrian bodies so the player's punch can find them
   useEffect(() => {
@@ -338,6 +341,44 @@ function Pedestrians({ center, count }: { center: [number, number]; count: numbe
   useFrame((_, dt) => {
     if (useGame.getState().paused) return;
     const step = Math.min(dt, 0.05);
+
+    // Corpse TTL stub: despawn after 45s; hard-cap 8 corpses (oldest first).
+    const corpses = state.current
+      .map((p, i) => ({ p, i }))
+      .filter(({ p }) => p.dead)
+      .sort((a, b) => b.p.deadAge - a.p.deadAge);
+    const overCap = Math.max(0, corpses.length - CORPSE_CAP);
+    for (let k = 0; k < corpses.length; k++) {
+      const { p, i } = corpses[k];
+      p.deadAge += step;
+      if (p.deadAge >= CORPSE_TTL || k < overCap) {
+        const pos = randInBox(center);
+        p.dead = false;
+        p.down = 0;
+        p.deadAge = 0;
+        p.y = 0;
+        p.tumble = 0;
+        p.vel.set(0, 0, 0);
+        p.pos.copy(pos);
+        p.goal.copy(randInBox(center));
+        p.body.hit = 0;
+        p.body.push.set(0, 0, 0);
+        p.body.pos.copy(pos);
+        const g = refs.current[i];
+        if (g) {
+          g.visible = true;
+          g.position.copy(pos);
+          g.rotation.set(0, p.heading, 0);
+        }
+        if (agents.current[i]) {
+          agents.current[i].dead = false;
+          agents.current[i].down = 0;
+          agents.current[i].x = pos.x;
+          agents.current[i].z = pos.z;
+        }
+      }
+    }
+
     state.current.forEach((p, i) => {
       const g = refs.current[i];
       if (!g) return;
@@ -539,13 +580,14 @@ function Traffic({ routes, count }: { routes: Route[]; count: number }) {
         return;
       }
 
-      // yield: pause if the player (car/on foot) is right in front of us
+      // Soft-brake / yield near the player car (collision stub). Full stop
+      // inside 7 m; TrafficDirector mirrors a softer 5–12 m curve for sim agents.
       const pb = (shared.car && shared.car.isEnabled?.() === false ? shared.player : shared.car) ?? shared.player;
       const pt = pb?.translation();
       if (pt && Math.hypot(pt.x - c.pos.x, pt.z - c.pos.z) < 7) { c.braking = true; c.speed = 0; g.position.copy(c.pos); g.rotation.y = c.heading; return; }
 
-      // obey red signals: stop if a red stop-line is just ahead and aligned with
-      // our travel direction (§14). Cross-street cars (≈90°) ignore it.
+      // Traffic-light yield: TrafficLights publishes stopZones; hold on red/amber.
+      // (SignalFsm is the pure timing twin for later sim-only StreetLife.)
       if (redAhead(c.pos, c.heading)) { c.braking = true; c.speed = 0; g.position.copy(c.pos); g.rotation.y = c.heading; return; }
       c.braking = false;
 

@@ -45,6 +45,7 @@ export function PauseMenu() {
   const shadows = useGame((s) => s.shadows);
   const fov = useGame((s) => s.fov);
   const reduceShake = useGame((s) => s.reduceShake);
+  const reducedMotion = useGame((s) => s.reducedMotion);
   const quality = useGame((s) => s.quality);
   const cash = useStats((s) => s.cash);
   const health = useStats((s) => s.health);
@@ -54,9 +55,16 @@ export function PauseMenu() {
   const owned = useEconomy((s) => s.owned);
   const mTitle = useMission((s) => s.title);
   const mDone = useMission((s) => s.done);
-  const [vol, setVol] = useState(0.5);
+  const [masterVol, setMasterVol] = useState(0.5);
+  const [sfxVol, setSfxVol] = useState(0.5);
+  const [radioVol, setRadioVol] = useState(0.5);
   const [showCredits, setShowCredits] = useState(false);
   const [showStats, setShowStats] = useState(false);
+
+  const applyAudioBus = (master: number, sfxV: number, radioV: number) => {
+    sfx.setVolume(master * sfxV);
+    radio.setVolume(master * radioV);
+  };
   if (!paused) return null;
   const wlabel = weather === "snow" ? "Snow" : weather === "rain" ? "Rain" : weather === "fog" ? "Fog" : "Clear";
 
@@ -102,14 +110,42 @@ export function PauseMenu() {
         <button style={btn} onClick={() => useGame.getState().cycleQuality()}>
           Graphics: {QUALITY_LABELS[quality]}
         </button>
-        <button style={btn} onClick={() => useGame.getState().toggleReduceShake()}>
-          Camera shake: {reduceShake ? "Off" : "On"}
+        <button style={btn} onClick={() => useGame.getState().toggleReducedMotion()}>
+          Reduced motion: {reducedMotion || reduceShake ? "On" : "Off"}
         </button>
         <div style={{ margin: "8px 0", textAlign: "left", color: "#cfc8e6", fontFamily: "'Courier New', monospace", fontSize: 12 }}>
-          Sound volume
+          Master volume
           <input
-            type="range" min={0} max={1} step={0.05} value={vol}
-            onChange={(e) => { const v = parseFloat(e.target.value); setVol(v); sfx.setVolume(v); radio.setVolume(v); }}
+            type="range" min={0} max={1} step={0.05} value={masterVol}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value);
+              setMasterVol(v);
+              applyAudioBus(v, sfxVol, radioVol);
+            }}
+            style={{ width: "100%", marginTop: 4 }}
+          />
+        </div>
+        <div style={{ margin: "8px 0", textAlign: "left", color: "#cfc8e6", fontFamily: "'Courier New', monospace", fontSize: 12 }}>
+          SFX volume
+          <input
+            type="range" min={0} max={1} step={0.05} value={sfxVol}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value);
+              setSfxVol(v);
+              applyAudioBus(masterVol, v, radioVol);
+            }}
+            style={{ width: "100%", marginTop: 4 }}
+          />
+        </div>
+        <div style={{ margin: "8px 0", textAlign: "left", color: "#cfc8e6", fontFamily: "'Courier New', monospace", fontSize: 12 }}>
+          Radio volume
+          <input
+            type="range" min={0} max={1} step={0.05} value={radioVol}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value);
+              setRadioVol(v);
+              applyAudioBus(masterVol, sfxVol, v);
+            }}
             style={{ width: "100%", marginTop: 4 }}
           />
         </div>

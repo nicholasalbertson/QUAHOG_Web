@@ -63,6 +63,7 @@ class SimRuntime {
     const roads = slice.roads as Road[];
     this.graph = RoadGraph.fromRoads(roads);
     this.pedGraph = PedGraph.fromRoads(roads);
+    this.pedGraph.addDoorNodes(slice.landmarks ?? []);
     this.nav.setGraph(this.graph);
     this.manifest = manifestFromSlice(slice);
     const v = validateManifest(this.manifest);
@@ -130,6 +131,11 @@ class SimRuntime {
     raycast?: (from: Vec3, to: Vec3) => Vec3 | null,
   ) {
     return this.camera.update(dt, follow, heading, mode, speed, baseFov, shake, raycast);
+  }
+
+  /** Opaque multi-stream RNG digest for replay / acceptance asserts. */
+  rngDigest(): string {
+    return this.rng.digest();
   }
 }
 

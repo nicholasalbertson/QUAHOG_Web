@@ -60,6 +60,8 @@ interface GameState {
   shadows: boolean;
   fov: number;
   reduceShake: boolean;
+  /** Accessibility: skip camera shake / reduce motion. */
+  reducedMotion: boolean;
   quality: Quality;
   photo: boolean;
   scrimshaw: number; // collectibles found (for the HUD counter)
@@ -94,6 +96,7 @@ interface GameState {
   toggleShadows: () => void;
   setFov: (n: number) => void;
   toggleReduceShake: () => void;
+  toggleReducedMotion: () => void;
   cycleQuality: () => void;
   setQuality: (q: Quality) => void;
   togglePhoto: () => void;
@@ -140,6 +143,7 @@ export const useGame = create<GameState>((set) => ({
   shadows: !isMobileDevice(),
   fov: 60,
   reduceShake: false,
+  reducedMotion: false,
   quality: isMobileDevice() ? 0 : 1,
   photo: false,
   scrimshaw: 0,
@@ -181,6 +185,12 @@ export const useGame = create<GameState>((set) => ({
   toggleShadows: () => set((s) => ({ shadows: !s.shadows })),
   setFov: (fov) => set({ fov: Math.max(45, Math.min(85, fov)) }),
   toggleReduceShake: () => set((s) => ({ reduceShake: !s.reduceShake })),
+  toggleReducedMotion: () =>
+    set((s) => {
+      const reducedMotion = !s.reducedMotion;
+      // Keep legacy reduceShake in sync so FollowCamera / saves stay consistent.
+      return { reducedMotion, reduceShake: reducedMotion };
+    }),
   cycleQuality: () => set((s) => ({ quality: ((s.quality + 1) % 3) as Quality })),
   setQuality: (quality) => set({ quality: Number.isInteger(quality) ? Math.max(0, Math.min(2, quality)) as Quality : 0 }),
   togglePhoto: () => set((s) => ({ photo: !s.photo })),

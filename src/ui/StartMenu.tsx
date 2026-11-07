@@ -5,8 +5,9 @@ import { useMission } from "../mission";
 import { useEconomy } from "../economy";
 import { useInventory } from "../inventory";
 import { sfx } from "../audio/sfx";
-import { canContinue, clearAllSaves } from "../sim/SaveGame";
+import { canContinue, clearAllSaves, hasRecoverableTmp } from "../sim/SaveGame";
 import { worldJournal } from "../world/worldJournal";
+import { useToasts } from "../store";
 
 // Title / start screen (§22). Shown over the loading world until the player
 // presses Play; doubles as the first user gesture that unlocks audio.
@@ -21,16 +22,35 @@ const TIPS = [
   "FPS soak: open with ?debug&soak=1&perf=1 and drive the NB ring 30 min.",
 ];
 
+const TUTORIAL_KEY = "mounthope.tutorial.v1";
+
+function pushFirstRunTips() {
+  try {
+    if (typeof localStorage !== "undefined" && localStorage.getItem(TUTORIAL_KEY)) return;
+    localStorage?.setItem(TUTORIAL_KEY, "1");
+  } catch { /* private mode */ }
+  const push = useToasts.getState().push;
+  // Stagger so the toast stack is readable.
+  push("Move: WASD · Sprint: Shift", "#ffcf4a");
+  setTimeout(() => push("Drive: E to enter a car · Space handbrake", "#ffcf4a"), 900);
+  setTimeout(() => push("Mission: follow the gold marker — check the HUD", "#ffcf4a"), 1800);
+}
+
 export function StartMenu({ sliceName, progress = 0 }: { sliceName: string; progress?: number }) {
   const started = useGame((s) => s.started);
   const [tip] = useState(() => TIPS[Math.floor(Math.random() * TIPS.length)]);
   const [gate] = useState(() => canContinue());
+  const [canRecover] = useState(() => hasRecoverableTmp());
   const save = gate.ok;
   const loaded = sliceName !== "loading…";
   if (started) return null;
   const pct = Math.round(progress * 100);
 
-  const play = () => { sfx.setVolume(0.5); useGame.getState().setStarted(true); };
+  const play = () => {
+    sfx.setVolume(0.5);
+    useGame.getState().setStarted(true);
+    pushFirstRunTips();
+  };
   const newGame = () => {
     clearAllSaves();
     useStats.getState().reset();
@@ -39,6 +59,7 @@ export function StartMenu({ sliceName, progress = 0 }: { sliceName: string; prog
     useInventory.getState().reset();
     worldJournal.reset(); // a new life has its own event history
     useGame.getState().resetSession(); // clear bat/photo/waypoint/scrimshaw & remount per-game props
+    try { localStorage?.removeItem(TUTORIAL_KEY); } catch { /* ignore */ }
     play();
   };
 
@@ -67,6 +88,12 @@ export function StartMenu({ sliceName, progress = 0 }: { sliceName: string; prog
       {!save && gate.reason && (
         <div style={{ marginTop: 10, fontSize: 11, opacity: 0.45, fontFamily: "'Courier New', monospace" }}>
           Continue unavailable — {gate.reason}
+        </div>
+      )}
+
+      {canRecover && (
+        <div style={{ marginTop: 10, fontSize: 12, color: "#ffb0b8", maxWidth: 420 }}>
+          A backup save was found after an interrupted write — use the recovery banner below to restore.
         </div>
       )}
 

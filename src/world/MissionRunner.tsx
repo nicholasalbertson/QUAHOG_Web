@@ -16,8 +16,11 @@ export function MissionRunner() {
   const step = useMission((s) => (s.done ? null : s.steps[s.step]));
   const camera=useThree(s=>s.camera);
   const ring=useRef<THREE.Mesh>(null),beam=useRef<THREE.Mesh>(null);
+  /** Tracks (mi, step) so timedFailSec resets when the objective advances. */
+  const stepKey = useRef("");
+  const stepElapsed = useRef(0);
 
-  useFrame(() => {
+  useFrame((_, dt) => {
     const pos=useMission.getState().steps[useMission.getState().step]?.target;
     if(pos){
       const fade=markerFade(Math.hypot(camera.position.x-pos[0],camera.position.z-pos[2]));
@@ -30,9 +33,27 @@ export function MissionRunner() {
     if (useGame.getState().blizzardActive !== stormActive) {
       useGame.getState().setBlizzardActive(stormActive);
     }
-    if (ms.done) return;
+    if (ms.done || ms.failed) return;
+    // §8.5 — wasted/busted during an active mission fails the objective.
+    const down = useGame.getState().down;
+    if (down) {
+      ms.fail(down === "busted" ? "Busted — the job's blown" : "Wasted — you didn't make it");
+      return;
+    }
     const cur = ms.steps[ms.step];
     if (!cur) return;
+
+    const key = `${ms.mi}:${ms.step}`;
+    if (stepKey.current !== key) {
+      stepKey.current = key;
+      stepElapsed.current = 0;
+    }
+    stepElapsed.current += Math.min(dt, 0.1);
+    if (cur.timedFailSec != null && stepElapsed.current >= cur.timedFailSec) {
+      ms.fail("Out of time — the window closed");
+      return;
+    }
+
     const mode = useGame.getState().mode;
     const body = mode === "car" ? shared.car : shared.player;
 

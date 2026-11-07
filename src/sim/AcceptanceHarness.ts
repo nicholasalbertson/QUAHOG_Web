@@ -6,8 +6,9 @@
 import { canContinue, validateSave, collectLegacySave } from "./SaveGame";
 import { heatTier, desiredCops } from "./HeatTiers";
 import { GameLoop } from "./GameLoop";
-import { Rng } from "./Rng";
+import { Rng, RngService } from "./Rng";
 import { validateManifest, manifestFromSlice } from "./WorldManifest";
+import { sim } from "./SimRuntime";
 import type { Slice } from "../slice";
 
 export interface StageResult {
@@ -113,6 +114,21 @@ const stages: { id: string; name: string; run: StageFn }[] = [
       const blob = collectLegacySave();
       const ok = blob.schemaVersion === 2 && typeof blob.createdAt === "number";
       return { id: "7", name: "save-roundtrip-shape", ok, detail: `v${blob.schemaVersion}` };
+    },
+  },
+  {
+    id: "8",
+    name: "rng-digest",
+    run: () => {
+      const svc = new RngService(0xabc);
+      svc.stream("traffic").next();
+      svc.stream("peds").next();
+      const a = svc.digest();
+      const b = svc.digest();
+      // sim.rngDigest mirrors RngService.digest on the process singleton.
+      const live = typeof sim.rngDigest === "function" ? sim.rngDigest() : "";
+      const ok = a === b && a.includes("seed:") && live.includes("seed:");
+      return { id: "8", name: "rng-digest", ok, detail: ok ? "stable" : "drift" };
     },
   },
 ];

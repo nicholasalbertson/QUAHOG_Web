@@ -37,3 +37,43 @@ Status: `[ ]` not started · `[~]` partial · `[x]` done
     - also done this pass: boat-aware mission/waypoint targets; police soft-fail chase; SpatialIndex segment/LOS; streamer metrics; tab Canvas pause
 
 See V3 for full contracts, test matrices, and the dependency DAG.
+
+## Top 30 progress
+
+Quick status for the `FullStackAssets/top15-improvements-d5da` pass (items 1–15 + 16–30).
+
+### 1–15
+
+1. [x] Mission fail/retry/abandon UX (`MissionFailOverlay`, `useMission.fail/retry/abandon`)
+2. [x] Heat escalation (`HeatResponse.tsx` heli / roadblock stubs)
+3. [x] PedGraph crosswalks + doors (`stitchCrosswalks`, `addDoorNodes`)
+4. [~] Car/boat fixed-step via `sim.loop` (+ boat wet friction in 18)
+5. [x] `DRESSING_ENABLED` quality budgets (`DRESSING_BUDGETS` / `clampDressingCount`)
+6. [x] District seam auto-switch (`DistrictSeam.tsx`)
+7. [x] Corridor scaffolding (`content/corridor.ts`, `CorridorGuide.tsx`)
+8. [x] SaveGame recovery UI (`SaveRecovery.tsx`)
+9. [x] FPS/soak harness + `SoakBadge` + FPS-MATRIX note
+10. [x] Wanted UX / lose-heat zones (`LoseHeatZone.tsx`)
+11. [x] Combat weapon wheel (`WeaponWheel.tsx`)
+12. [x] Spatial audio siren / listener (HeatResponse + SimBootstrap; muffling in 29)
+13. [x] Safehouse / Hospital interior stubs
+14. [x] CI workflow scaffold (`.github/workflows/ci.yml`)
+15. [x] Radio lines + `docs/LEGAL-AUDIO.md`
+
+### 16–30
+
+16. [x] Dialogue stub (`DialogueBox` / `defineDialogue` + Bethel proximity once/mission)
+17. [x] Objective `timedFailSec` + MissionRunner fail on exceed
+18. [x] Boat friction/wet via `sim.clock.friction`
+19. [x] Race bests HUD toast from `SAVE_KEYS.raceBests`
+20. [x] Traffic yield / soft-brake (`TrafficDirector` + StreetLife stopZones)
+21. [x] Night streetlight boost (`NightLights.tsx` near CORE)
+22. [x] LOD fade stub comment + quality-0 `viewRadius`
+23. [x] Accessibility `reducedMotion` store flag + PauseMenu + skip shake
+24. [x] Tutorial tips once (`mounthope.tutorial.v1` toasts)
+25. [x] Audio bus master/sfx/radio on PauseMenu
+26. [x] PWA basics (`manifest.webmanifest` + theme-color already present)
+27. [x] Signal FSM stub (`SignalFsm.ts` + unit test)
+28. [x] Corpse TTL 45s / cap 8 in StreetLife
+29. [x] Spatial occlusion `playAt({ muffled })` halves frequency
+30. [x] Replay digest `sim.rngDigest()` + AcceptanceHarness stage 8

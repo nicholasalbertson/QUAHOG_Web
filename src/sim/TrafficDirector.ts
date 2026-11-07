@@ -140,7 +140,18 @@ export class TrafficDirector {
         }
         continue;
       }
-      const step = Math.min(d, a.speed * dt);
+      // Soft-brake near the player car/actor (collision yield stub).
+      // StreetLife already hard-stops on proximity + red stopZones; this
+      // sim-layer path only slows agents so they don't run through the player.
+      const toPlayer = dist(a.x, a.z, player.x, player.z);
+      let speedMul = 1;
+      if (toPlayer < 5) {
+        a.stop = Math.max(a.stop, 0.6);
+        continue;
+      } else if (toPlayer < 12) {
+        speedMul = 0.35;
+      }
+      const step = Math.min(d, a.speed * speedMul * dt);
       a.x += (dx / d) * step;
       a.z += (dz / d) * step;
       a.yaw = Math.atan2(dx, dz);
