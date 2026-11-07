@@ -407,6 +407,40 @@ export const STATIONS: Station[] = [
       ],
     },
   },
+  // --- two more stations (2026-11-07, Fall River + New Bedford) ---
+  // Songs recorded (10 each) and host lines pre-generated as MP3s, same
+  // pattern as the nine above — except these HAVE songs, so no noSynth:
+  // the engine plays manifest tracks and never falls back to the synth bed
+  // while they exist. Voices: D8 Rosa (iMYjCNcDOaruowyKE1I5), D9 Hank
+  // (CUe248VTMPdVbBsQnODN), both Boston-accent Voice Design, created
+  // 2026-11-07 — no unused Boston/RI voice on the live list fit (all of
+  // D1–D7 taken, Shaun is Hub's, Nick is another person's clone).
+  {
+    id: "spindle", dial: "93.9", name: "Spindle City", kind: "music",
+    tempo: 120, root: 110.0, minor: true, prog: [0, -2, 3, -5], scale: PENT_MIN, talkGapMs: 55000,
+    host: {
+      name: "Rosa Medeiros", voice: "rosa", prefs: ["Samantha", "Google US English", "Female"], rate: 1.0, pitch: 1.0,
+      lines: [
+        "Fall River, stand up — this is Spindle City, ninety-three point nine, and Rosa's got the mills humming.",
+        "From the Braga Bridge to Government Center — if you're driving home down I-195, this one's yours.",
+        "Mill bells at dawn, the Borden House door still shut — Fall River never sleeps, it just changes shifts.",
+        "Third shift, night owls, and everyone crossing the Braga at midnight — Rosa's with you 'til sunrise.",
+      ],
+    },
+  },
+  {
+    id: "whalebone", dial: "97.5", name: "Whalebone", kind: "music",
+    tempo: 104, root: 130.81, minor: false, prog: [0, -3, 5, 0], scale: PENT_MAJ, talkGapMs: 60000,
+    host: {
+      name: "Hank Souza", voice: "hank", prefs: ["Daniel", "Google US English", "Male"], rate: 0.98, pitch: 0.95,
+      lines: [
+        "New Bedford — harbor lights on Buzzards Bay, and this is Whalebone, ninety-seven point five. Hank Souza with you.",
+        "For the fleet coming home past the barrier — this one's yours, Whaling City.",
+        "Cobblestones rattle your teeth, Bethel bells ring at dawn — the Whaling City saying good morning.",
+        "Where the fishing boats sleep and the feast lights burn — Whalebone plays 'til the tide turns.",
+      ],
+    },
+  },
 ];
 
 // --- station-agnostic content (§19 radio depth): ads, idents, news/weather,
