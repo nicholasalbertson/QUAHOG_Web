@@ -15,8 +15,8 @@ import { DRESSING_ENABLED } from "../world/dressing";
 // are vite/client only, so node:fs has no declarations here).
 
 describe("harbor clutter gating", () => {
-  it("dressing switch is OFF — gated mounts render nothing until Nic flips it", () => {
-    expect(DRESSING_ENABLED).toBe(false);
+  it("dressing switch is ON — PortClutter still mounts only behind the gate", () => {
+    expect(DRESSING_ENABLED).toBe(true);
   });
 
   it("PortClutter mount in Experience.tsx is gated by DRESSING_ENABLED", () => {

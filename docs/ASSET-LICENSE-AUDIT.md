@@ -25,6 +25,10 @@ Every shipped binary under `public/models` and `public/music` must appear here
 | radio-vo | `public/music/**/vo/**` | ElevenLabs TTS | pending-commercial | Same as above |
 | aerial-esri | Esri World_Imagery XYZ (runtime) | Esri free endpoint | attribution-required | StartMenu + PauseMenu; no API key |
 | three-stack | npm deps (three, R3F, rapier, …) | MIT / Apache-2.0 per package | cleared | npm licenses |
+| kenney-cc0 | `public/vendor/kenney/**` | CC0 1.0 | cleared | City/nature/car/watercraft kits; PauseMenu credits |
+| polyhaven-cc0 | `public/vendor/polyhaven/**` | CC0 1.0 | cleared | Asphalt/cobble/brick/plank/roof/sand PBR maps |
+
+Refresh with `npm run assets:download-cc0`.
 
 ## Gaps still open for commercial
 
