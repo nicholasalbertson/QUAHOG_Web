@@ -11,6 +11,7 @@ import { trackWrongWay } from "./ui/wrongWay";
 import { gearForSpeed } from "./ui/gear";
 import { edgeArrowForBearing } from "./ui/edgeArrow";
 import { isCrossDistrictObjective } from "./districts";
+import { StreetLabelTracker, districtTown } from "./ui/streetLabel";
 import { POLICE_ENABLED } from "./world/Police";
 import { WorldJournalPanel } from "./world/WorldJournalPanel";
 import { SCRIMSHAW_TOTAL } from "./world/Collectibles";
@@ -52,6 +53,12 @@ export function HUD({ sliceName }: { sliceName: string }) {
   const [compass, setCompass] = useState("N");
   const [wrongWay, setWrongWay] = useState(false);
   const [edge, setEdge] = useState<{ side: "left" | "right"; dist: number } | null>(null);
+  // Live street + town label (wayfinding §B.3): street from the nearest
+  // named road, town from the active district. Updated from the same
+  // 200 ms interval, every 2nd tick (400 ms).
+  const [place, setPlace] = useState<{ street: string | null; town: string }>({ street: null, town: "New Bedford" });
+  const streetTick = useRef(0);
+  const streetTracker = useRef(new StreetLabelTracker());
   const distHist = useRef<{ t: number; d: number }[]>([]);
   useEffect(() => {
     const id = setInterval(() => {
@@ -99,6 +106,19 @@ export function HUD({ sliceName }: { sliceName: string }) {
           bearing: Math.atan2(w.x - t.x, w.z - t.z) - shared.camYaw,
         });
       } else setWp(null);
+      // Live street + town label (wayfinding §B.3): recompute every 2nd
+      // tick (400 ms); the tracker itself skips the scan until the player
+      // moved >= 2 m and holds the street at junctions (hysteresis).
+      // setPlace returns the previous object when nothing changed, so this
+      // does not re-render the HUD on every tick.
+      streetTick.current += 1;
+      if (streetTick.current % 2 === 0) {
+        const district = useGame.getState().district;
+        const slice = useGame.getState().slice;
+        const street = slice && t ? streetTracker.current.update(slice.roads, t.x, t.z) : null;
+        const town = districtTown(district);
+        setPlace((prev) => (prev.street === street && prev.town === town ? prev : { street, town }));
+      }
     }, 200);
     radio.onSubtitle = setSub;
     return () => { clearInterval(id); if (radio.onSubtitle === setSub) radio.onSubtitle = null; };
@@ -112,7 +132,7 @@ export function HUD({ sliceName }: { sliceName: string }) {
     {armed && !down && <div className="hud-reticle">+</div>}
     {hurt > 0 && <div style={{position:"absolute",inset:0,boxShadow:`inset 0 0 ${120+hurt*140}px rgba(140,35,25,${hurt*0.5})`}} />}
     <button className="hud-menu" onClick={() => useGame.getState().togglePause()} aria-label="Open game menu">☰</button>
-    <div className="hud-place"><strong>THE NARROWS</strong><span>NEW BEDFORD · SOUTHCOAST</span></div>
+    <div className="hud-place"><strong>{(place.street ?? place.town).toUpperCase()}</strong><span>{place.street ? place.town.toUpperCase() : "SOUTHCOAST"}</span></div>
     <div className="hud-status">
       <div className="hud-cash">${Math.floor(cash).toLocaleString()}</div>
       <div className="hud-clock">{hhmm} · Day {day} · {compass}</div>
