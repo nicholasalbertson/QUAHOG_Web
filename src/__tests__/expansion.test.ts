@@ -120,9 +120,12 @@ describe("expansion fast travel", () => {
 describe("expansion tile manifest", () => {
   it("extends the live manifest (keys + count)", () => {
     expect(manifest.tile).toBe(500);
-    expect(manifest.keys).toHaveLength(1300);
-    expect(manifest.count).toBe(106133);
-    expect(new Set(manifest.keys).size).toBe(1300);
+    // 1,300 expansion keys + 590 corridor keys (248 bake 2 + 342 bake 3);
+    // 106,133 expansion buildings + 15,621 corridor buildings (5,415 + 10,206).
+    // Corridor phase 1 (2026-11-07) grew the manifest past the expansion totals.
+    expect(manifest.keys).toHaveLength(1890);
+    expect(manifest.count).toBe(121754);
+    expect(new Set(manifest.keys).size).toBe(1890);
   });
   it("contains the new zone keys, including grid corners and anchor tiles", () => {
     for (const k of ["-17_99", "107_3", "102_-2", "-24_100", "-10_100", "108_-5", "100_8"]) {

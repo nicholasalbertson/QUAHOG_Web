@@ -7,4 +7,11 @@ export const perfStats = {
   fps: 0,
   p95Ms: 0,
   samples: 0,
+  // Resident GPU resources (2026-11-07, density measurement): gl.info.memory
+  // counts live geometries + textures — the numbers that decide whether the
+  // dressing/tile/tier1 resident set is what pressures the iPhone into a
+  // context loss / jetsam reload. Read by PerfProbe, shown in the overlay,
+  // shipped on the 1 Hz beacon.
+  geometries: 0,
+  textures: 0,
 };

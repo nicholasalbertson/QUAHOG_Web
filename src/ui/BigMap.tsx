@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useGame } from "../store";
 import { useMission } from "../mission";
 import { shared } from "../shared";
+import { requestGuardedSpawn } from "../world/SpawnGuard";
 import { sfx } from "../audio/sfx";
 import { CIVIC, FAST_TRAVEL } from "../places";
 import type { DistrictId } from "../districts";
@@ -180,9 +181,12 @@ export function BigMap() {
   const travel = (d: { pos: [number, number]; district: DistrictId }) => {
     const x = d.pos[0], z = d.pos[1];
     // Fall River integration (2026-11-03): cross-district travel switches
-    // the district (which remounts Experience with the new slice) and
-    // teleports AFTER the new scene loads, via pendingFastTravel in App.
-    // Teleporting now would be pointless — the remount destroys the bodies.
+    // the district and teleports AFTER the new slice loads, via
+    // pendingFastTravel in App. Corridor phase 1 (2026-11-07): Experience
+    // no longer remounts — the old district keeps rendering until the new
+    // slice arrives, then onReady fires the teleport. Teleporting now
+    // would still be pointless: the new district's roads/tiles haven't
+    // loaded yet, and the player would spawn over unloaded ground.
     // Same-district travel teleports immediately, as before.
     if (d.district !== useGame.getState().district) {
       useGame.getState().setPendingFastTravel({ x, z });
@@ -191,19 +195,12 @@ export function BigMap() {
       useGame.getState().toggleMap();
       return;
     }
-    const pl = shared.player;
-    if (pl) {
-      pl.setEnabled(true);
-      pl.setTranslation({ x, y: 2, z }, true);
-      pl.setLinvel({ x: 0, y: 0, z: 0 }, true);
-    }
-    // bring your car so there's always a ride at the destination
-    const car = shared.car;
-    if (car) {
-      car.setTranslation({ x: x + 6, y: 1.4, z: z + 4 }, true);
-      car.setLinvel({ x: 0, y: 0, z: 0 }, true);
-    }
-    useGame.getState().setMode("foot");
+    // Spawn guard (2026-11-07): same-district travel is a spawn too — the
+    // guard parks the bodies DISABLED at the target and releases them only
+    // once the ground tile under the spawn is confirmed mounted (or falls
+    // back on timeout). The old code enabled the player immediately, which
+    // is exactly how Nic fell through the ground in Brockton (on foot).
+    requestGuardedSpawn({ x, z });
     cam.current.x = x; cam.current.z = z;
     useGame.getState().toggleMap();
   };

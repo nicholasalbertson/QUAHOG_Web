@@ -1,6 +1,6 @@
 import { Component, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
 import * as THREE from "three";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { FrameDriver } from "./mobile/FrameDriver";
 import { mobileBudget } from "./mobile/profile";
 import { Experience } from "./Experience";
@@ -13,6 +13,44 @@ class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean
   static getDerivedStateFromError() { return { failed: true }; }
   componentDidCatch(e: unknown) { console.error("[scene] component error:", e); }
   render() { return this.state.failed ? null : this.props.children; }
+}
+
+// WebGL context guard (2026-11-07, streamer-stability diagnosis). Nic's 52 s
+// playtest video shows the whole 3D world unloading mid-drive (white void,
+// HUD + minimap still live) and coming back — the prime suspect is a WebGL
+// context loss under memory/GPU pressure, and the main game had NO listener
+// for it at all (only the photoreal earth page did), so a loss was silent:
+// no log, no beacon, no recovery handling. A lost context leaves the canvas
+// transparent (white over the white page); three re-initialises on restore,
+// which fits the pale/washed-out frame after the reload (textures re-uploading).
+// The listener MUST preventDefault() the loss event — without it the context
+// can never be restored and the canvas stays dead. console.error (not warn)
+// so the debug overlay's ring buffer captures it and the 1 Hz beacon ships it.
+function ContextGuard() {
+  const gl = useThree((s) => s.gl);
+  useEffect(() => {
+    const c = gl.domElement;
+    const onLost = (e: Event) => {
+      e.preventDefault(); // required — without it the context cannot be restored
+      console.error("[context] WebGL context lost — world unloaded (GPU/memory pressure suspected); attempting restore");
+      try {
+        useToasts.getState().push("GRAPHICS RESTARTED — the world is reloading", "#ffb0b0");
+      } catch { /* telemetry must never break the game */ }
+    };
+    const onRestored = () => {
+      console.error("[context] WebGL context restored — world back");
+      try {
+        useToasts.getState().push("Graphics back — world restored", "#7CFC00");
+      } catch { /* telemetry must never break the game */ }
+    };
+    c.addEventListener("webglcontextlost", onLost);
+    c.addEventListener("webglcontextrestored", onRestored);
+    return () => {
+      c.removeEventListener("webglcontextlost", onLost);
+      c.removeEventListener("webglcontextrestored", onRestored);
+    };
+  }, [gl]);
+  return null;
 }
 import { HUD } from "./HUD";
 import { Minimap } from "./Minimap";
@@ -29,8 +67,8 @@ import { AssetLoadNotice } from "./assets/AssetLoadNotice";
 import { StartMenu } from "./ui/StartMenu";
 import { Radio } from "./audio/Radio";
 import { installInput } from "./input";
-import { useGame } from "./store";
-import { shared } from "./shared";
+import { useGame, useToasts } from "./store";
+import { requestGuardedSpawn } from "./world/SpawnGuard";
 
 // Build 002: quality presets now actually change GPU workload (study technique).
 // Low locks DPR to 1; Medium allows up to 1.25; High up to 1.5.
@@ -40,31 +78,28 @@ export default function App() {
   const [sliceName, setSliceName] = useState("loading…");
   const [progress, setProgress] = useState(0);
   const quality = useGame((s) => s.quality);
-  const district = useGame((s) => s.district);
 
   // stable callbacks so the Experience loader effect doesn't re-run each render
   // Fall River integration (2026-11-03): onReady also fires the deferred
-  // cross-district teleport. Experience remounts (key={district}) with fresh
-  // physics bodies when the district switches, so the teleport must wait
-  // for the new slice to load — teleporting earlier would target bodies
-  // the remount is about to destroy. Same shape as BigMap.travel.
+  // cross-district teleport. Corridor phase 1 (2026-11-07): Experience no
+  // longer remounts on a district switch — the Physics world + player/car
+  // bodies persist and the render swaps to the new slice when it arrives.
+  // The teleport still waits for the new slice to load (onReady fires from
+  // Experience's activate step) — teleporting earlier would put the player
+  // over a district whose roads/tiles haven't loaded yet. Same shape as
+  // BigMap.travel.
+  // Spawn guard (2026-11-07): the teleport is handed to the guard, which
+  // parks the bodies DISABLED at the target and only releases them (mode
+  // foot) once the ground tile under the spawn is confirmed mounted — the
+  // slice having loaded is not proof the 3D world rendered (Brockton void:
+  // minimap had the roads, the world never rendered). On timeout the guard
+  // falls back to somewhere solid instead of spawning over void.
   const onReady = useCallback((s: { name: string }) => {
     setSliceName(s.name);
     const pending = useGame.getState().pendingFastTravel;
     if (pending) {
       useGame.getState().setPendingFastTravel(null);
-      const pl = shared.player;
-      if (pl) {
-        pl.setEnabled(true);
-        pl.setTranslation({ x: pending.x, y: 2, z: pending.z }, true);
-        pl.setLinvel({ x: 0, y: 0, z: 0 }, true);
-      }
-      const car = shared.car;
-      if (car) {
-        car.setTranslation({ x: pending.x + 6, y: 1.4, z: pending.z + 4 }, true);
-        car.setLinvel({ x: 0, y: 0, z: 0 }, true);
-      }
-      useGame.getState().setMode("foot");
+      requestGuardedSpawn({ x: pending.x, z: pending.z });
     }
   }, []);
   const onProgress = useCallback((f: number) => setProgress(f), []);
@@ -85,11 +120,14 @@ export default function App() {
         <FrameDriver />
         <DebugCapture />
         <PerfProbe />
+        <ContextGuard />
         <Suspense fallback={null}>
           <SceneBoundary>
-            {/* key={district}: a district switch remounts the whole scene
-                (fresh slice, fresh physics bodies) — see onReady above. */}
-            <Experience key={district} onReady={onReady} onProgress={onProgress} />
+            {/* Corridor phase 1 (2026-11-07): no key={district} — a district
+                switch no longer remounts the scene. Experience keeps the
+                old district rendering until the new slice arrives, then
+                swaps and fires onReady (which teleports the player). */}
+            <Experience onReady={onReady} onProgress={onProgress} />
           </SceneBoundary>
         </Suspense>
       </Canvas>

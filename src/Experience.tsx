@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useThree } from "@react-three/fiber";
 import { mobileBudget } from "./mobile/profile";
 import { Physics } from "@react-three/rapier";
 import { loadSlice, type Building, type Landmark, type Slice } from "./slice";
 import { prepareRoads } from "./world/roadPrep";
-import { DISTRICTS, worldCenter } from "./districts";
+import { DISTRICTS, worldCenter, type DistrictId } from "./districts";
+import { CORRIDOR_SLICE_FILE } from "./world/corridor";
 import { DRESSING_ENABLED } from "./world/dressing";
 import { ensureGisBuildings } from "./world/gisDistrict";
 import { useGame } from "./store";
@@ -88,6 +89,7 @@ import { SimBootstrap } from "./sim/SimBootstrap";
 import { Player } from "./actors/Player";
 import { Car } from "./actors/Car";
 import { Boat } from "./actors/Boat";
+import { SpawnGuard } from "./world/SpawnGuard";
 import { FollowCamera } from "./actors/FollowCamera";
 
 // Post-processing, toggleable from settings (§26).
@@ -134,11 +136,25 @@ const MALL_WORLD: [number, number] = [-5932.5, -652.7];
 const MALL_LANDMARK: Landmark = { name: "Dartmouth Mall", kind: "mall", pos: MALL_SLICE };
 
 export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => void; onProgress?: (f: number) => void }) {
+  // Corridor phase 1 (2026-11-07): NO remount on district switch. The store
+  // district is the TARGET (what to fetch); activeDistrictId is the district
+  // whose slice is currently RENDERED. They differ only during the ~1 s
+  // fetch after a fast-travel tap — the old district keeps rendering
+  // (correct: the player is still standing in it) until the new slice
+  // arrives, then the render switches and onReady fires the teleport. The
+  // Physics world + player/car bodies persist across the switch, which is
+  // what makes the teleport safe: no body is ever destroyed mid-flight.
+  const targetDistrictId = useGame((s) => s.district);
+  const [activeDistrictId, setActiveDistrictId] = useState<DistrictId>(() => useGame.getState().district);
+  const district = DISTRICTS[activeDistrictId];
+  const targetDistrict = DISTRICTS[targetDistrictId];
   const [slice, setSlice] = useState<Slice | null>(null);
-  // Fall River integration: the active district drives the slice file and
-  // every center prop below. App remounts Experience (key={district}) on
-  // a district switch, so this effect re-runs fresh for the new district.
-  const district = DISTRICTS[useGame((s) => s.district)];
+  // Prepared-slice cache (ref, not state: no render depends on it). A
+  // revisited district activates synchronously, with no refetch and no
+  // re-prepare (prepareRoads mutates the road list; it runs once per slice).
+  const sliceCache = useRef<Partial<Record<DistrictId, Slice>>>({});
+  // Corridor slice (gap roads/water between districts): loaded once.
+  const [corridor, setCorridor] = useState<Slice | null>(null);
   const center = district.center; // slice [east, north]
   const world = worldCenter(district); // world [x, z]
   const isNB = district.id === "newBedford";
@@ -159,51 +175,115 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
   const paused = useGame((s) => s.paused);
   const gameId = useGame((s) => s.gameId); // remount per-game props (collectibles) on New Game
 
+  // Corridor slice (gap roads/water between districts): loaded once at
+  // mount, in parallel with the district slice. It does NOT gate onReady —
+  // the player spawns in a district, far from any corridor, so a ~1 s
+  // delay before the corridor roads appear is invisible. Its roads go
+  // through the same prepareRoads pipeline; the district exemptions are
+  // name-based and the exempted roads are all in-district (the corridor
+  // bake excludes them), so the choice of districtId is inert here.
   useEffect(() => {
     let alive = true;
-    loadSlice(district.sliceFile, (f) => { if (alive) onProgress?.(f); })
+    loadSlice(CORRIDOR_SLICE_FILE)
+      .then((s) => {
+        if (!alive) return;
+        s.roads = prepareRoads(s.roads, s.water ?? [], [], "newBedford");
+        setCorridor(s);
+      })
+      .catch((e) => console.error(e));
+    return () => { alive = false; };
+  }, []);
+
+  // GIS buildings (NB-only data for the awning filter + camera sweep):
+  // loaded once at mount, not per district.
+  useEffect(() => {
+    let alive = true;
+    ensureGisBuildings().then((d) => { if (alive) { setGisBuildings(d.buildings); setCameraBuildings("gis", d.buildings); } });
+    return () => { alive = false; };
+  }, []);
+
+  // District slice loading (no remount): re-runs when the TARGET district
+  // changes. A cached slice activates synchronously; otherwise the fetch
+  // runs and the render switches when it arrives (onReady fires the
+  // pending fast-travel teleport). The old district keeps rendering until
+  // then — the player is still standing in it.
+  useEffect(() => {
+    let alive = true;
+    const activate = (s: Slice) => {
+      if (!alive) return;
+      sliceCache.current[targetDistrict.id] = s;
+      setSlice(s);
+      useGame.getState().setSlice(s);
+      // Camera-inside-building fix (2026-11-03): register the district's
+      // shipped footprints for the geometric camera sweep — this is what
+      // keeps the camera out of visual-only buildings (Fall River's whole
+      // slice; New Bedford's slice array is empty, its buildings come
+      // from tiles + GIS below). No collider cost, no gameplay change.
+      setCameraBuildings("slice", s.buildings);
+      // Ped building-avoidance: OSM footprints around the district core.
+      // NB box preserved exactly (core (-266,-100) -> x[-360,-170],
+      // north[-200,0]); FR uses the same relative offsets from its
+      // package center so the rule is one rule, not two boxes.
+      const c = targetDistrict.center;
+      const dxMin = -360 - -266, dxMax = -170 - -266;
+      const dnMin = -200 - -100, dnMax = 0 - -100;
+      setBuildingFootprints("osm", s.buildings.filter((b) => {
+        let minE = Infinity, maxE = -Infinity, minN = Infinity, maxN = -Infinity;
+        for (const [e, n] of b.footprint) {
+          if (e < minE) minE = e; if (e > maxE) maxE = e;
+          if (n < minN) minN = n; if (n > maxN) maxN = n;
+        }
+        return maxE >= c[0] + dxMin && minE <= c[0] + dxMax
+          && maxN >= c[1] + dnMin && minN <= c[1] + dnMax;
+      }));
+      setActiveDistrictId(targetDistrict.id);
+      onReady?.(s);
+    };
+    const cached = sliceCache.current[targetDistrict.id];
+    if (cached) {
+      activate(cached);
+      return () => { alive = false; };
+    }
+    loadSlice(targetDistrict.sliceFile, (f) => { if (alive) onProgress?.(f); })
       .then((s) => {
         if (!alive) return;
         // Load-time road pipeline (roadPrep.prepareRoads): SKIP filter,
         // causeway flags, fork cleanup, name normalization, plus the
         // district exemptions (mall interior for NB, named service
         // access roads for FR). NB output is bit-identical to the old
-        // inline code.
-        s.roads = prepareRoads(s.roads, s.water ?? [], s.landmarks.map((l) => l.name), district.id);
-        setSlice(s);
-        useGame.getState().setSlice(s);
-        // Camera-inside-building fix (2026-11-03): register the district's
-        // shipped footprints for the geometric camera sweep — this is what
-        // keeps the camera out of visual-only buildings (Fall River's whole
-        // slice; New Bedford's slice array is empty, its buildings come
-        // from tiles + GIS below). No collider cost, no gameplay change.
-        setCameraBuildings("slice", s.buildings);
-        // Ped building-avoidance: OSM footprints around the district core.
-        // NB box preserved exactly (core (-266,-100) -> x[-360,-170],
-        // north[-200,0]); FR uses the same relative offsets from its
-        // package center so the rule is one rule, not two boxes.
-        const dxMin = -360 - -266, dxMax = -170 - -266;
-        const dnMin = -200 - -100, dnMax = 0 - -100;
-        setBuildingFootprints("osm", s.buildings.filter((b) => {
-          let minE = Infinity, maxE = -Infinity, minN = Infinity, maxN = -Infinity;
-          for (const [e, n] of b.footprint) {
-            if (e < minE) minE = e; if (e > maxE) maxE = e;
-            if (n < minN) minN = n; if (n > maxN) maxN = n;
-          }
-          return maxE >= center[0] + dxMin && minE <= center[0] + dxMax
-            && maxN >= center[1] + dnMin && minN <= center[1] + dnMax;
-        }));
-        setWaterZones(s.water ?? [], s.roads, s.islands ?? [], s.barrier ?? []);
-        onReady?.(s);
+        // inline code. Prepared ONCE here, then cached — a cached slice
+        // is never re-prepared.
+        s.roads = prepareRoads(s.roads, s.water ?? [], s.landmarks.map((l) => l.name), targetDistrict.id);
+        activate(s);
       })
       .catch((e) => console.error(e));
-    ensureGisBuildings().then((d) => { if (alive) { setGisBuildings(d.buildings); setCameraBuildings("gis", d.buildings); } });
-    return () => {
-      alive = false;
-      setBuildingFootprints("osm", []);
-      clearCameraBuildings();
-    };
-  }, [onReady, onProgress]);
+    return () => { alive = false; };
+  }, [targetDistrict.id, onReady, onProgress]);
+
+  // Water zones (blocked-water logic) cover the RENDERED district plus the
+  // corridor: the corridor's rivers/canals must block the player too, and
+  // its bridges must count as safe corridors. Re-merged whenever either
+  // slice changes; during a district fetch the old district's zones stay
+  // (correct — the old district is still rendered).
+  useEffect(() => {
+    if (!slice) return;
+    setWaterZones(
+      [...(slice.water ?? []), ...(corridor?.water ?? [])],
+      [...slice.roads, ...(corridor?.roads ?? [])],
+      slice.islands ?? [],
+      slice.barrier ?? [],
+    );
+  }, [slice, corridor]);
+
+  // Clear the shared building registries only when Experience unmounts
+  // (app close). On a district switch the old district's registrations
+  // stay until the new slice's activate() overwrites them — clearing them
+  // mid-fetch would leave the camera sweep + ped avoidance blind while
+  // the old district is still rendered.
+  useEffect(() => () => {
+    setBuildingFootprints("osm", []);
+    clearCameraBuildings();
+  }, []);
 
   return (
     <>
@@ -222,6 +302,11 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
         <AerialGround origin={slice?.origin} />
         <Player />
         <Car />
+        {/* Spawn guard: holds both bodies parked (disabled) until the ground
+            tile under the spawn point is confirmed mounted, or the 5 s
+            timeout fires the fallback. Inside <Physics> so it can read the
+            Rapier bodies; it renders nothing. */}
+        <SpawnGuard />
         <Boat />
         {slice && (
           <>
@@ -246,6 +331,17 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
               ))}
           </>
         )}
+        {/* Corridor phase 1: gap roads between districts (I-195 / MA 24 /
+            US 6). Loaded once at mount; renders alongside whichever
+            district is active. The tile streamer already loads corridor
+            tiles by player position (global manifest), so no tile layer
+            is needed here — just the road + bridge geometry. */}
+        {corridor && (
+          <>
+            <Roads roads={corridor.roads} />
+            <Bridges roads={corridor.roads} />
+          </>
+        )}
         {/* Heroes use RigidBody colliders → must live inside <Physics> */}
         <Heroes />
         {/* Rt 18 programme (2026-11-02, item 2): lamp, stop/meter and
@@ -267,6 +363,7 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
           render over them — at the old 0.05-0.06 they tied the road surface
           (0.06) and z-fought, bleeding green/grey through the pavement. */}
       {slice && <FlatAreas polys={slice.parking} color="#46474d" y={0.03} repeat={0.06} roughness={0.95} />}
+      {corridor && <FlatAreas polys={corridor.parking} color="#46474d" y={0.03} repeat={0.06} roughness={0.95} />}
       {slice && <FlatAreas polys={slice.beach} color="#c8b88a" y={0.026} repeat={0.04} />}
       {slice && <FlatAreas polys={slice.wood} color="#39512c" y={0.032} />}
       {slice && <FlatAreas polys={slice.cemetery} color="#566048" y={0.034} />}
@@ -277,6 +374,8 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       {slice && <AreaTrees areas={slice.parks} step={16} cap={300} />}
       {slice && <Steeples points={slice.church} />}
       {slice && slice.water?.length > 0 && <Water polys={slice.water} holes={slice.islands ?? []} />}
+      {/* Corridor gap water (rivers/canals between districts) — no islands. */}
+      {corridor && corridor.water?.length > 0 && <Water polys={corridor.water} holes={[]} />}
       {/* NB harbor dressing (pilings, buoys, boats): NB-only. The container
           clutter (PortClutter) is gated by the minimalist dressing switch
           below; HarborProps' own land-side gear boxes are gated inside

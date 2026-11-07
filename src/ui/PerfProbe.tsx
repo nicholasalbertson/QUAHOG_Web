@@ -33,6 +33,8 @@ export function PerfProbe() {
     queueMicrotask(() => {
       perfStats.draws = gl.info.render.calls;
       perfStats.tris = gl.info.render.triangles;
+      perfStats.geometries = gl.info.memory.geometries;
+      perfStats.textures = gl.info.memory.textures;
       const sorted = [...samples.current].sort((a, b) => a - b);
       const average = samples.current.reduce((a, b) => a + b, 0) / (samples.current.length || 1);
       perfStats.fps = average ? Math.round(1000 / average) : 0;
