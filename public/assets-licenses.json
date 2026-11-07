@@ -1,0 +1,164 @@
+{
+  "kind": "main-game-asset-licenses",
+  "schemaVersion": 1,
+  "updatedAt": "2026-11-07",
+  "entries": [
+    {
+      "id": "cesium-man",
+      "paths": [
+        "models/CesiumMan.glb"
+      ],
+      "license": "CC-BY-4.0",
+      "status": "cleared",
+      "attribution": "CesiumMan \u00a9 Cesium \u2014 CC-BY 4.0"
+    },
+    {
+      "id": "lizzie",
+      "paths": [
+        "models/lizzie.glb",
+        "models/previews/lizzie_preview.png"
+      ],
+      "license": "Original-Mount-Hope",
+      "status": "original",
+      "attribution": "Lizzie \u2014 original Mount Hope / Borden content pack"
+    },
+    {
+      "id": "remington-borden",
+      "paths": [
+        "models/remington_borden.glb",
+        "models/previews/remington_borden_preview.png"
+      ],
+      "license": "Original-Mount-Hope",
+      "status": "original",
+      "attribution": "Remington Borden \u2014 original Mount Hope / Borden content pack"
+    },
+    {
+      "id": "osm-geodata",
+      "globs": [
+        "slice-*.json",
+        "*-newbedford.json",
+        "massdot-roads-district.json",
+        "gis-district-newbedford.json",
+        "tiles/**"
+      ],
+      "license": "ODbL-1.0",
+      "status": "attribution-required",
+      "attribution": "\u00a9 OpenStreetMap contributors, ODbL"
+    },
+    {
+      "id": "station-music",
+      "globs": [
+        "music/**/*.mp3",
+        "music/*.mp3"
+      ],
+      "license": "ElevenLabs-Music-generated",
+      "status": "pending-commercial",
+      "attribution": "Station music via ElevenLabs Music \u2014 see MUSIC.md"
+    },
+    {
+      "id": "aerial-esri",
+      "runtime": "Esri World_Imagery XYZ",
+      "license": "Esri-terms",
+      "status": "attribution-required",
+      "attribution": "Imagery \u00a9 Esri, Maxar, Earthstar Geographics"
+    },
+    {
+      "id": "franklin-player",
+      "paths": [
+        "models/franklin_animated.glb"
+      ],
+      "license": "Original-Mount-Hope",
+      "status": "original",
+      "attribution": "Franklin player rig \u2014 Mount Hope production override"
+    },
+    {
+      "id": "pack-glbs",
+      "globs": [
+        "packs/**/*.glb",
+        "packs/**/*.png",
+        "packs/**/*.jpg",
+        "packs/**/*.webp",
+        "packs/*.glb"
+      ],
+      "license": "Original-Mount-Hope",
+      "status": "original",
+      "attribution": "Gameplay vehicle/pedestrian/prop packs \u2014 Mount Hope"
+    },
+    {
+      "id": "tier1-landmarks",
+      "globs": [
+        "tier1/*.glb",
+        "tier1/**/*.glb",
+        "tier1/*.png",
+        "tier1/**/*.png",
+        "tier1/*.jpg",
+        "tier1/**/*.jpg",
+        "tier1/*.webp",
+        "tier1/**/*.webp"
+      ],
+      "license": "Original-Mount-Hope",
+      "status": "original",
+      "attribution": "Tier-1 landmark GLBs \u2014 Mount Hope"
+    },
+    {
+      "id": "blenderkit-traffic",
+      "globs": [
+        "blenderkit/*.glb",
+        "blenderkit/**/*.glb"
+      ],
+      "license": "BlenderKit-CC0-or-royalty-free",
+      "status": "cleared",
+      "attribution": "BlenderKit traffic meshes \u2014 see pack notes"
+    },
+    {
+      "id": "quahog-assets-tree",
+      "globs": [
+        "quahog-assets/**/*"
+      ],
+      "license": "Original-Mount-Hope",
+      "status": "original",
+      "attribution": "QUAHOG asset tree (textures/props) \u2014 Mount Hope"
+    },
+    {
+      "id": "app-icons",
+      "globs": [
+        "icons/*.png",
+        "icons/**/*.png",
+        "icons/*.webp",
+        "icons/**/*.webp",
+        "icons/*.jpg",
+        "icons/**/*.jpg"
+      ],
+      "license": "Original-Mount-Hope",
+      "status": "original",
+      "attribution": "App icons \u2014 Mount Hope / The Narrows"
+    },
+    {
+      "id": "misc-runtime-assets",
+      "globs": [
+        "assets/**/*.glb",
+        "assets/**/*.png",
+        "assets/**/*.jpg",
+        "assets/**/*.webp",
+        "assets/*.glb"
+      ],
+      "license": "Original-Mount-Hope",
+      "status": "original",
+      "attribution": "Runtime gameplay assets \u2014 Mount Hope"
+    },
+    {
+      "id": "radio-speech",
+      "globs": [
+        "radio/**/*.mp3",
+        "radio/*.mp3",
+        "radio/**/*.ogg",
+        "radio/*.ogg",
+        "radio/**/*.wav",
+        "radio/*.wav"
+      ],
+      "license": "ElevenLabs-generated-speech",
+      "status": "original",
+      "attribution": "Allowlisted radio host lines \u2014 generated speech, not songs"
+    }
+  ]
+}

@@ -15,7 +15,8 @@
     "test:watch": "vitest",
     "test:blizzard": "node --experimental-strip-types --test scripts/tests/blizzard-2026.test.mjs",
     "test:production-assets": "node --experimental-strip-types --test scripts/tests/production-assets.test.mjs scripts/tests/production-runtime-policy.test.mjs scripts/tests/production-preflight.test.mjs scripts/tests/production-fulltree-preflight.test.mjs scripts/tests/production-glb-structure.test.mjs scripts/tests/production-materials.test.mjs scripts/tests/production-architecture-v4.test.cjs",
-    "test:production-architecture": "node --test scripts/tests/production-architecture-v4.test.cjs"
+    "test:production-architecture": "node --test scripts/tests/production-architecture-v4.test.cjs",
+    "assets:audit": "node scripts/assets_audit.mjs"
   },
   "dependencies": {
     "@react-three/drei": "9.114.3",
@@ -37,6 +38,7 @@
     "@types/react-dom": "18.3.1",
     "@types/three": "0.169.0",
     "@vitejs/plugin-react": "4.3.3",
+    "meshoptimizer": "^1.3.0",
     "typescript": "5.6.3",
     "vite": "5.4.10",
     "vitest": "^2.1.9"

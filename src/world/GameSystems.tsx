@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useStats } from "../game";
-import { useMission } from "../mission";
+import { MISSIONS, useMission } from "../mission";
 import { useGame } from "../store";
 import type { Weather } from "../store";
 import { useEconomy, rollRevenueEvent, BUSINESSES } from "../economy";
@@ -11,12 +11,45 @@ import { shared } from "../shared";
 import { sfx } from "../audio/sfx";
 import { radio } from "../audio/radioEngine";
 import { loadJSON, saveJSON } from "../storage";
+import { SAVE_KEYS } from "../registries";
 import { catchUpWorldClock, weatherBusinessMultiplier } from "./worldContinuity";
 import type { WorldEventKind } from "./worldContinuity";
 import { worldJournal } from "./worldJournal";
 
 const DAY_SECONDS = 600; // matches DayNight's cycle length
 const POS_KEY = "mounthope.pos.v1";
+
+function saveMissionProgress() {
+  const m = useMission.getState();
+  saveJSON(SAVE_KEYS.mission, { mi: m.mi, step: m.step, done: m.done });
+}
+
+function restoreMissionProgress() {
+  const saved = loadJSON<{ mi?: number; step?: number; done?: boolean } | null>(SAVE_KEYS.mission, null);
+  if (!saved || typeof saved.mi !== "number" || typeof saved.step !== "number") return;
+  const mi = Math.max(0, Math.min(saved.mi, MISSIONS.length - 1));
+  const mission = MISSIONS[mi];
+  const step = Math.max(0, Math.min(saved.step, Math.max(0, mission.steps.length - 1)));
+  if (saved.done) {
+    useMission.setState({
+      mi: MISSIONS.length - 1,
+      steps: MISSIONS[MISSIONS.length - 1].steps,
+      step: MISSIONS[MISSIONS.length - 1].steps.length,
+      done: true,
+      title: MISSIONS[MISSIONS.length - 1].title,
+      objective: "Campaign complete — the Narrows is yours.",
+    });
+    return;
+  }
+  useMission.setState({
+    mi,
+    steps: mission.steps,
+    step,
+    done: false,
+    title: mission.title,
+    objective: mission.steps[step]?.text ?? mission.title,
+  });
+}
 
 interface PosRec {
   mode: string; px?: number; py?: number; pz?: number; heading?: number;
@@ -111,6 +144,9 @@ export function GameSystems() {
     });
     const unsubscribeMissions = useMission.subscribe((now, previous) => {
       if (!useGame.getState().started) return;
+      if (now.mi !== previous.mi || now.step !== previous.step || now.done !== previous.done) {
+        saveMissionProgress();
+      }
       if (now.done && !previous.done) remember("mission", `The ${previous.title} storyline came to a close.`);
       else if (now.mi !== previous.mi && now.mi > previous.mi) remember("mission", `${previous.title} ended. ${now.title} began.`);
       else if (now.mi === previous.mi && now.step > previous.step) remember("mission", `${now.title}: ${now.objective}`);
@@ -141,6 +177,7 @@ export function GameSystems() {
       const g = useGame.getState();
       if (!g.started) return;
       savePos(); useStats.getState().save(); useEconomy.getState().save();
+      saveMissionProgress();
       saveJSON("mounthope.settings.v1", {fxOn:g.fxOn,shadows:g.shadows,fov:g.fov,reduceShake:g.reduceShake,weather:g.weather,quality:g.quality});
     };
     window.addEventListener("pagehide", onHide);
@@ -155,6 +192,7 @@ export function GameSystems() {
       restored.current = true;
       const r = loadPos();
       if (r) applyRestore(r);
+      restoreMissionProgress();
       previousDay.current = shared.day;
       prevStars.current = Math.floor(useStats.getState().police);
     }

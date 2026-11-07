@@ -154,6 +154,14 @@ export const shared = {
   carDamage: 0,
   /** Last wall/water movement stop recorded by <Car/> (probes, 2026-11-03). */
   lastStop: null as ProbeStop | null,
+  /** Sim ObjectiveNav distance remaining (m); 0 when no goal. */
+  navDist: 0,
+  /** Sim ObjectiveNav bearing (radians). */
+  navBearing: 0,
+  /** True when actor heading opposes the nav path. */
+  navWrongWay: false,
+  /** Current nav polyline in world XZ, or null. */
+  navPath: null as { x: number; z: number }[] | null,
 };
 
 /** Drop a cash pickup at a world point (capped so it can't grow unbounded). */

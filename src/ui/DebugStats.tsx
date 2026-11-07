@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { perfStats } from "./perfStats";
+import { sim } from "../sim";
+import { soakActive, soakSnapshot, soakUrlEnabled } from "../sim/SoakHarness";
 
 // Lightweight, off-by-default debug HUD (§ telemetry stub): FPS, frame time, and
 // page load time. No analytics, nothing sent anywhere — purely local. Enable
 // with `?debug` in the URL or localStorage `mounthope.debug=1`; toggle live with
-// the backtick (`) key.
+// the backtick (`) key. Pair with `?soak=1&perf=1` for release soak runs.
 function debugOn(): boolean {
   try {
     if (location.search.includes("debug")) return true;
@@ -16,6 +18,7 @@ export function DebugStats() {
   const [on, setOn] = useState(debugOn);
   const [fps, setFps] = useState(0);
   const [ms, setMs] = useState(0);
+  const [streamLine, setStreamLine] = useState("");
   const box = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -44,6 +47,14 @@ export function DebugStats() {
       if (acc >= 500) { // refresh twice a second
         setFps(Math.round((frames * 1000) / acc));
         setMs(Math.round((acc / frames) * 10) / 10);
+        const m = sim.streamer.metrics();
+        const soak = soakActive() || soakUrlEnabled();
+        const samples = soakSnapshot().samples;
+        const lastSample = samples[samples.length - 1];
+        setStreamLine(
+          `stream ${(m.residentBytes / 1e6).toFixed(1)}MB · evict ${m.evictCount} · fail ${m.loadFailures}` +
+            (soak ? ` · soak ${samples.length}smp` + (lastSample ? ` @${(lastSample.tSec / 60).toFixed(1)}m` : "") : ""),
+        );
         acc = 0; frames = 0;
       }
       raf = requestAnimationFrame(tick);
@@ -71,7 +82,8 @@ export function DebugStats() {
         color: fps >= 50 ? "#7ee787" : fps >= 30 ? "#ffcf4a" : "#ff7a7a",
       }}
     >
-      {fps} fps · {ms} ms · p95 {perfStats.p95Ms.toFixed(1)} ms · {perfStats.draws} draws · {(perfStats.tris / 1000).toFixed(0)}k tris{load ? ` · load ${load}ms` : ""}
+      <div>{fps} fps · {ms} ms · p95 {perfStats.p95Ms.toFixed(1)} ms · {perfStats.draws} draws · {(perfStats.tris / 1000).toFixed(0)}k tris{load ? ` · load ${load}ms` : ""}</div>
+      {streamLine ? <div style={{ color: "#9fe0ff", opacity: 0.9 }}>{streamLine}</div> : null}
     </div>
   );
 }

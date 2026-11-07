@@ -35,6 +35,7 @@ export function Player() {
   const body = useRef<RapierRigidBody>(null);
   const mesh = useRef<THREE.Group>(null);
   const playerTint = useGame((s) => s.playerTint);
+  const playerModel = useGame((s) => s.playerModel);
   const armed = useGame((s) => s.armed);
   const melee = useGame((s) => s.melee);
   const stride = useRef(0);
@@ -319,6 +320,7 @@ export function Player() {
         {/* rigged human; feet at local 0, so drop by the capsule half-height */}
         <group position={[0, -0.9, 0]}>
           <ModelCharacter
+            modelId={playerModel}
             tint={playerTint}
             moving={() => {
               const v = body.current?.linvel();

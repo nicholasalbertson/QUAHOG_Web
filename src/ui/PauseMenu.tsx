@@ -217,8 +217,14 @@ export function PauseMenu() {
             © OpenStreetMap contributors, licensed under the Open Database License
             (ODbL). Geometry derived from OSM via Overpass.<br /><br />
 
-            <b style={{ color: "#e7e0ff" }}>3D character</b><br />
-            Player character model: Franklin.<br /><br />
+            <b style={{ color: "#e7e0ff" }}>Aerial imagery</b><br />
+            Imagery © Esri, Maxar, Earthstar Geographics (World_Imagery XYZ).<br /><br />
+
+            <b style={{ color: "#e7e0ff" }}>3D characters</b><br />
+            Franklin — Mount Hope production player rig.<br />
+            “CesiumMan” © Cesium — CC-BY 4.0.<br />
+            Lizzie &amp; Remington Borden — original Mount Hope content pack
+            (menu previews; in-world procedural body until human GLBs ship).<br /><br />
 
             <b style={{ color: "#e7e0ff" }}>Engine &amp; libraries</b><br />
             Three.js · React Three Fiber · @react-three/rapier · @react-three/drei.<br /><br />
