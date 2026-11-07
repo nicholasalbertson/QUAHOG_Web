@@ -10,6 +10,9 @@ import { VEHICLE_TYPES } from "../earth/vehicleTypes";
 import { shared, raiseAlarm, addPickup, type Body, type TrafficCar } from "../shared";
 import { useStats } from "../game";
 import type { Road } from "../slice";
+import { flag } from "../flags";
+import { sim } from "../sim";
+import { PedestrianAI, type PedAgent } from "../sim/PedestrianAI";
 
 // Ambient "street life" ported from the legacy Unity StreetLife.cs: wandering
 // pedestrians + decorative patrol cars. Everything is KINEMATIC (plain meshes,
@@ -217,6 +220,9 @@ function shuffledDeck<T>(items: readonly T[], n: number): T[] {
 
 function Pedestrians({ center, count }: { center: [number, number]; count: number }) {
   const refs = useRef<(THREE.Group | null)[]>([]);
+  const pedAi = useRef(new PedestrianAI());
+  const agents = useRef<PedAgent[]>([]);
+  const useGraph = flag("pedGraph");
   const state = useRef(
     // Stream B (2026-11-03): looks are dealt here, once per mount, from
     // shuffled decks. The old code derived body/garment from the render
@@ -258,6 +264,76 @@ function Pedestrians({ center, count }: { center: [number, number]; count: numbe
     shared.peds = state.current.map((p) => p.body);
     return () => { shared.peds = []; };
   }, []);
+
+  // PedGraph sidewalk routing — agents follow the sim sidewalk graph when ready.
+  useEffect(() => {
+    if (!useGraph) {
+      agents.current = [];
+      return;
+    }
+    const ai = pedAi.current;
+    ai.setCenter({ x: center[0], z: -center[1] });
+    ai.setGraph(sim.pedGraph);
+    agents.current = state.current.map((ex, id) => {
+      const agent: PedAgent = {
+        id,
+        x: ex.pos.x,
+        z: ex.pos.z,
+        goalX: ex.goal.x,
+        goalZ: ex.goal.z,
+        heading: ex.heading,
+        down: 0,
+        dead: false,
+        path: null,
+        pathCursor: 0,
+      };
+      if (sim.pedGraph) {
+        const p = ai.randomInWander();
+        const g = ai.randomInWander();
+        agent.x = p.x;
+        agent.z = p.z;
+        agent.goalX = g.x;
+        agent.goalZ = g.z;
+        ai.snapToGraph(agent);
+        ex.pos.set(agent.x, 0, agent.z);
+        ex.goal.set(agent.goalX, 0, agent.goalZ);
+        ex.body.pos.copy(ex.pos);
+      }
+      return agent;
+    });
+    ai.rebuildIndex(agents.current);
+  }, [center, count, useGraph]);
+
+  useEffect(() => {
+    if (!useGraph) return;
+    return sim.loop.on("step", (dt) => {
+      if (useGame.getState().paused) return;
+      const ai = pedAi.current;
+      ai.setGraph(sim.pedGraph);
+      const body = shared.player?.translation();
+      const player = { x: body?.x ?? center[0], z: body?.z ?? -center[1] };
+      let flee: { x: number; z: number } | null = null;
+      if (shared.alarm.t > 0) flee = { x: shared.alarm.pos.x, z: shared.alarm.pos.z };
+      else if (shared.car && Math.abs(shared.carSpeed) > 10) {
+        const c = shared.car.translation();
+        flee = { x: c.x, z: c.z };
+      }
+      const budget = Math.max(0.5, sim.budget.remainingMs() * 0.45);
+      ai.update(dt, player, agents.current, budget, flee);
+      agents.current.forEach((a, i) => {
+        const ex = state.current[i];
+        if (!ex || a.dead) return;
+        if (ex.dead || ex.down > 0) {
+          a.dead = ex.dead;
+          a.down = ex.down;
+          return;
+        }
+        ex.pos.set(a.x, 0, a.z);
+        ex.heading = a.heading;
+        ex.goal.set(a.goalX, 0, a.goalZ);
+      });
+    });
+  }, [center, useGraph]);
 
   useFrame((_, dt) => {
     if (useGame.getState().paused) return;
@@ -320,6 +396,29 @@ function Pedestrians({ center, count }: { center: [number, number]; count: numbe
       }
 
       if (p.body.push.lengthSq() > 0) { p.pos.add(p.body.push); p.body.push.set(0, 0, 0); }
+
+      // PedGraph path already advanced on the fixed-step loop — only flee locally.
+      if (useGraph && agents.current[i] && !agents.current[i].dead) {
+        let threat: THREE.Vector3 | null = null;
+        if (shared.alarm.t > 0 && p.pos.distanceTo(shared.alarm.pos) < 26) threat = shared.alarm.pos;
+        else if (shared.car && Math.abs(shared.carSpeed) > 10) {
+          const c = shared.car.translation();
+          if (Math.hypot(c.x - p.pos.x, c.z - p.pos.z) < 12) threat = TMP.set(c.x, 0, c.z);
+        }
+        if (threat) {
+          const away = TMP2.subVectors(p.pos, threat); away.y = 0;
+          if (away.lengthSq() < 1e-3) away.set(Math.random() - 0.5, 0, Math.random() - 0.5);
+          away.normalize();
+          p.pos.addScaledVector(away, PED_SPEED * 2.2 * step);
+          p.heading = Math.atan2(away.x, away.z);
+        }
+        const [px, pz] = pushOutOfBuildings(p.pos.x, p.pos.z);
+        p.pos.x = px; p.pos.z = pz;
+        g.position.copy(p.pos);
+        g.rotation.set(0, p.heading, 0);
+        p.body.pos.copy(p.pos);
+        return;
+      }
 
       // threat awareness: flee gunfire/violence or an oncoming fast car (§14)
       let threat: THREE.Vector3 | null = null;

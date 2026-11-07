@@ -1,0 +1,65 @@
+{
+  "kind": "main-game-models",
+  "source": "repo-public-models",
+  "integrationDoc": null,
+  "handoffArchiveAttached": false,
+  "notes": [
+    "Counted from public/models. This is the main-game model manifest.",
+    "Franklin is the live player rig; CesiumMan remains a selectable dockhand.",
+    "lizzie.glb + remington_borden.glb: Borden stubs (meshopt); in-world uses procedural body until human GLBs ship."
+  ],
+  "entries": [
+    {
+      "id": "cesium-man",
+      "file": "CesiumMan.glb",
+      "bytes": 438044,
+      "meshopt": false,
+      "meshoptRequired": false,
+      "extensionsUsed": [],
+      "extensionsRequired": [],
+      "role": "character",
+      "generator": "COLLADA2GLTF"
+    },
+    {
+      "id": "franklin",
+      "file": "franklin_animated.glb",
+      "bytes": 2687296,
+      "meshopt": false,
+      "meshoptRequired": false,
+      "extensionsUsed": [],
+      "extensionsRequired": [],
+      "role": "character",
+      "generator": "Khronos glTF Blender I/O v5.2.41"
+    },
+    {
+      "id": "lizzie",
+      "file": "lizzie.glb",
+      "bytes": 4860,
+      "meshopt": true,
+      "meshoptRequired": true,
+      "extensionsUsed": [
+        "EXT_meshopt_compression"
+      ],
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "role": "character",
+      "generator": "Khronos glTF Blender I/O v5.2.41"
+    },
+    {
+      "id": "remington-borden",
+      "file": "remington_borden.glb",
+      "bytes": 5388,
+      "meshopt": true,
+      "meshoptRequired": true,
+      "extensionsUsed": [
+        "EXT_meshopt_compression"
+      ],
+      "extensionsRequired": [
+        "EXT_meshopt_compression"
+      ],
+      "role": "character",
+      "generator": "Khronos glTF Blender I/O v5.2.41"
+    }
+  ]
+}

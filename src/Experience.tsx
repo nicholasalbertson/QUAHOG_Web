@@ -84,6 +84,7 @@ import { MissionRunner } from "./world/MissionRunner";
 import { ObjectiveBeacon } from "./world/ObjectiveBeacon";
 import { RenderDiagnostics } from "./world/RenderDiagnostics";
 import { Effects } from "./world/Effects";
+import { SimBootstrap } from "./sim/SimBootstrap";
 import { Player } from "./actors/Player";
 import { Car } from "./actors/Car";
 import { Boat } from "./actors/Boat";
@@ -210,6 +211,7 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       <EnvLight />
       <CinematicExposure />
       <GameSystems />
+      <SimBootstrap />
       <MissionRunner />
       <ObjectiveBeacon />
       <RenderDiagnostics />

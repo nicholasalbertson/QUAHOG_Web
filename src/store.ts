@@ -5,6 +5,7 @@ import { isMobileDevice } from "./mobile/profile";
 import { shared } from "./shared";
 import type { Quality } from "./quality";
 import { loadJSON, saveJSON } from "./storage";
+import type { CharacterModelId } from "./assets/modelRegistry";
 
 // NB slice improvements (2026-11-03): the saved car slot. Stealing used to
 // overwrite playerCarType with no way back — the Revuelto identity was lost
@@ -36,6 +37,7 @@ interface GameState {
   charOpen: boolean;
   mapOpen: boolean;
   playerTint: string;
+  playerModel: CharacterModelId;
   playerCarType: string;
   playerCarColor: string;
   /** Pack GLB path rendered for the player car when it is not the Revuelto
@@ -81,6 +83,7 @@ interface GameState {
   toggleChar: () => void;
   toggleMap: () => void;
   setPlayerTint: (c: string) => void;
+  setPlayerModel: (id: CharacterModelId) => void;
   setPlayerCar: (type: string, color: string, pack?: string | null, packYOff?: number) => void;
   toggleArmed: () => void;
   setWeapon: (w: Weapon, drawn?: boolean) => void;
@@ -117,6 +120,7 @@ export const useGame = create<GameState>((set) => ({
   charOpen: false,
   mapOpen: false,
   playerTint: "#ffffff",
+  playerModel: "franklin",
   playerCarType: "revuelto",
   playerCarColor: "#b81d24",
   playerCarPack: null,
@@ -163,6 +167,7 @@ export const useGame = create<GameState>((set) => ({
   toggleChar: () => set((s) => ({ charOpen: !s.charOpen })),
   toggleMap: () => set((s) => ({ mapOpen: !s.mapOpen })),
   setPlayerTint: (playerTint) => set({ playerTint }),
+  setPlayerModel: (playerModel) => set({ playerModel }),
   setPlayerCar: (playerCarType, playerCarColor, pack, packYOff) => set({
     playerCarType, playerCarColor,
     playerCarPack: pack ?? null, playerCarPackYOff: packYOff ?? 0,
@@ -185,7 +190,8 @@ export const useGame = create<GameState>((set) => ({
     shared.day = 1; shared.hour = 9; // fresh clock on New Game
     set((s) => ({
       mode: "foot", armed: false, weapon: "pistol", melee: "fists", down: null,
-      photo: false, weather: "clear", blizzardActive: false, weatherBeforeBlizzard: "clear", waypoint: null, scrimshaw: 0, gameId: s.gameId + 1,
+      photo: false, weather: "clear", blizzardActive: false, weatherBeforeBlizzard: "clear", waypoint: null, scrimshaw: 0,
+      playerModel: "franklin", gameId: s.gameId + 1,
     }));
   },
 }));
