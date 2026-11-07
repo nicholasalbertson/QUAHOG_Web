@@ -7,6 +7,7 @@ import type { Road } from "../slice";
 import type { NavPath, RoadEdge, RoadNode, Vec2 } from "./types";
 import { dijkstra, type GraphEdge } from "./Dijkstra";
 import { dist } from "./math";
+import { rng } from "./Rng";
 
 const DRIVABLE = new Set([
   "motorway",
@@ -112,13 +113,14 @@ export class RoadGraph {
       const d = (n.x - x) * (n.x - x) + (n.z - z) * (n.z - z);
       if (d >= min2 && d <= max2) hits.push(n.id);
     }
+    const r = rng.stream("traffic");
     if (hits.length === 0) {
       // Prefer connected nodes with degree > 0.
       const deg = this.nodes.filter((n) => (this.adjacency.get(n.id)?.length ?? 0) > 0);
       const pool = deg.length ? deg : this.nodes;
-      return pool[Math.floor(Math.random() * pool.length)].id;
+      return r.pick(pool).id;
     }
-    return hits[Math.floor(Math.random() * hits.length)];
+    return hits[r.int(0, hits.length - 1)];
   }
 
   /** Pick a random node roughly `radius` metres from (x,z) (ring sample). */

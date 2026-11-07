@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { PedGraph } from "../../sim/PedGraph";
 import { PedestrianAI, type PedAgent } from "../../sim/PedestrianAI";
+import { rng } from "../../sim/Rng";
 import type { Road } from "../../slice";
 
 const gridRoads: Road[] = [
@@ -22,6 +23,16 @@ describe("PedGraph", () => {
     expect(path).not.toBeNull();
     expect(path!.points.length).toBeGreaterThan(1);
     expect(path!.length).toBeGreaterThan(0);
+  });
+
+  it("randomNodeNear is deterministic under the peds RNG stream", () => {
+    const g = PedGraph.fromRoads(gridRoads, { quantize: 5 });
+    rng.reseed(12345);
+    const a = [g.randomNodeNear(50, 0, 0, 200), g.randomNodeNear(50, 0, 0, 200)];
+    rng.reseed(12345);
+    const b = [g.randomNodeNear(50, 0, 0, 200), g.randomNodeNear(50, 0, 0, 200)];
+    expect(a).toEqual(b);
+    expect(a[0]).not.toBeNull();
   });
 });
 

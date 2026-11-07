@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { RapierRigidBody } from "@react-three/rapier";
+import { spatialAudio } from "./audio/SpatialAudio";
 
 // A knockable agent (pedestrian) the player can punch/shove.
 export interface Body {
@@ -180,7 +181,8 @@ export function raiseAlarm(x: number, z: number, seconds = 5) {
   shared.alarm.t = Math.max(shared.alarm.t, seconds);
 }
 
-/** Queue an impact burst at a point (§23). */
+/** Queue an impact burst at a point (§23). Also fires a quiet spatial blip (§9.2). */
 export function addImpact(pos: THREE.Vector3, color: string) {
   if (shared.impacts.length < 16) shared.impacts.push({ pos: pos.clone(), color });
+  spatialAudio.playAt(pos.x, pos.y, pos.z, { duration: 0.08, freq: 180, gain: 0.04 });
 }

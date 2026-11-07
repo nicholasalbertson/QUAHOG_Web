@@ -27,4 +27,12 @@ describe("Rng", () => {
     svc.stream("missions").next();
     expect(svc.digest()).toBe(d1);
   });
+
+  it("exposes traffic/peds/weather/missions/combat/world streams", () => {
+    const svc = new RngService(7);
+    for (const name of ["traffic", "peds", "weather", "missions", "combat", "world"] as const) {
+      expect(svc.stream(name).next()).toBeGreaterThanOrEqual(0);
+      expect(svc.stream(name).next()).toBeLessThan(1);
+    }
+  });
 });

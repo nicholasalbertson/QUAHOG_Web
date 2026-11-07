@@ -8,6 +8,7 @@ import { SpatialIndex } from "./SpatialIndex";
 import type { PedGraph } from "./PedGraph";
 import type { Vec2 } from "./types";
 import { dist } from "./math";
+import { rng } from "./Rng";
 
 export type PedLod = "near" | "mid" | "far";
 
@@ -236,9 +237,10 @@ export class PedestrianAI {
         return { x: n.x, z: n.z };
       }
     }
+    const r = rng.stream("peds");
     return {
-      x: this.center.x + (Math.random() * 2 - 1) * this.wander,
-      z: this.center.z + (Math.random() * 2 - 1) * this.wander,
+      x: this.center.x + (r.next() * 2 - 1) * this.wander,
+      z: this.center.z + (r.next() * 2 - 1) * this.wander,
     };
   }
 }

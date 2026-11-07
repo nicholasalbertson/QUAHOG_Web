@@ -5,6 +5,7 @@
 
 import type { CameraMode, CameraPose, Vec3 } from "./types";
 import { clamp, copyVec3, expSmooth, lerp, lerpAngle } from "./math";
+import { rng } from "./Rng";
 
 export type OcclusionRaycast = (from: Vec3, to: Vec3) => Vec3 | null;
 
@@ -166,9 +167,10 @@ export class CameraRig {
 
   private applyShake(amt: number): void {
     if (amt <= 0.001) return;
-    this.pose.position.x += (Math.random() - 0.5) * amt;
-    this.pose.position.y += (Math.random() - 0.5) * amt;
-    this.pose.position.z += (Math.random() - 0.5) * amt;
+    const r = rng.stream("world");
+    this.pose.position.x += (r.next() - 0.5) * amt;
+    this.pose.position.y += (r.next() - 0.5) * amt;
+    this.pose.position.z += (r.next() - 0.5) * amt;
   }
 
   /** Seed pose without easing (spawn / teleport). */

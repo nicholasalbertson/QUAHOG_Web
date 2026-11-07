@@ -74,12 +74,12 @@ parallel work.
 
 0.3 Determinism service — (M)
 
-[ ] Seeded RNG service src/sim/Rng.ts (xoshiro or splitmix)
-[ ] Named streams: traffic, peds, weather, missions, combat
-[ ] No Math.random in src/sim (lint rule enforces)
+[x] Seeded RNG service src/sim/Rng.ts (xoshiro or splitmix)
+[x] Named streams: traffic, peds, weather, missions, combat, world
+[x] No Math.random in src/sim (call sites migrated to rng streams; lint rule TBD)
 [ ] Step-scoped RNG advance; replay hash = hash of (seed, step, state digest)
 [ ] Replay recorder: input log + seed → deterministic re-run
-[ ] Accept: 10,000-step replay of a scripted session produces identical hash twice.
+[~] Accept: named-stream draws are deterministic under reseed; full 10k-step replay TBD.
 
 0.4 Telemetry schema — (S)
 
@@ -992,11 +992,11 @@ M11 Finale … … …
 
 9.2 Spatial audio — (L)
 
-[ ] 9.2.1 Positional audio (PannerNode or equivalent)
-[ ] 9.2.2 Distance attenuation per category
+[x] 9.2.1 Positional audio (PannerNode or equivalent) — `SpatialAudio.playAt`
+[~] 9.2.2 Distance attenuation per category (inverse/HRTF defaults; category table TBD)
 [ ] 9.2.3 Occlusion stub (muffle behind geometry)
-[ ] 9.2.4 Listener from CameraRig
-[ ] 9.2.5 Passing siren pans + attenuates correctly (test)
+[x] 9.2.4 Listener from followed actor (SimBootstrap → spatialAudio.setListener)
+[~] 9.2.5 Impacts fire quiet spatial blips via addImpact; siren pan polish TBD
 
 9.3 Radio — (M)
 
@@ -1450,7 +1450,7 @@ Master dependency DAG (condensed)
 Priority implementation order (updated)
 
 1. [x] Close streamer evict/dispose + quality NPC/shadow caps
-2. [~] §0 Foundations — flags, Rng, telemetry schema, registries shipped; tooling/assets TBD
+2. [~] §0 Foundations — flags, named Rng streams wired through sim, registries; assets:audit / CI TBD
 3. [~] §1.1 GameLoop — core loop + pause/scale shipped; migrate systems next ← current
 4. [~] §1.2 PedGraph — baseline sidewalk graph + PedestrianAI bind shipped; deepen per task tree
 5. [~] §1.3 MissionRuntime — baseline event bus / ownership / fail-retry-abandon shipped; deepen per task tree
@@ -1458,7 +1458,7 @@ Priority implementation order (updated)
 7. [ ] §1.5 SaveGame + §11 — unified save, migrations, recovery
 8. [ ] §3.2–§3.4 heat escalation + §5.2 ammo/inventory
 9. [ ] §2.11 earth decision — keep or demote (gate R1)
-10. [ ] §9.2 spatial audio + §9.3 radio content
+10. [~] §9.2 spatial listener + impact blips landed; §9.3 radio content TBD
 11. [ ] §10 HUD/a11y/tutorial + §6.2 interiors + §2.6/§2.7 GLB actors
 12. [ ] §15 matrix green + §17 release checklist → M8
 
@@ -1466,6 +1466,8 @@ Priority implementation order (updated)
 
 Changelog
 
+· v3.2 (2026-11-07) — §0.3: sim call sites use named Rng streams (no
+  Math.random in src/sim). §9.2: spatial listener + impact blips wired.
 · v3 — Deep expansion: §0 Foundations, §14–§19 new (pipeline, QA, l10n,
   release, risk, milestones), every epic now has Contract / Task tree / Test
   matrix / Perf budget / Edge cases / Accept, stable IDs, dependency DAG,
