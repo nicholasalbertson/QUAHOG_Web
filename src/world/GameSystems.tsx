@@ -10,6 +10,7 @@ import { consumeTap } from "../input";
 import { shared } from "../shared";
 import { sfx } from "../audio/sfx";
 import { radio } from "../audio/radioEngine";
+import { heatTier } from "../sim/HeatTiers";
 import { loadJSON, saveJSON } from "../storage";
 import { SAVE_KEYS } from "../registries";
 import { catchUpWorldClock, weatherBusinessMultiplier } from "./worldContinuity";
@@ -122,6 +123,7 @@ const remember = (kind: WorldEventKind, text: string) => worldJournal.record({ k
 export function GameSystems() {
   const acc = useRef(0);
   const prevStars = useRef(0);
+  const prevHeli = useRef(false);
   const restored = useRef(false);
   const skidCool = useRef(0);
   const maxStars = useRef(0);
@@ -197,7 +199,9 @@ export function GameSystems() {
       prevStars.current = Math.floor(useStats.getState().police);
     }
     // global hotkeys
-    if (consumeTap("KeyR")) { useGame.getState().toggleWeather(); sfx.ui(); }
+    // R reloads while armed (Player); otherwise cycles weather. Do not
+    // consume the tap when armed so Player can spend it on reload.
+    if (!useGame.getState().armed && consumeTap("KeyR")) { useGame.getState().toggleWeather(); sfx.ui(); }
     if (consumeTap("KeyP") || consumeTap("Escape")) { useGame.getState().togglePause(); sfx.ui(); }
     if (consumeTap("KeyC")) { useGame.getState().toggleChar(); sfx.ui(); }
     if (consumeTap("KeyM")) { useGame.getState().toggleMap(); sfx.ui(); }
@@ -249,6 +253,14 @@ export function GameSystems() {
     const stars = Math.floor(st.police);
     if (stars > prevStars.current) { remember("police", `Police attention escalated to ${stars} star${stars === 1 ? "" : "s"}.`); useToasts.getState().push(`WANTED ${"★".repeat(stars)}`, "#6cb6ff"); sfx.bust(); }
     if (stars !== prevStars.current) radio.setDuck(stars >= 3 ? 0.4 : 1); // adaptive chase mix (§19)
+    // backup toast when heat tier unlocks helicopter response
+    const heli = heatTier(st.police).helicopter;
+    if (heli && !prevHeli.current) {
+      useToasts.getState().push("AIR SUPPORT INBOUND", "#ff8a5b");
+      remember("police", "Helicopter response unlocked — stay under cover.");
+      sfx.bust();
+    }
+    prevHeli.current = heli;
     maxStars.current = Math.max(maxStars.current, stars);
     // evaded the cops: heat fell to zero after a real chase → cash reward (§14/§15).
     // (skip if we were just busted/wasted — that also zeroes heat)

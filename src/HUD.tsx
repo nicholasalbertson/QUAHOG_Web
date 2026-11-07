@@ -3,8 +3,10 @@ import { useGame } from "./store";
 import { useStats } from "./game";
 import { useMission } from "./mission";
 import { useEconomy, BUSINESSES } from "./economy";
+import { useInventory } from "./inventory";
 import { shared } from "./shared";
 import { radio } from "./audio/radioEngine";
+import { heatTier } from "./sim/HeatTiers";
 import { useCoarsePointer } from "./ui/useCoarsePointer";
 import { loadJSON, saveJSON } from "./storage";
 import { trackWrongWay } from "./ui/wrongWay";
@@ -34,7 +36,13 @@ export function HUD({ sliceName }: { sliceName: string }) {
   const armed = useGame((s) => s.armed);
   const weapon = useGame((s) => s.weapon);
   const melee = useGame((s) => s.melee);
+  const magPistol = useInventory((s) => s.magPistol);
+  const magShotgun = useInventory((s) => s.magShotgun);
+  const resPistol = useInventory((s) => s.pistol);
+  const resShotgun = useInventory((s) => s.shotgun);
   const down = useGame((s) => s.down);
+  const [heatFlash, setHeatFlash] = useState<string | null>(null);
+  const prevHeatStar = useRef(Math.floor(police));
   const nearLabel = useGame((s) => s.nearLabel);
   const photo = useGame((s) => s.photo);
   const scrimshaw = useGame((s) => s.scrimshaw);
@@ -60,6 +68,20 @@ export function HUD({ sliceName }: { sliceName: string }) {
   const streetTick = useRef(0);
   const streetTracker = useRef(new StreetLabelTracker());
   const distHist = useRef<{ t: number; d: number }[]>([]);
+  useEffect(() => {
+    const s = Math.floor(police);
+    if (s === prevHeatStar.current) return;
+    prevHeatStar.current = s;
+    if (s <= 0) {
+      setHeatFlash(null);
+      return;
+    }
+    const tier = heatTier(s);
+    setHeatFlash(`${tier.label.toUpperCase()} ${"★".repeat(s)}`);
+    const t = window.setTimeout(() => setHeatFlash(null), 2200);
+    return () => clearTimeout(t);
+  }, [police]);
+
   useEffect(() => {
     const id = setInterval(() => {
       const h = Math.floor(shared.hour);
@@ -127,9 +149,15 @@ export function HUD({ sliceName }: { sliceName: string }) {
   const hurt = Math.max(0, (40 - health) / 40); // 0 healthy → 1 near-death
 
   if (photo) return <div className="hud" data-compact={touch && !expanded}><div className="hud-photo">Photo mode · O to return</div></div>;
+  const magLabel = armed
+    ? (weapon === "pistol" ? `${magPistol}/${resPistol}` : `${magShotgun}/${resShotgun}`)
+    : null;
   return <div className="hud" data-compact={touch && !expanded}>
     {down && <div className="hud-down">{down === "wasted" ? "WASTED" : "BUSTED"}</div>}
     {armed && !down && <div className="hud-reticle">+</div>}
+    {heatFlash && !down && (
+      <div className="hud-heat-flash" role="status" aria-live="polite">{heatFlash}</div>
+    )}
     {hurt > 0 && <div style={{position:"absolute",inset:0,boxShadow:`inset 0 0 ${120+hurt*140}px rgba(140,35,25,${hurt*0.5})`}} />}
     <button className="hud-menu" onClick={() => useGame.getState().togglePause()} aria-label="Open game menu">☰</button>
     <div className="hud-place"><strong>{(place.street ?? place.town).toUpperCase()}</strong><span>{place.street ? place.town.toUpperCase() : "SOUTHCOAST"}</span></div>
@@ -138,11 +166,15 @@ export function HUD({ sliceName }: { sliceName: string }) {
       <div className="hud-clock">{hhmm} · Day {day} · {compass}</div>
       <div className="hud-health" role="meter" aria-label="Health" aria-valuemin={0} aria-valuemax={100} aria-valuenow={health}><span style={{width:`${Math.max(0,Math.min(100,health))}%`,background:health<30?"#d79c87":undefined}} /></div>
       {stamina < 99.5 && <div className="hud-stamina" aria-label={`Stamina ${Math.round(stamina)} percent`}><span style={{width:`${stamina}%`}} /></div>}
-      {POLICE_ENABLED && police > 0 && <div className="hud-heat" aria-label={`Police heat ${police}`}>{stars(police)}</div>}
+      {(POLICE_ENABLED || police > 0) && police > 0 && <div className="hud-heat" aria-label={`Police heat ${police}`}>{stars(police)}</div>}
       {faction > 0 && <div className="hud-heat faction" aria-label={`Faction heat ${faction}`}>{stars(faction)}</div>}
       {ownedCount > 0 && <div className="hud-inventory hud-secondary">{ownedCount}/{BUSINESSES.length} fronts</div>}
       {scrimshaw > 0 && <div className="hud-inventory hud-secondary">{scrimshaw}/{SCRIMSHAW_TOTAL} scrimshaw</div>}
-      {(armed || melee === "bat") && <div className="hud-inventory hud-secondary">{armed ? weapon : "bat"}</div>}
+      {(armed || melee === "bat") && (
+        <div className="hud-inventory hud-secondary">
+          {armed ? `${weapon} · ${magLabel}` : "bat"}
+        </div>
+      )}
     </div>
     <section className="hud-objective" aria-label="Current objective">
       <h2>{missionDone ? "MISSION COMPLETE" : missionTitle.toUpperCase()}</h2>
@@ -150,7 +182,7 @@ export function HUD({ sliceName }: { sliceName: string }) {
       {blizzardActive && <span className="hud-storm">Blizzard of ’26 · 52-inch drifts</span>}
       {wrongWay && !missionDone && <span className="hud-wrongway">⚠ WRONG WAY — the objective is behind you</span>}
     </section>
-    <details className="hud-help"><summary>Keyboard controls</summary><p><kbd>WASD</kbd> move · <kbd>Shift</kbd> sprint<br/><kbd>E</kbd> enter/exit · <kbd>Space</kbd> brake<br/><kbd>F</kbd> melee · <kbd>G</kbd> draw · click fire<br/><kbd>V</kbd> view · <kbd>H</kbd> horn<br/><kbd>M</kbd> map · <kbd>C</kbd> character<br/><kbd>R</kbd> weather · <kbd>[ ]</kbd> radio<br/><kbd>1–4</kbd> weapons · <kbd>O</kbd> photo</p></details>
+    <details className="hud-help"><summary>Keyboard controls</summary><p><kbd>WASD</kbd> move · <kbd>Shift</kbd> sprint<br/><kbd>E</kbd> enter/exit · <kbd>Space</kbd> brake<br/><kbd>F</kbd> melee · <kbd>G</kbd> draw · click fire<br/><kbd>V</kbd> view · <kbd>H</kbd> horn<br/><kbd>M</kbd> map · <kbd>C</kbd> character<br/><kbd>R</kbd> reload / weather · <kbd>Q</kbd>/<kbd>Tab</kbd> weapon wheel<br/><kbd>[ ]</kbd> radio · <kbd>1–4</kbd> weapons · <kbd>O</kbd> photo</p></details>
     {wp && <div className="hud-waypoint"><span style={{display:"inline-block",transform:`rotate(${wp.bearing}rad)`}}>▲</span> Waypoint · {wp.dist} m</div>}
     {edge && !missionDone && <div className={`hud-edge-arrow ${edge.side}`} aria-label="Objective off-screen">{edge.side === "left" ? `◀ ${edge.dist} m` : `${edge.dist} m ▶`}</div>}
     {sub && <div className="hud-caption"><b>{sub.name}: </b>{sub.text}</div>}

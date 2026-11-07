@@ -1,16 +1,22 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  persistSummary,
+  readSoakSummary,
   soakActive,
   soakSnapshot,
   soakUrlEnabled,
+  SOAK_STORAGE_KEY,
   startSoak,
   tickSoak,
 } from "../../sim/SoakHarness";
 
 describe("SoakHarness", () => {
   afterEach(() => {
-    // Reset by starting fresh state via private snapshot mutation is not exposed;
-    // startSoak re-arms cleanly for subsequent samples.
+    try {
+      localStorage.removeItem(SOAK_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
   });
 
   it("reads soak=1 from the URL", () => {
@@ -35,5 +41,28 @@ describe("SoakHarness", () => {
     expect(soakSnapshot().samples.length).toBe(1);
     // Within the 5-minute window, no second sample.
     expect(tickSoak(1_000 + 60_000)).toBeNull();
+  });
+
+  it("writes a JSON summary to localStorage mounthope.soak.v1", () => {
+    const store: Record<string, string> = {};
+    vi.stubGlobal("localStorage", {
+      getItem: (k: string) => store[k] ?? null,
+      setItem: (k: string, v: string) => {
+        store[k] = v;
+      },
+      removeItem: (k: string) => {
+        delete store[k];
+      },
+    });
+    startSoak(2_000);
+    tickSoak(2_000);
+    const summary = persistSummary(99);
+    expect(summary).not.toBeNull();
+    expect(store[SOAK_STORAGE_KEY]).toBeTruthy();
+    const parsed = readSoakSummary();
+    expect(parsed?.samples.length).toBe(1);
+    expect(parsed?.updatedAt).toBe(99);
+    expect(typeof parsed?.peakResidentBytes).toBe("number");
+    vi.unstubAllGlobals();
   });
 });

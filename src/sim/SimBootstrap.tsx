@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import { useGame } from "../store";
 import { useMission } from "../mission";
 import { shared } from "../shared";
+import { spatialAudio } from "../audio/SpatialAudio";
 import { sim } from "./SimRuntime";
 import { soakUrlEnabled, startSoak, tickSoak } from "./SoakHarness";
 
@@ -81,6 +82,9 @@ export function SimBootstrap() {
 
     const heading = mode === "car" ? shared.carYaw : mode === "boat" ? shared.boatYaw : shared.heading;
     const speed = mode === "car" ? shared.carSpeed : 0;
+
+    // §9.2 spatial listener tracks the active body / look heading.
+    spatialAudio.setListener(t.x, (t.y ?? 0) + 1.6, t.z, Math.sin(heading), Math.cos(heading));
 
     // Mission target wins; else player waypoint.
     const ms = useMission.getState();

@@ -7,12 +7,12 @@ import { consumeTap, isDown, moveAxis } from "../input";
 import { shared, addShake, raiseAlarm, addImpact, type TrafficCar, type Body, type Cop, type ParkedEntry } from "../shared";
 import { useGame, useToasts } from "../store";
 import { useStats } from "../game";
+import { useInventory } from "../inventory";
 import { sfx } from "../audio/sfx";
 import { isBlockedWater, blockedWaterEntry } from "../world/waterZones";
 import { pickEnterTarget, ENTER_HEAT, ENTER_LABEL, type EnterCandidates } from "./enterTarget";
 import { TRAFFIC_PACK_MODEL } from "../world/StreetLife";
 import { markParkedTaken } from "../world/ParkedCars";
-import { recallSavedCar } from "./recallCar";
 
 const BARKS = ["Hey! Watch it!", "You crazy?!", "Somebody call the cops!", "Get outta here!", "What's your problem?!", "Easy, pal!"];
 
@@ -208,9 +208,12 @@ export function Player() {
       }
     }
 
-    // saved-car recall (NB slice improvements, 2026-11-03): KeyQ on foot
-    // summons the Revuelto to the nearest roadside and auto-enters.
-    if (consumeTap("KeyQ")) recallSavedCar();
+    // KeyQ hold cycles weapons (WeaponWheel); short tap still recalls via the wheel.
+
+    // reload (R) when a firearm is drawn — GameSystems skips weather while armed.
+    if (armed && consumeTap("KeyR")) {
+      if (useInventory.getState().reload(game.weapon)) sfx.ui();
+    }
 
     // melee: swing at the nearest pedestrian in front (F). A bat (key 4) hits
     // harder, reaches farther, and knocks them flying.
@@ -242,6 +245,10 @@ export function Player() {
 
     // gunplay: fire when armed (left-click / Space) along the aim yaw
     if (armed && !game.mapOpen && !game.charOpen && (consumeTap("Mouse0") || consumeTap("Space"))) {
+      if (!useInventory.getState().spend(game.weapon)) {
+        sfx.ui(); // dry fire / empty mag
+        return;
+      }
       const p = rb.translation();
       const aim = shared.camYaw;
       const fx = Math.sin(aim), fz = Math.cos(aim);

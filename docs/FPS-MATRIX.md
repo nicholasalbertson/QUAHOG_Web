@@ -26,6 +26,11 @@ Open the main game with:
 - `soak=1` — starts `SoakHarness` (5‑minute resident/evict samples to the console)
 - `perf=1` — opt-in frame-time / draw-call overlay (`PerfProbe` / `RenderDiagnostics`)
 
+**Agent soak auto-logs:** every sample also writes a JSON summary to
+`localStorage` key `mounthope.soak.v1` (`SoakHarness.persistSummary`). A compact
+`SoakBadge` appears when `?soak=1` so cloud/device agents can confirm logging
+without opening DevTools. Read the key after a run to fill the soak table above.
+
 Protocol: New Game → drive a loop across the NB tile ring for 30 minutes;
 sample streamer resident MB + evict count every 5 minutes (console `[soak]` lines);
 abort on OOM or sustained &lt; 20 FPS. Device measurement still owner/device gated.
