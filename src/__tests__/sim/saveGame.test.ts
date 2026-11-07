@@ -10,15 +10,18 @@ import { saveJSON, removeItem } from "../../storage";
 import { SAVE_KEYS } from "../../registries";
 
 describe("SaveGame", () => {
-  it("canContinue requires stats + pos + mission", () => {
+  it("canContinue requires stats + pos (mission optional for legacy)", () => {
     clearAllSaves();
     expect(canContinue().ok).toBe(false);
     saveJSON(SAVE_KEYS.stats, { cash: 1, health: 100, police: 0, faction: 0 });
     expect(canContinue().ok).toBe(false);
     saveJSON(SAVE_KEYS.pos, { mode: "foot", px: 1, py: 2, pz: 3 });
-    expect(canContinue().ok).toBe(false);
+    expect(canContinue().ok).toBe(true); // legacy live save without mission key
     saveJSON(SAVE_KEYS.mission, { mi: 0, step: 0, done: false });
     expect(canContinue().ok).toBe(true);
+    saveJSON(SAVE_KEYS.mission, { done: false });
+    expect(canContinue().reason).toMatch(/mission/i);
+    removeItem(SAVE_KEYS.mission);
     removeItem(SAVE_KEYS.pos);
     expect(canContinue().reason).toMatch(/position/i);
   });

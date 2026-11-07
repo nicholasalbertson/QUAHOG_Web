@@ -34,22 +34,24 @@ export interface ContinueGate {
   reason?: string;
 }
 
-/** Required keys for Continue — missing any disables the button. */
+/** Required keys for Continue — stats + position; mission is preferred but
+ *  optional so legacy live-lineage saves (pre-mission key) still resume. */
 export function canContinue(): ContinueGate {
   const stats = getItem(SAVE_KEYS.stats);
   const pos = getItem(SAVE_KEYS.pos);
   const mission = getItem(SAVE_KEYS.mission);
   if (!stats) return { ok: false, reason: "missing stats" };
   if (!pos) return { ok: false, reason: "missing position" };
-  if (!mission) return { ok: false, reason: "missing mission" };
   try {
     const p = JSON.parse(pos) as Record<string, unknown>;
     if (typeof p.px !== "number" && typeof p.carx !== "number" && typeof p.boatx !== "number") {
       return { ok: false, reason: "position incomplete" };
     }
-    const m = JSON.parse(mission) as Record<string, unknown>;
-    if (typeof m.mi !== "number" || typeof m.step !== "number") {
-      return { ok: false, reason: "mission incomplete" };
+    if (mission) {
+      const m = JSON.parse(mission) as Record<string, unknown>;
+      if (typeof m.mi !== "number" || typeof m.step !== "number") {
+        return { ok: false, reason: "mission incomplete" };
+      }
     }
   } catch {
     return { ok: false, reason: "corrupt save" };

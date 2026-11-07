@@ -3,38 +3,40 @@ import { useGame } from "../store";
 import { useStats } from "../game";
 import { useMission } from "../mission";
 import { useEconomy } from "../economy";
+import { useInventory } from "../inventory";
 import { sfx } from "../audio/sfx";
-import { getItem, removeItem } from "../storage";
+import { canContinue, clearAllSaves } from "../sim/SaveGame";
 import { worldJournal } from "../world/worldJournal";
-
-const hasSave = () => !!getItem("mounthope.save.v1");
 
 // Title / start screen (§22). Shown over the loading world until the player
 // presses Play; doubles as the first user gesture that unlocks audio.
 
 const TIPS = [
   "WASD to move · Shift to sprint · E to grab a car.",
-  "G draws your pistol — click to fire. F throws hands.",
+  "G draws your pistol — click to fire. F throws hands. R reloads.",
   "Heat climbs when you cause trouble. Lay low at the safehouse.",
   "Ram a car to stop it, then jack it on foot with E.",
   "Press M for the map, C for your character, ⚙ to lay out touch controls.",
   "Buy fronts around the city (B) — they pay out every day.",
+  "FPS soak: open with ?debug&soak=1&perf=1 and drive the NB ring 30 min.",
 ];
 
 export function StartMenu({ sliceName, progress = 0 }: { sliceName: string; progress?: number }) {
   const started = useGame((s) => s.started);
   const [tip] = useState(() => TIPS[Math.floor(Math.random() * TIPS.length)]);
-  const [save] = useState(hasSave);
+  const [gate] = useState(() => canContinue());
+  const save = gate.ok;
   const loaded = sliceName !== "loading…";
   if (started) return null;
   const pct = Math.round(progress * 100);
 
   const play = () => { sfx.setVolume(0.5); useGame.getState().setStarted(true); };
   const newGame = () => {
-    removeItem("mounthope.save.v1", "mounthope.economy.v1", "mounthope.scrimshaw.v1", "mounthope.pos.v1");
+    clearAllSaves();
     useStats.getState().reset();
     useMission.getState().reset();
     useEconomy.setState({ owned: {} });
+    useInventory.getState().reset();
     worldJournal.reset(); // a new life has its own event history
     useGame.getState().resetSession(); // clear bat/photo/waypoint/scrimshaw & remount per-game props
     play();
@@ -61,6 +63,12 @@ export function StartMenu({ sliceName, progress = 0 }: { sliceName: string; prog
           {loaded ? (save ? "✦ NEW GAME" : "NEW GAME") : "LOADING…"}
         </button>
       </div>
+
+      {!save && gate.reason && (
+        <div style={{ marginTop: 10, fontSize: 11, opacity: 0.45, fontFamily: "'Courier New', monospace" }}>
+          Continue unavailable — {gate.reason}
+        </div>
+      )}
 
       {!loaded && (
         <div style={{ marginTop: 22, width: 280 }}>

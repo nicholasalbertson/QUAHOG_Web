@@ -25,6 +25,7 @@ import { DebugStats } from "./ui/DebugStats";
 import { DebugOverlay } from "./debug/DebugOverlay";
 import { DebugCapture } from "./debug/DebugCapture";
 import { PerfProbe } from "./ui/PerfProbe";
+import { AssetLoadNotice } from "./assets/AssetLoadNotice";
 import { StartMenu } from "./ui/StartMenu";
 import { Radio } from "./audio/Radio";
 import { installInput } from "./input";
@@ -102,6 +103,7 @@ export default function App() {
       <Radio />
       <DebugStats />
       <DebugOverlay />
+      <AssetLoadNotice />
       <StartMenu sliceName={sliceName} progress={progress} />
     </>
   );
