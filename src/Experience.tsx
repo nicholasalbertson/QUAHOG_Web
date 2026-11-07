@@ -61,8 +61,10 @@ import { HealthPickups } from "./world/HealthPickups";
 import { Race } from "./world/Race";
 import { Impacts } from "./world/Impacts";
 import { HarborProps } from "./world/HarborProps";
+import { HarborBanks } from "./world/HarborBanks";
 import { Waterfront } from "./world/Waterfront";
 import { PortClutter } from "./world/PortClutter";
+import { Embankment } from "./world/Embankment";
 import { Marina } from "./world/Marina";
 import { Gulls } from "./world/Gulls";
 import { SkidMarks } from "./world/SkidMarks";
@@ -227,6 +229,7 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
           <>
             <Roads roads={slice.roads} />
             <MedianBarriers roads={slice.roads} />
+            <Embankment roads={slice.roads} />
             <RoadPuddles roads={slice.roads} center={world} />
             <Snowbanks roads={slice.roads} />
             <Bridges roads={slice.roads} />
@@ -277,6 +280,11 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       {slice && <AreaTrees areas={slice.parks} step={16} cap={300} />}
       {slice && <Steeples points={slice.church} />}
       {slice && slice.water?.length > 0 && <Water polys={slice.water} holes={slice.islands ?? []} />}
+      {/* Harbor banks (riprap + inland grass): landscape readability, not
+          clutter — NB-only, ungated by DRESSING_ENABLED. */}
+      {isNB && slice && slice.water?.length > 0 && (
+        <HarborBanks polys={slice.water} center={world} />
+      )}
       {/* NB harbor dressing (pilings, buoys, boats): NB-only. The container
           clutter (PortClutter) is gated by the minimalist dressing switch
           below; HarborProps' own land-side gear boxes are gated inside

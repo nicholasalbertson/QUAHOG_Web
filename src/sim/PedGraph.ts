@@ -6,7 +6,7 @@
  */
 
 import type { Road } from "../slice";
-import type { NavPath, RoadEdge, RoadNode, Vec2 } from "./types";
+import type { NavPath, PedNodeKind, RoadEdge, RoadNode, Vec2 } from "./types";
 import { dijkstra, type GraphEdge } from "./Dijkstra";
 import { dist } from "./math";
 
@@ -180,21 +180,35 @@ export class PedGraph {
     return best >= 0 ? best : null;
   }
 
-  randomNodeNear(x: number, z: number, minR = 12, maxR = 90): number | null {
+  randomNodeNear(
+    x: number,
+    z: number,
+    minR = 12,
+    maxR = 90,
+    preferKind?: PedNodeKind,
+  ): number | null {
     if (this.nodes.length === 0) return null;
     const min2 = minR * minR;
     const max2 = maxR * maxR;
     const hits: number[] = [];
+    const preferred: number[] = [];
     for (const n of this.nodes) {
       const d = (n.x - x) * (n.x - x) + (n.z - z) * (n.z - z);
-      if (d >= min2 && d <= max2) hits.push(n.id);
+      if (d < min2 || d > max2) continue;
+      hits.push(n.id);
+      if (preferKind && (n.kind ?? "sidewalk") === preferKind) preferred.push(n.id);
     }
-    if (hits.length === 0) {
-      const deg = this.nodes.filter((n) => (this.adjacency.get(n.id)?.length ?? 0) > 0);
-      const pool = deg.length ? deg : this.nodes;
-      return pool[Math.floor(Math.random() * pool.length)].id;
+    const pool = preferred.length ? preferred : hits;
+    if (pool.length === 0) {
+      const deg = this.nodes.filter((n) => {
+        if ((this.adjacency.get(n.id)?.length ?? 0) === 0) return false;
+        if (preferKind) return (n.kind ?? "sidewalk") === preferKind;
+        return true;
+      });
+      const fallback = deg.length ? deg : this.nodes;
+      return fallback[Math.floor(Math.random() * fallback.length)].id;
     }
-    return hits[Math.floor(Math.random() * hits.length)];
+    return pool[Math.floor(Math.random() * pool.length)];
   }
 
   neighbors(id: number): readonly GraphEdge[] {

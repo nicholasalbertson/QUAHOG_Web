@@ -1,23 +1,24 @@
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
-import { makeAsphaltTexture, makeCobbleTexture, makeNoiseNormal, makeSidewalkTexture, makeFreewayTexture } from "./textures";
+import { makeAsphaltTexture, makeCobbleTexture, makeDirtTexture, makeNoiseNormal, makeSidewalkTexture, makeFreewayTexture } from "./textures";
 import { useGame } from "../store";
 import { winterRoadTexture } from "./districtMaterials";
 import { productionRoadMaps } from "./productionRoadMaps";
 import type { Road } from "../slice";
 import { buildFreewayCorridor, freewayDividers, trimRoadAtFreeway } from "./freeway";
+import { classifyRoadSurface } from "./roadSurface";
 
 const CELL = 1000;       // road chunk size (m)
 const DRAW_DIST = 1500;  // hide road chunks beyond this from the camera
 
 // Road classes → surface material. Highways get lane markings; vehicular streets
-// get plain asphalt; footways/pedestrian/steps get historic cobblestone.
+// get plain asphalt; real-world setts only (OSM surface or Johnny Cake Hill);
+// footways → sidewalk; tracks / unpaved → dirt. classifyRoadSurface() is truth.
 const HIGHWAY = new Set([
   "motorway", "trunk", "primary",
   "motorway_link", "trunk_link", "primary_link",
 ]);
-const COBBLE = new Set(["footway", "path", "pedestrian", "steps", "cycleway", "track"]);
 // parking-lot aisles / driveways / alleys — thousands of them. Drawn as a quiet,
 // darker surface UNDER the real streets (no lane markings, no curb apron, no
 // sidewalks) so the map doesn't read as a tangle of equal-weight roads converging.
@@ -153,6 +154,11 @@ export function Roads({ roads }: { roads: Road[] }) {
     t.repeat.set(1, 0.5); // bigger cobbles along length
     return t;
   }, []);
+  const dirtTex = useMemo(() => {
+    const t = makeDirtTexture();
+    t.repeat.set(1, 0.6);
+    return t;
+  }, []);
   const nrm = useMemo(() => makeNoiseNormal(), []);
   // Combined-tree fix: R3/R4 referenced `quality` here with no binding (the
   // tsc failure in both R4 packages). Declared before first use.
@@ -170,17 +176,28 @@ export function Roads({ roads }: { roads: Road[] }) {
   const trimmed = useMemo(() => roads.flatMap((r) => trimRoadAtFreeway(r, corridor)), [roads, corridor]);
   const chunks = useMemo(() => {
     const land = trimmed.filter((r) => !r.bridge); // bridges handled by <Bridges/>
-    const cells = new Map<string, { cb: Road[]; sf: Road[]; hw: Road[]; sv: Road[]; cx: number; cz: number }>();
+    const cells = new Map<string, {
+      cb: Road[]; dt: Road[]; sw: Road[]; sf: Road[]; hw: Road[]; sv: Road[];
+      cx: number; cz: number;
+    }>();
     for (const r of land) {
       const mid = r.points[Math.floor(r.points.length / 2)] ?? r.points[0];
       const gx = Math.floor(mid[0] / CELL), gn = Math.floor(mid[1] / CELL);
       const key = `${gx}_${gn}`;
       let c = cells.get(key);
-      if (!c) { c = { cb: [], sf: [], hw: [], sv: [], cx: (gx + 0.5) * CELL, cz: -(gn + 0.5) * CELL }; cells.set(key, c); }
+      if (!c) {
+        c = { cb: [], dt: [], sw: [], sf: [], hw: [], sv: [], cx: (gx + 0.5) * CELL, cz: -(gn + 0.5) * CELL };
+        cells.set(key, c);
+      }
       if (HIGHWAY.has(r.highway)) c.hw.push(r);
-      else if (COBBLE.has(r.highway)) c.cb.push(r);
-      else if (SERVICE.has(r.highway)) c.sv.push(r);
-      else c.sf.push(r);
+      else if (SERVICE.has(r.highway) && classifyRoadSurface(r) !== "dirt") c.sv.push(r);
+      else {
+        const kind = classifyRoadSurface(r);
+        if (kind === "cobble") c.cb.push(r);
+        else if (kind === "dirt") c.dt.push(r);
+        else if (kind === "sidewalk") c.sw.push(r);
+        else c.sf.push(r);
+      }
     }
     return [...cells.values()].map((c) => ({
       cx: c.cx, cz: c.cz,
@@ -193,7 +210,11 @@ export function Roads({ roads }: { roads: Road[] }) {
       shoulder: buildRibbon(c.hw, 0.04, 0, 1.0),
       // raised curb + walkway flanking ordinary streets (not highways/cobble)
       sidewalk: buildSidewalks(c.sf, 0.14, 0.1, 2.0),
+      // Real-world setts only (Johnny Cake Hill / OSM surface=sett|cobblestone).
       cobble: buildRibbon(c.cb, 0.05, 1.2),
+      dirt: buildRibbon(c.dt, 0.05, 1.0),
+      // Footways / paths without cobble surface — concrete sidewalk texture.
+      path: buildRibbon(c.sw, 0.055, 0),
       // service aisles/driveways: slightly trimmed, drawn just below street level
       service: buildRibbon(c.sv, 0.045, 0, 0, 0.9),
       surface: buildRibbon(c.sf, 0.06, 0),
@@ -223,7 +244,7 @@ export function Roads({ roads }: { roads: Road[] }) {
   }, [trimmed]);
   useEffect(() => () => {
     for (const chunk of chunks) {
-      for (const key of ["apron", "shoulder", "sidewalk", "cobble", "service", "surface", "centerline"] as const) {
+      for (const key of ["apron", "shoulder", "sidewalk", "cobble", "dirt", "path", "service", "surface", "centerline"] as const) {
         chunk[key]?.dispose();
       }
       for (const h of chunk.highways) h.geom?.dispose();
@@ -273,6 +294,16 @@ export function Roads({ roads }: { roads: Road[] }) {
           {c.cobble && (
             <mesh geometry={c.cobble} receiveShadow>
               <meshStandardMaterial map={snowy ? snowRoad : cobbleTex} color={snowy ? "#dce2e5" : "#8a8580"} roughness={0.95} userData={{ base: 0.95 }} />
+            </mesh>
+          )}
+          {c.dirt && (
+            <mesh geometry={c.dirt} receiveShadow>
+              <meshStandardMaterial map={snowy ? snowRoad : dirtTex} color={snowy ? "#d8d2c4" : "#7a6548"} roughness={0.97} userData={{ base: 0.97 }} />
+            </mesh>
+          )}
+          {c.path && (
+            <mesh geometry={c.path} receiveShadow>
+              <meshStandardMaterial map={snowy ? undefined : sidewalkTex} color={snowy ? "#eef2f6" : "#c4beb4"} roughness={0.93} userData={{ base: 0.93 }} />
             </mesh>
           )}
           {c.service && (

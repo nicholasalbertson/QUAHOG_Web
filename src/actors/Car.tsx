@@ -22,6 +22,8 @@ import { buildStreetExtrasLayout } from "../world/StreetExtras";
 import { computeUtilityPolePositions } from "../world/UtilityPoles";
 import { computeTrafficLightPositions } from "../world/TrafficLights";
 import { CORE_WORLD } from "../world/freeway";
+import { frictionSurfaceForRoad, roadSurfaceAt } from "../world/roadSurface";
+import { sim } from "../sim";
 
 // Arcade tuning, slowed down (feel fix 2026-11-02): the old 44 m/s top
 // speed (~98 mph) was absurd for city streets and made steering feel
@@ -75,6 +77,7 @@ export function Car() {
   const offRoad = useRef(false);
   const offRoadShake = useRef(0);
   const bumpTimer = useRef(0);
+  const surfaceGrip = useRef(1);
   // Rt 18 programme (2026-11-02): breakable street furniture positions —
   // lamp, stop-sign, meter, signal and utility poles, from the SAME builders
   // the visuals use (so the hit test can never disagree with what's drawn).
@@ -128,6 +131,8 @@ export function Car() {
     const v = rb.linvel();
     const vForward = v.x * fwd.x + v.z * fwd.z;
 
+    const grip = surfaceGrip.current;
+
     // handbrake (Space): scrubs speed fast and loosens the steering for a drift
     const handbrake = isDown("Space");
 
@@ -143,7 +148,7 @@ export function Car() {
     let authority = THREE.MathUtils.clamp(Math.abs(vForward) / 4, 0, 1) * (1 - speedFrac * 0.55);
     if (handbrake) authority *= 1.8; // sharper rotation while sliding
     steerSmooth.current = THREE.MathUtils.lerp(steerSmooth.current, ax.x, 1 - Math.exp(-dt * 10));
-    yaw -= steerSmooth.current * 1.3 * handling.steer * dt * authority * traction.steer * (vForward < -0.1 ? -1 : 1);
+    yaw -= steerSmooth.current * 1.3 * handling.steer * dt * authority * traction.steer * grip * (vForward < -0.1 ? -1 : 1);
 
     // publish driving signals (§13): speed for camera FOV, skid for tire marks
     shared.carSpeed = vForward;
@@ -155,7 +160,7 @@ export function Car() {
     // moving forward instead of instantly targeting reverse.
     const braking = ax.y < 0 && vForward > 2;
     const target =
-      handbrake ? 0 : ax.y > 0 ? traction.forward * ax.y : braking ? 0 : ax.y < 0 ? -traction.reverse * -ax.y : 0;
+      handbrake ? 0 : ax.y > 0 ? traction.forward * ax.y * grip : braking ? 0 : ax.y < 0 ? -traction.reverse * -ax.y * grip : 0;
     const rate = handbrake ? 4.5 * traction.handbrakeResponse : ax.y !== 0 ? 2.6 * traction.throttleResponse * handling.accel : 1.5 * traction.throttleResponse;
     let nf = THREE.MathUtils.lerp(vForward, target, 1 - Math.exp(-dt * rate));
 
@@ -222,20 +227,19 @@ export function Car() {
       let over = false;
       if (slice) {
         const cp0 = rb.translation();
-        let best = Infinity, bestHalf = 0;
-        for (const r of slice.roads) {
-          if (r.points.length < 2) continue;
-          for (let i = 0; i < r.points.length - 1; i++) {
-            const ax = r.points[i][0], az = -r.points[i][1];
-            const bx = r.points[i + 1][0], bz = -r.points[i + 1][1];
-            const dx = bx - ax, dz = bz - az;
-            const len2 = dx * dx + dz * dz;
-            const t = len2 > 0 ? Math.max(0, Math.min(1, ((cp0.x - ax) * dx + (cp0.z - az) * dz) / len2)) : 0;
-            const d = Math.hypot(cp0.x - (ax + dx * t), cp0.z - (az + dz * t));
-            if (d < best) { best = d; bestHalf = r.width / 2; }
-          }
+        const under = roadSurfaceAt(slice.roads, cp0.x, cp0.z);
+        if (under) {
+          over = under.dist > under.halfWidth + 2.5;
+          const onCarriage = under.dist <= under.halfWidth + 1.5;
+          const kind = onCarriage ? under.kind : "dirt";
+          sim.clock.syncFromShared(shared.day, shared.hour, useGame.getState().weather);
+          surfaceGrip.current = sim.clock.friction(
+            frictionSurfaceForRoad(kind === "sidewalk" ? "asphalt" : kind),
+          );
+        } else {
+          over = true;
+          surfaceGrip.current = sim.clock.friction("dirt");
         }
-        over = best > bestHalf + 2.5;
       }
       offRoadHold.current = over ? offRoadHold.current + 1 : 0;
       offRoad.current = offRoadHold.current >= 2;

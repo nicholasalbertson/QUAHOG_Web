@@ -218,46 +218,79 @@ function shuffledDeck<T>(items: readonly T[], n: number): T[] {
   return out.slice(0, n);
 }
 
+/** Map player tint toward the nearest PED_SKINS entry (crowd mirrors player). */
+function skinForPlayerTint(tint: string): string {
+  const hex = tint.replace("#", "").trim();
+  if (hex.length < 6) return pick(PED_SKINS);
+  const pr = parseInt(hex.slice(0, 2), 16);
+  const pg = parseInt(hex.slice(2, 4), 16);
+  const pb = parseInt(hex.slice(4, 6), 16);
+  if (![pr, pg, pb].every((n) => Number.isFinite(n))) return pick(PED_SKINS);
+  let best = PED_SKINS[0];
+  let bestD = Infinity;
+  for (const s of PED_SKINS) {
+    const h = s.slice(1);
+    const r = parseInt(h.slice(0, 2), 16);
+    const g = parseInt(h.slice(2, 4), 16);
+    const b = parseInt(h.slice(4, 6), 16);
+    const d = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = s;
+    }
+  }
+  // Keep some variety: 55% use the player's matched skin, else random palette.
+  return Math.random() < 0.55 ? best : pick(PED_SKINS);
+}
+
+const PED_MIN_SPACING = 3.2;
+
 function Pedestrians({ center, count }: { center: [number, number]; count: number }) {
   const refs = useRef<(THREE.Group | null)[]>([]);
   const pedAi = useRef(new PedestrianAI());
   const agents = useRef<PedAgent[]>([]);
   const useGraph = flag("pedGraph");
+  const playerTint = useGame((s) => s.playerTint);
   const state = useRef(
-    // Stream B (2026-11-03): looks are dealt here, once per mount, from
-    // shuffled decks. The old code derived body/garment from the render
-    // index (i % 19 / i % 14), so pairings were fixed and repeated every
-    // mount. Wander / flee / ragdoll / punch state below is untouched.
+    // Looks dealt once per mount from shuffled decks. Bodies are unique within
+    // the first PED_BODIES.length slots so the crowd isn't a wall of clones.
+    // Skins bias toward the player's character tint.
     (() => {
       const bodies = shuffledDeck(PED_BODIES, count);
       const garments = shuffledDeck(PED_GARMENTS, count);
       const headgear = shuffledDeck(PED_HEADGEAR, count);
+      const tint = useGame.getState().playerTint;
+      const placed: THREE.Vector3[] = [];
       return Array.from({ length: count }, (_, i) => {
-        const pos = randInBox(center);
+        let pos = randInBox(center);
+        // De-dupe spawn positions — reject overlaps with earlier peds.
+        for (let attempt = 0; attempt < 12; attempt++) {
+          if (placed.every((q) => pos.distanceTo(q) >= PED_MIN_SPACING)) break;
+          pos = randInBox(center);
+        }
+        placed.push(pos.clone());
         const spec = bodies[i];
         return {
           pos, goal: randInBox(center), heading: 0, color: pick(PED_COLORS),
-          scale: 0.9 + Math.random() * 0.28, // overall size variety (origin at feet, so they stay planted) — not 32 clones
+          scale: 0.9 + Math.random() * 0.28,
           look: {
             body: spec.body,
             garment: spec.uniform ? undefined : garments[i],
-            // Uniformed bodies already wear baked caps / hardhats / beanies,
-            // and crowd_lowdetail renders two heads under one joint, so
-            // headgear is civilian single-head bodies only — never two hats,
-            // never one hat for two heads.
             headgear:
               spec.uniform || spec.body === "crowd_lowdetail"
                 ? undefined
                 : headgear[i],
-            skin: pick(PED_SKINS),
+            skin: skinForPlayerTint(tint),
           },
           down: 0, dead: false,
-          vel: new THREE.Vector3(), y: 0, tumble: 0, // ragdoll launch state
+          vel: new THREE.Vector3(), y: 0, tumble: 0,
           body: { pos: pos.clone(), push: new THREE.Vector3(), hit: 0 } as Body,
         };
       });
     })(),
   );
+  // Keep a stable ref; tint changes remount StreetLife via key elsewhere if needed.
+  void playerTint;
 
   // register pedestrian bodies so the player's punch can find them
   useEffect(() => {
@@ -272,8 +305,10 @@ function Pedestrians({ center, count }: { center: [number, number]; count: numbe
       return;
     }
     const ai = pedAi.current;
-    ai.setCenter({ x: center[0], z: -center[1] });
+    // `center` is already world [x,z] from worldCenter().
+    ai.setCenter({ x: center[0], z: center[1] });
     ai.setGraph(sim.pedGraph);
+    const used = new Set<string>();
     agents.current = state.current.map((ex, id) => {
       const agent: PedAgent = {
         id,
@@ -288,13 +323,21 @@ function Pedestrians({ center, count }: { center: [number, number]; count: numbe
         pathCursor: 0,
       };
       if (sim.pedGraph) {
-        const p = ai.randomInWander();
+        // Sidewalk snap + spatial de-dupe so we don't stack peds on one node.
+        for (let attempt = 0; attempt < 10; attempt++) {
+          const p = ai.randomInWander();
+          agent.x = p.x;
+          agent.z = p.z;
+          ai.snapToGraph(agent);
+          const key = `${Math.round(agent.x / PED_MIN_SPACING)}_${Math.round(agent.z / PED_MIN_SPACING)}`;
+          if (!used.has(key)) {
+            used.add(key);
+            break;
+          }
+        }
         const g = ai.randomInWander();
-        agent.x = p.x;
-        agent.z = p.z;
         agent.goalX = g.x;
         agent.goalZ = g.z;
-        ai.snapToGraph(agent);
         ex.pos.set(agent.x, 0, agent.z);
         ex.goal.set(agent.goalX, 0, agent.goalZ);
         ex.body.pos.copy(ex.pos);
@@ -311,7 +354,7 @@ function Pedestrians({ center, count }: { center: [number, number]; count: numbe
       const ai = pedAi.current;
       ai.setGraph(sim.pedGraph);
       const body = shared.player?.translation();
-      const player = { x: body?.x ?? center[0], z: body?.z ?? -center[1] };
+      const player = { x: body?.x ?? center[0], z: body?.z ?? center[1] };
       let flee: { x: number; z: number } | null = null;
       if (shared.alarm.t > 0) flee = { x: shared.alarm.pos.x, z: shared.alarm.pos.z };
       else if (shared.car && Math.abs(shared.carSpeed) > 10) {
