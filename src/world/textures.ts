@@ -298,6 +298,51 @@ export function makeTerrainTexture(): THREE.Texture {
   return _terrain;
 }
 
+/** Dirt/gravel road surface — brown/tan mottled with scattered small stones.
+ *  Same procedural canvas style as cobble/asphalt; for unpaved lanes and berms. */
+export function makeDirtTexture(): THREE.Texture {
+  const S = 256;
+  const [c, ctx] = canvas(S);
+  ctx.fillStyle = "#6a573c";
+  ctx.fillRect(0, 0, S, S);
+  // low-frequency earth/tan mottling
+  const blobs: [string, number][] = [
+    ["#7a6544", 28], ["#5c4a32", 24], ["#8a7350", 20], ["#4e3f2a", 22], ["#746044", 18],
+  ];
+  for (let i = 0; i < 70; i++) {
+    const [col, rad] = blobs[i % blobs.length];
+    const x = Math.random() * S, y = Math.random() * S, r = rad + Math.random() * rad;
+    const g = ctx.createRadialGradient(x, y, 1, x, y, r);
+    g.addColorStop(0, col); g.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.globalAlpha = 0.45; ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  // fine grit / dust speckles
+  for (let i = 0; i < 4200; i++) {
+    const v = 55 + Math.random() * 55;
+    const warm = Math.random() * 18;
+    ctx.fillStyle = `rgba(${v + warm},${v},${v - 18},${0.2 + Math.random() * 0.3})`;
+    const s = 1 + Math.random() * 2;
+    ctx.fillRect(Math.random() * S, Math.random() * S, s, s);
+  }
+  // small gravel stones (grey-tan pebbles)
+  for (let i = 0; i < 180; i++) {
+    const x = Math.random() * S, y = Math.random() * S;
+    const r = 1.2 + Math.random() * 2.8;
+    const tone = 95 + Math.random() * 50;
+    const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 0.5, x, y, r);
+    g.addColorStop(0, `rgb(${tone + 18},${tone + 12},${tone - 6})`);
+    g.addColorStop(1, `rgb(${tone - 28},${tone - 32},${tone - 40})`);
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.ellipse(x, y, r, r * (0.7 + Math.random() * 0.4), Math.random() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return asColor(t);
+}
+
 /** Cobblestone texture for the historic district (rounded granite setts). */
 export function makeCobbleTexture(): THREE.Texture {
   const [c, ctx] = canvas(256);

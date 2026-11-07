@@ -34,6 +34,12 @@ export interface Road {
   ref?: string;
   /** True only when the matched OSM way is oneway=yes. Absent = unknown. */
   oneway?: boolean;
+  /**
+   * OSM surface tag when present in the slice bake (sett, asphalt, dirt, …).
+   * Optional — runtime falls back to highway class + historic name allowlist
+   * via `classifyRoadSurface` in world/roadSurface.ts.
+   */
+  surface?: string;
 }
 export interface Landmark {
   name: string;
