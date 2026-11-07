@@ -7,7 +7,7 @@ Gate for M8 / release candidate. Check off only with evidence.
 - [x] Earth demoted to diagnostic (`docs/EARTH-DECISION.md`)
 - [x] Canonical brand on start menu (`BRAND.name`)
 - [ ] Mid/late campaign map content (Cape / Fall River) — **blocked on authored tiles**
-- [x] Continue disabled without pos+mission+stats
+- [x] Continue requires stats + position (`canContinue`); mission optional for legacy saves
 - [x] New Game clears unified + legacy save domains
 
 ## Sim
@@ -16,7 +16,8 @@ Gate for M8 / release candidate. Check off only with evidence.
 - [x] Heat tier table + ★5 APB no-decay
 - [x] Ammo inventory spend/reload + persistence
 - [x] `WorldStreamer` evict/unwanted grace
-- [x] All AI on fixed step (peds/traffic/heat/economy/car/boat)
+- [~] Fixed-step: peds/traffic/chase/weather on `GameLoop`; car/boat still deepen on live lineage
+- [x] PedGraph sidewalk routing behind `flag.pedGraph`
 
 ## Quality
 

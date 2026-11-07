@@ -21,7 +21,8 @@ Ported the open-world sim layer + RC polish from the bf4e agent tip (`92feb8a`) 
 
 ### Changed
 - Earth demoted to diagnostic (`docs/EARTH-DECISION.md`); stylized canvas is the product boot.
-- Continue gate requires stats + position + mission; New Game clears unified + legacy domains.
+- Continue gate requires stats + position; mission optional for legacy saves; New Game clears unified + legacy domains.
+- `docs/IMPLEMENTATION-CHECKLIST-V3.md` status synced to post-#14 live lineage (v3.1).
 
 ### Known blockers (not in this RC)
 - Cape Cod / Fall River authored tiles (campaign mid/late map).

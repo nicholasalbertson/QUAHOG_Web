@@ -15,6 +15,23 @@ Perf budget, Edge cases, and a one-line Accept. The task tree is
 the work; everything else is the definition of done. IDs are stable and
 should be used in commit messages and PR titles (feat(§1.1.7): ...).
 
+Live lineage status (2026-11-07, PR #14 → `1bd149a`). The open-world
+sim layer + RC polish were reintegrated onto live `main` (radio /
+expansion lineage) without replacing pack-based StreetLife / Franklin.
+Baseline that is now on `main` (deepen per task trees below):
+
+· `src/sim/**` — GameLoop, PedGraph, MissionRuntime, ClockWeather (snow
+  sync), SaveGame v2, HeatTiers, SpatialIndex segment/LOS, SoakHarness,
+  AcceptanceHarness stages 0–7, Rng, SimBootstrap
+· Foundations — `src/flags.ts`, `src/registries.ts` (SAVE_KEYS),
+  `npm run assets:audit` + `public/assets-licenses.json`
+· StreetLife — PedGraph sidewalk routing behind `flag.pedGraph`
+  (stylized default on); traffic/peds step on GameLoop
+· UI/ops — Continue gate (stats+position; mission optional for legacy),
+  Borden `usePrimitiveBody` until human GLBs, AssetLoadNotice,
+  `docs/FPS-MATRIX.md` soak protocol, `docs/EARTH-DECISION.md`
+· Pointer checklist: [`IMPLEMENTATION-CHECKLIST.md`](./IMPLEMENTATION-CHECKLIST.md)
+
 ---
 
 Table of contents
@@ -65,18 +82,18 @@ parallel work.
 
 0.2 Feature flags — (S)
 
-[ ] Flag registry src/flags.ts with typed keys + defaults per build
-[ ] Build targets: stylized, earth, diagnostic
-[ ] Per-build override file; URL param override in dev only
-[ ] Kill switches for expensive subsystems (helicopter, GLB actors, weather)
+[x] Flag registry src/flags.ts with typed keys + defaults per build
+[x] Build targets: stylized, earth, diagnostic
+[x] Per-build override file; URL param override in dev only (`?flag.key=0|1`)
+[x] Kill switches for expensive subsystems (helicopter, GLB actors, weather, pedGraph, …)
 [ ] Flag state surfaced in §1.11 telemetry overlay
-[ ] Accept: toggling a flag in dev takes effect without full reload where safe.
+[~] Accept: toggling a flag in dev takes effect without full reload where safe.
 
 0.3 Determinism service — (M)
 
-[ ] Seeded RNG service src/sim/Rng.ts (xoshiro or splitmix)
-[ ] Named streams: traffic, peds, weather, missions, combat
-[ ] No Math.random in src/sim (lint rule enforces)
+[x] Seeded RNG service src/sim/Rng.ts (xoshiro or splitmix)
+[~] Named streams: traffic, peds, weather, missions, combat
+[ ] No Math.random in src/sim (lint rule enforces) — still used in PedGraph/Traffic/CameraRig/…
 [ ] Step-scoped RNG advance; replay hash = hash of (seed, step, state digest)
 [ ] Replay recorder: input log + seed → deterministic re-run
 [ ] Accept: 10,000-step replay of a scripted session produces identical hash twice.
@@ -92,19 +109,19 @@ parallel work.
 
 0.5 Asset pipeline — (M)
 
-[ ] Asset manifest assets/manifest.json with license field per asset
+[~] Asset manifest — license catalog at public/assets-licenses.json (full import pipeline TBD)
 [ ] Import scripts: GLB → optimized (draco/meshopt), textures → atlas/compressed
 [ ] Compression budget per asset class (audio, texture, mesh)
-[ ] License audit script (fails build on missing license)
-[ ] Accept: pnpm assets:audit reports 100% licensed; build fails otherwise.
+[x] License audit script (fails build on missing license) — `npm run assets:audit`
+[x] Accept: assets:audit reports 100% licensed rows; ElevenLabs still `pending-commercial`.
 
 0.6 Registries — (S)
 
-[ ] Save-key registry (single enum; no string literals scattered)
-[ ] Branding constants (canonical name, tagline, meta)
-[ ] Coordinate-system constants (units, axes, up-vector, world origin)
-[ ] Event-name registry (shared by §1.3 bus + telemetry)
-[ ] Accept: grep finds zero duplicated literals for keys/brand/events.
+[x] Save-key registry (SAVE_KEYS in src/registries.ts)
+[x] Branding constants (canonical name, tagline, meta)
+[~] Coordinate-system constants (units, axes, up-vector, world origin)
+[~] Event-name registry (shared by §1.3 bus + telemetry)
+[~] Accept: grep finds zero duplicated literals for keys/brand/events.
 
 ---
 
@@ -127,30 +144,30 @@ interface GameLoop {
 
 Task tree
 
-[ ] 1.1.1 Constant FIXED_DT = 1/60, configurable at boot
-[ ] 1.1.2 Accumulator: acc += clamp(rawDt, 0, MAX_FRAME_DT) then while (acc >= FIXED_DT)
-[ ] 1.1.3 Spiral-of-death guard: MAX_FRAME_DT = 0.25, MAX_STEPS_PER_FRAME = 5
-[ ] 1.1.4 On step-cap overflow: emit sim.loop.overrun + FrameBudget warn (throttled 1/s)
-[ ] 1.1.5 Interpolation alpha = acc / FIXED_DT passed to render subscribers
-[ ] 1.1.6 Pause stack (ref-counted by source: menu, tab, cutscene, load, debug)
-[ ] 1.1.7 Time-scale stack (slow-mo cutscene, hit-stop) — multiply per source, clamp
-[ ] 1.1.8 Subscriber lists preallocated; no allocation on add/remove after warmup
-[ ] 1.1.9 Phase order enforced: input → step×(N) → postStep → render(alpha)
-[ ] 1.1.10 visibilitychange → push/pop tab pause; single catch-up step on visible
+[x] 1.1.1 Constant FIXED_DT = 1/60, configurable at boot
+[x] 1.1.2 Accumulator: acc += clamp(rawDt, 0, MAX_FRAME_DT) then while (acc >= FIXED_DT)
+[x] 1.1.3 Spiral-of-death guard: MAX_FRAME_DT = 0.25, MAX_STEPS_PER_FRAME = 5
+[~] 1.1.4 On step-cap overflow: emit sim.loop.overrun + FrameBudget warn (throttled 1/s)
+[x] 1.1.5 Interpolation alpha = acc / FIXED_DT passed to render subscribers
+[x] 1.1.6 Pause stack (ref-counted by source: menu, tab, cutscene, load, debug)
+[x] 1.1.7 Time-scale stack (slow-mo cutscene, hit-stop) — multiply per source, clamp
+[~] 1.1.8 Subscriber lists preallocated; no allocation on add/remove after warmup
+[x] 1.1.9 Phase order enforced: input → step×(N) → postStep → render(alpha)
+[~] 1.1.10 visibilitychange → push/pop tab pause; single catch-up step on visible
 [ ] 1.1.11 Deterministic step: RNG advance per step (§0.3), state digest hook
 [ ] 1.1.12 Replay hook: record input deltas per step; replay mode drives steps
 [ ] 1.1.13 Watchdog: if stepMs > 50ms for 3 consecutive frames, drop quality tier
-[ ] 1.1.14 Migrate TrafficDirector.update → fixed step
-[ ] 1.1.15 Migrate ChaseController.update → fixed step
-[ ] 1.1.16 Migrate PedestrianAI.update → fixed step
-[ ] 1.1.17 Migrate VehicleDynamics.update → fixed step
-[ ] 1.1.18 Migrate boat physics (Boat.tsx) → fixed step
-[ ] 1.1.19 Migrate Police heat decay → fixed step
-[ ] 1.1.20 Migrate mission timers → fixed step
-[ ] 1.1.21 Migrate economy passive-income tick → fixed step
-[ ] 1.1.22 Migrate weather transition → fixed step
-[ ] 1.1.23 Header comment: table of which systems are sim-rate vs render-rate
-[ ] 1.1.24 Debug overlay: step count, acc, time scale, pause sources
+[x] 1.1.14 Migrate TrafficDirector.update → fixed step (StreetLife → loop.on("step"))
+[x] 1.1.15 Migrate ChaseController.update → fixed step
+[x] 1.1.16 Migrate PedestrianAI.update → fixed step
+[~] 1.1.17 Migrate VehicleDynamics.update → fixed step (live lineage still mostly actor-driven)
+[~] 1.1.18 Migrate boat physics (Boat.tsx) → fixed step (live lineage still mostly actor-driven)
+[~] 1.1.19 Migrate Police heat decay → fixed step
+[~] 1.1.20 Migrate mission timers → fixed step
+[~] 1.1.21 Migrate economy passive-income tick → fixed step
+[x] 1.1.22 Migrate weather transition → fixed step (SimBootstrap → clock.advance)
+[x] 1.1.23 Header comment: table of which systems are sim-rate vs render-rate
+[~] 1.1.24 Debug overlay: step count, acc, time scale, pause sources
 
 Test matrix
 
@@ -186,29 +203,29 @@ interface PedGraph {
 
 Task tree
 
-[ ] 1.2.1 Node/edge types + NodeMask bitflags
-[ ] 1.2.2 Derive sidewalk polylines from every RoadGraph edge (both sides, width from manifest)
-[ ] 1.2.3 Intersection handling: trim sidewalks at curb radius; insert corner nodes
-[ ] 1.2.4 Crosswalk nodes at signalized + unsignalized intersections
+[x] 1.2.1 Node/edge types + NodeMask bitflags (baseline sidewalk graph)
+[x] 1.2.2 Derive sidewalk polylines from every RoadGraph edge (both sides, width from opts)
+[~] 1.2.3 Intersection handling: trim sidewalks at curb radius; insert corner nodes
+[~] 1.2.4 Crosswalk nodes at signalized + unsignalized intersections
 [ ] 1.2.5 Crosswalk metadata: signal id, phase, walk window (§13.1 signal FSM)
 [ ] 1.2.6 Door nodes generated from building footprints (WorldManifest §1.6)
-[ ] 1.2.7 Spawn nodes at block corners, transit stops, benches, storefronts
+[~] 1.2.7 Spawn nodes at block corners, transit stops, benches, storefronts
 [ ] 1.2.8 Stairs/ramp edges for non-flat sidewalks (y delta on edge)
-[ ] 1.2.9 Connected-component check on build → BuildReport.orphans
+[~] 1.2.9 Connected-component check on build → BuildReport.orphans
 [ ] 1.2.10 Auto-prune orphan components below threshold; log the rest
-[ ] 1.2.11 SpatialIndex registration per node (cell → node ids) → §1.8
-[ ] 1.2.12 A* implementation with binary heap; tie-break by node id (deterministic)
-[ ] 1.2.13 Cost model: length × lanePenalty × crosswalkPenalty × crowdPenalty
+[~] 1.2.11 SpatialIndex registration per node (cell → node ids) → §1.8
+[x] 1.2.12 A* implementation with binary heap; tie-break by node id (deterministic)
+[~] 1.2.13 Cost model: length × lanePenalty × crosswalkPenalty × crowdPenalty
 [ ] 1.2.14 Path smoothing: string-pulling within edge width, no corner clipping
 [ ] 1.2.15 Occupancy grid: cell → count, decay per step, updated on ped move
-[ ] 1.2.16 Local avoidance: sample ≤ 8 neighbors, steer vector, no allocation (Perf-safe)
+[~] 1.2.16 Local avoidance: sample ≤ 8 neighbors, steer vector, no allocation (Perf-safe)
 [ ] 1.2.17 Right-hand walk bias by edge direction (lane feel)
 [ ] 1.2.18 Crosswalk FSM: approach → wait → cross → clear, driven by signal phase
 [ ] 1.2.19 Ped spawn/despawn tied to WorldStreamer tile residency (§1.7)
-[ ] 1.2.20 LOD: path follow (near ≤ 30m), anchor-lerp (30–80m), freeze (> 80m)
-[ ] 1.2.21 Bind to PedestrianAI; remove ad-hoc wander ([~] today)
+[~] 1.2.20 LOD: path follow (near ≤ 30m), anchor-lerp (30–80m), freeze (> 80m)
+[x] 1.2.21 Bind to PedestrianAI behind flag.pedGraph (StreetLife); wander remains fallback
 [ ] 1.2.22 Door interaction: ped enters building → despawn with TTL → respawn at door
-[ ] 1.2.23 Stuck detection: no progress > 3s → re-path; > 10s → despawn
+[~] 1.2.23 Stuck detection: no progress > 3s → re-path; > 10s → despawn
 [ ] 1.2.24 Debug overlay: nodes/edges color-coded by kind, occupancy heat, live paths
 [ ] 1.2.25 Graph stats in telemetry: nodes, edges, orphans, p95 A* ms
 
@@ -245,30 +262,30 @@ interface MissionRuntime {
 
 Task tree — event bus
 
-[ ] 1.3.1 Typed event registry (single source of truth; shared with telemetry §0.4)
-[ ] 1.3.2 emit/on/off with O(1) unsubscribe; listener arrays reused
-[ ] 1.3.3 Re-entrancy guard: emit during emit queues to next microtask tick
-[ ] 1.3.4 Listener error isolation: one throwing listener doesn't break others; logged
+[~] 1.3.1 Typed event registry (single source of truth; shared with telemetry §0.4)
+[x] 1.3.2 emit/on/off with O(1) unsubscribe; listener arrays reused
+[~] 1.3.3 Re-entrancy guard: emit during emit queues to next microtask tick
+[~] 1.3.4 Listener error isolation: one throwing listener doesn't break others; logged
 [ ] 1.3.5 Event log ring buffer (last 256) for debugging
 
 Task tree — entity ownership
 
-[ ] 1.3.6 spawn(kind, def) → handle; kinds: ped, vehicle, boat, prop, marker, sound
-[ ] 1.3.7 handle.destroy() idempotent; removes from all subsystems + indexes
-[ ] 1.3.8 Scoped ownership: mission/checkpoint/temporary scopes
-[ ] 1.3.9 Scope teardown order: despawn → unsubscribe → free ids (reverse creation)
-[ ] 1.3.10 Leak detector: after mission end, owned count must be 0 (assert in dev)
+[~] 1.3.6 spawn(kind, def) → handle; kinds: ped, vehicle, boat, prop, marker, sound
+[x] 1.3.7 handle.destroy() idempotent; removes from all subsystems + indexes
+[x] 1.3.8 Scoped ownership: mission/checkpoint/temporary scopes
+[x] 1.3.9 Scope teardown order: despawn → unsubscribe → free ids (reverse creation)
+[~] 1.3.10 Leak detector: after mission end, owned count must be 0 (assert in dev)
 [ ] 1.3.11 Deterministic spawn: mission spawns use missions RNG stream (§0.3)
 
 Task tree — triggers
 
-[ ] 1.3.12 Volume trigger (AABB + sphere) with enter/exit/inside edges
-[ ] 1.3.13 Distance trigger (player, entity, position)
+[~] 1.3.12 Volume trigger (AABB + sphere) with enter/exit/inside edges
+[~] 1.3.13 Distance trigger (player, entity, position)
 [ ] 1.3.14 Flag trigger (save/flag state)
 [ ] 1.3.15 Damage trigger (entity HP threshold)
 [ ] 1.3.16 Inventory trigger (has/doesn't have weapon/item)
-[ ] 1.3.17 Timer trigger (elapsed sim time)
-[ ] 1.3.18 Trigger dedupe: fire-once flag; re-arm API
+[~] 1.3.17 Timer trigger (elapsed sim time)
+[~] 1.3.18 Trigger dedupe: fire-once flag; re-arm API
 [ ] 1.3.19 Trigger debug overlay: volumes + armed/fired state
 
 Task tree — conditions DSL
@@ -280,27 +297,27 @@ Task tree — conditions DSL
 
 Task tree — objectives
 
-[ ] 1.3.24 Ordered + parallel steps; optional/hidden steps
-[ ] 1.3.25 Objective state: pending / active / complete / failed
-[ ] 1.3.26 Step advance emits mission.step.changed (HUD §10.1, audio §9.4)
-[ ] 1.3.27 Marker/route request per active step (→ ObjectiveNav)
-[ ] 1.3.28 Target-distance checks include boat mode (today [~])
+[~] 1.3.24 Ordered + parallel steps; optional/hidden steps
+[~] 1.3.25 Objective state: pending / active / complete / failed
+[~] 1.3.26 Step advance emits mission.step.changed (HUD §10.1, audio §9.4)
+[~] 1.3.27 Marker/route request per active step (→ ObjectiveNav)
+[x] 1.3.28 Target-distance checks include boat mode
 
 Task tree — fail/retry/checkpoint
 
-[ ] 1.3.29 Fail reasons: timeout, actor death, vehicle wreck, out-of-bounds, wanted, scripted
-[ ] 1.3.30 Checkpoint capture: world digest + owned entity seeds + inventory + position
-[ ] 1.3.31 Retry: reset world to checkpoint, respawn entities, restore inventory
+[~] 1.3.29 Fail reasons: timeout, actor death, vehicle wreck, out-of-bounds, wanted, scripted
+[~] 1.3.30 Checkpoint capture: world digest + owned entity seeds + inventory + position
+[x] 1.3.31 Retry: reset world to checkpoint, respawn entities, restore inventory
 [ ] 1.3.32 Retry must restore an identical world hash (modulo RNG seed) — assert
-[ ] 1.3.33 Abandon: teardown scopes, clear markers, restore pre-mission inventory
+[x] 1.3.33 Abandon: teardown scopes, clear markers, restore pre-mission inventory
 [ ] 1.3.34 Replay completed mission: no economy double-dip flag
 
 Task tree — integration
 
 [ ] 1.3.35 Cutscene hand-off stub (→ §8.2)
 [ ] 1.3.36 Audio ducking hook on cutscene/chase (→ §9.4)
-[ ] 1.3.37 Persistence: active id + step index + owned seeds → SaveGame (§1.5)
-[ ] 1.3.38 Migrate mounthope.mission.v1 → runtime-owned schema
+[x] 1.3.37 Persistence: active id + step index → mounthope.mission.v1 / SaveGame (§1.5)
+[~] 1.3.38 Migrate mounthope.mission.v1 → runtime-owned schema
 [ ] 1.3.39 Authoring API: defineMission(...) with validation
 [ ] 1.3.40 Debug panel: active missions, owned counts, trigger/condition state
 
@@ -337,20 +354,20 @@ interface ClockWeather {
 
 Task tree
 
-[ ] 1.4.1 Clock: day index, time01, timeScale, pause on menu
-[ ] 1.4.2 Configurable day length; sunrise/sunset tables per season
-[ ] 1.4.3 Sun/moon direction + color curve → lighting uniforms
-[ ] 1.4.4 Night factor 0..1 consumed by lights (§7.6) + shaders
-[ ] 1.4.5 Weather FSM: clear → cloudy → rain → storm → fog → clear
-[ ] 1.4.6 Transition durations + cross-fade weights per transition
-[ ] 1.4.7 Wetness accumulator: rises in rain/storm, decays after
-[ ] 1.4.8 friction() table: asphalt, wet asphalt, dirt, grass, sand, planks, water
-[ ] 1.4.9 Wind vector (rain slant, tree sway, boat drift, wave direction)
+[x] 1.4.1 Clock: day index, time01, timeScale, pause on menu
+[~] 1.4.2 Configurable day length; sunrise/sunset tables per season
+[~] 1.4.3 Sun/moon direction + color curve → lighting uniforms
+[~] 1.4.4 Night factor 0..1 consumed by lights (§7.6) + shaders
+[~] 1.4.5 Weather FSM: clear → rain → snow → fog → clear (cloudy/storm TBD)
+[~] 1.4.6 Transition durations + cross-fade weights per transition
+[x] 1.4.7 Wetness accumulator: rises in rain/snow, decays after
+[x] 1.4.8 friction() table: asphalt (+ wet/snow multipliers); expand surfaces
+[~] 1.4.9 Wind vector (rain slant, tree sway, boat drift, wave direction)
 [ ] 1.4.10 Lightning flash event (visual + thunder audio hook → §9.1)
-[ ] 1.4.11 Snow: visual only; road friction TBD (explicit note, not silent)
-[ ] 1.4.12 Fog density curve; full fog type wired (today clear↔rain only) → §7.5
-[ ] 1.4.13 Streaming hint: reduce far LOD / draw distance in fog/storm (§1.7)
-[ ] 1.4.14 Serialize/restore clock + weather + transition progress
+[x] 1.4.11 Snow: synced from shared weather; friction multiplier applied (not silent)
+[x] 1.4.12 Fog type in cycle + streamer radius hint → §7.5
+[x] 1.4.13 Streaming hint: reduce far LOD / draw distance in fog/snow (§1.7)
+[~] 1.4.14 Serialize/restore clock + weather + transition progress
 [ ] 1.4.15 Deterministic weather from weather RNG stream (§0.3)
 [ ] 1.4.16 Telemetry: current weather, wetness, friction sample
 
@@ -383,25 +400,25 @@ interface SaveBlobV2 {
 
 Task tree — schema
 
-[ ] 1.5.1 Define full V2 interface (all fields above enumerated in code comment)
-[ ] 1.5.2 Field-level validators (type + range + referential integrity)
+[x] 1.5.1 Define full V2 interface (all fields above enumerated in code comment)
+[~] 1.5.2 Field-level validators (type + range + referential integrity)
 [ ] 1.5.3 Size budget assert < 256KB serialized
-[ ] 1.5.4 Optional fields nullable; missing = default, never crash
+[x] 1.5.4 Optional fields nullable; missing = default, never crash
 
 Task tree — migration
 
-[ ] 1.5.5 Migration runner: chained v1→v2, idempotent, tested per hop
-[ ] 1.5.6 Migrate mounthope.mission.v1
-[ ] 1.5.7 Migrate scattered settings keys into settings
+[~] 1.5.5 Migration runner: chained v1→v2, idempotent, tested per hop
+[~] 1.5.6 Migrate mounthope.mission.v1 (still dual-key with collectLegacySave)
+[~] 1.5.7 Migrate scattered settings keys into settings
 [ ] 1.5.8 Unknown future version → refuse load with recovery UI (§11.4)
 
 Task tree — IO
 
 [ ] 1.5.9 Compression (LZ-string or equivalent) + checksum
 [ ] 1.5.10 Atomic write: write save.tmp, verify, swap to save
-[ ] 1.5.11 Corrupt detection: parse fail / schema fail / checksum mismatch
+[~] 1.5.11 Corrupt detection: parse fail / schema fail / checksum mismatch
 [ ] 1.5.12 Export/import JSON (debug)
-[ ] 1.5.13 Autosave throttle: not during cutscene/chase spike/loading
+[~] 1.5.13 Autosave throttle: not during cutscene/chase spike/loading
 [ ] 1.5.14 Quicksave binding + cooldown
 [ ] 1.5.15 Slot manager (single first, multi behind flag) → §11.4
 [ ] 1.5.16 Cloud sync TBD — document decision
@@ -459,14 +476,14 @@ Accept: one schema governs all authored data; boot is clean; hot reload works.
 
 [x] Real load/evict loop (JSON cache eviction + evictUnwanted grace)
 [x] Predictive focus in StreamingBuildings
-[ ] 1.7.1 Metrics: resident, queue, evict, load ms p50/p95, failures
-[ ] 1.7.2 Prefetch by heading/velocity (not just position) for fast vehicles
-[ ] 1.7.3 Priority: player tile > frustum > predicted > ring
-[ ] 1.7.4 Cancellation: in-flight loads for evicted tiles dropped on arrival
-[ ] 1.7.5 Error retry with backoff; persistent failures → HUD notice
-[ ] 1.7.6 Eviction hysteresis tuned against orbit thrash
+[x] 1.7.1 Metrics: resident, queue, evict, load ms p50/p95, failures (`metrics()`)
+[~] 1.7.2 Prefetch by heading/velocity (not just position) for fast vehicles
+[~] 1.7.3 Priority: player tile > frustum > predicted > ring
+[~] 1.7.4 Cancellation: in-flight loads for evicted tiles dropped on arrival
+[~] 1.7.5 Error retry with backoff; persistent failures → HUD notice (AssetLoadNotice)
+[~] 1.7.6 Eviction hysteresis tuned against orbit thrash
 [ ] 1.7.7 tileImpostor() wired into active streaming set → §7.12
-[ ] 1.7.8 30-min drive soak: resident plateau, memory flat (→ §12.2)
+[~] 1.7.8 30-min drive soak: protocol + SoakHarness (`?debug&soak=1&perf=1`); measurement pending
 
 Accept: no pop-in > 1 frame at 60 km/h on Device A; memory flat over 30 min.
 
@@ -474,13 +491,13 @@ Accept: no pop-in > 1 frame at 60 km/h on Device A; memory flat over 30 min.
 
 1.8 SpatialIndex (buildings / vehicles / LOS) — (L)
 
-- [~] Ped-only today — extend to all classes
-[ ] 1.8.1 Class registry with per-class cell sizes (static large, dynamic small)
+- [~] Ped-primary today — segment/LOS landed; extend to all classes
+[~] 1.8.1 Class registry with per-class cell sizes (static large, dynamic small)
 [ ] 1.8.2 Static classes: buildings, props, markers
-[ ] 1.8.3 Dynamic classes: vehicles, peds, boats, mission entities
-[ ] 1.8.4 Insert/remove O(1) amortized; no full rebuild per frame
-[ ] 1.8.5 radius(pos, r, mask) query
-[ ] 1.8.6 segment(a, b, mask) LOS with per-cell early-out + maxDepth guard
+[~] 1.8.3 Dynamic classes: vehicles, peds, boats, mission entities
+[x] 1.8.4 Insert/remove O(1) amortized; no full rebuild per frame
+[x] 1.8.5 radius(pos, r, mask) query
+[x] 1.8.6 segment(a, b, mask) LOS with per-cell early-out + maxDepth guard
 [ ] 1.8.7 Rapier broadphase integration where physics exists
 [ ] 1.8.8 Debug overlay: cell occupancy + last query
 [ ] 1.8.9 Tests: 2000 entities, 500 queries/frame < 1ms on Device A
@@ -553,11 +570,11 @@ Accept: overlay is free when hidden; dump reproduces a reported bug.
 
 1.12 Stage 0–7 acceptance harness — (L)
 
-[ ] 1.12.1 Define stages: 0 boot, 1 walk, 2 drive, 3 mission, 4 chase, 5 boat, 6 economy, 7 save
-[ ] 1.12.2 Per stage: scripted input, assertions, screenshot hook
+[x] 1.12.1 Define stages: 0 boot, 1 walk, 2 drive, 3 mission, 4 chase, 5 boat, 6 economy, 7 save
+[~] 1.12.2 Per stage: scripted input, assertions, screenshot hook
 [ ] 1.12.3 Device FPS gate per stage (Device A + B, §12.1)
-[ ] 1.12.4 Stream memory plateau check (30 min, ±5% resident)
-[ ] 1.12.5 Mission fail/retry gate (deterministic seed)
+[~] 1.12.4 Stream memory plateau check (30 min, ±5% resident) — SoakHarness protocol ready
+[~] 1.12.5 Mission fail/retry gate (deterministic seed)
 [ ] 1.12.6 CI: headless run, artifact bundle on failure
 [ ] 1.12.7 Green on both devices; artifacts upload
 
@@ -660,8 +677,8 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 [ ] 2.11.1 Characters & Missions bible (§8)
 [ ] 2.11.2 Real iPhone measurement pass (named device)
-[ ] 2.11.3 Decision record: share SimBootstrap or demote earth to diagnostic
-[ ] 2.11.4 If shared: both builds boot from same sim (test)
+[x] 2.11.3 Decision record: demote earth to diagnostic (`docs/EARTH-DECISION.md`)
+[~] 2.11.4 If shared: both builds boot from same sim (test) — stylized is product boot
 
 ---
 
@@ -680,14 +697,14 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 3.2 Star tiers — (M)
 
-[ ] 3.2.1 Tier table 1–5: spawn rate, units, roadblocks, heli, PIT
-[ ] 3.2.2 T1: one cruiser
-[ ] 3.2.3 T2: two cruisers + light roadblocks
-[ ] 3.2.4 T3: three + heli scout
-[ ] 3.2.5 T4: roadblocks + heli spotlight + PIT
-[ ] 3.2.6 T5: full response + APB, no natural decay
-[ ] 3.2.7 Escalation triggers (witness count, officer down, repeats)
-[ ] 3.2.8 De-escalation: bribe / lose-heat zone / safehouse / time
+[x] 3.2.1 Tier table 1–5: spawn rate, units, roadblocks, heli, PIT (`HeatTiers.ts`)
+[~] 3.2.2 T1: one cruiser
+[~] 3.2.3 T2: two cruisers + light roadblocks
+[~] 3.2.4 T3: three + heli scout (heli behind flag.helicopter)
+[~] 3.2.5 T4: roadblocks + heli spotlight + PIT
+[x] 3.2.6 T5: full response + APB, no natural decay (table flag)
+[~] 3.2.7 Escalation triggers (witness count, officer down, repeats)
+[~] 3.2.8 De-escalation: bribe / lose-heat zone / safehouse / time
 [ ] 3.2.9 Each tier produces documented response within 10s (test)
 
 3.3 Police units — (XL)
@@ -776,15 +793,15 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 5.2 Inventory & ammo — (L)
 
-[ ] 5.2.1 Ammo counts: reserve vs magazine
-[ ] 5.2.2 Reload action with cancel + interrupt
-[ ] 5.2.3 Inventory model + persistence (§1.5)
-[ ] 5.2.4 Pickups: world ammo/weapon, respawn rules
+[~] 5.2.1 Ammo counts: reserve vs magazine
+[~] 5.2.2 Reload action with cancel + interrupt
+[x] 5.2.3 Inventory model + persistence (§1.5 / SAVE_KEYS.inventory)
+[~] 5.2.4 Pickups: world ammo/weapon, respawn rules
 [ ] 5.2.5 Recoil/accuracy: bloom, recovery, ADS
 [ ] 5.2.6 Weapon wheel / quick-swap (§10.1)
 [ ] 5.2.7 Cover system (scope gate)
-[ ] 5.2.8 Spread-aware reticle + hit feedback
-[ ] 5.2.9 Empty→reload→pickup→persist (test)
+[~] 5.2.8 Spread-aware reticle + hit feedback
+[~] 5.2.9 Empty→reload→pickup→persist (test)
 
 5.3 Boats — (L)
 
@@ -890,9 +907,9 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 7.5 Fog — (S)
 
-- [~] Fog wired (toggle clear↔rain today)
-[ ] 7.5.1 Fog reachable in cycle + toggle
-[ ] 7.5.2 Fog affects draw distance + streaming hint
+- [~] Fog wired in ClockWeather cycle (clear→rain→snow→fog)
+[x] 7.5.1 Fog reachable in cycle + toggle
+[x] 7.5.2 Fog affects draw distance + streaming hint
 [ ] 7.5.3 Toggling fog changes visibility immediately (test)
 
 7.6 Night lighting — (M)
@@ -922,8 +939,8 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 - [~] 11-mission chain + markers + persistence — finish
 [ ] 8.1.1 All 11 complete start-to-finish
-[ ] 8.1.2 Marker/route correct per step (§1.3)
-[ ] 8.1.3 Step persists across save/reload per mission
+[~] 8.1.2 Marker/route correct per step (§1.3)
+[x] 8.1.3 Step persists across save/reload per mission (GameSystems restoreMissionProgress)
 [ ] 8.1.4 11/11 automated run passes (test)
 
 Chain scaffold (fill beats as authored):
@@ -1090,26 +1107,26 @@ M11 Finale … … …
 
 11.1 Schema — (M)
 
-- [~] Stats, economy, mission, pos, settings, scrimshaw, touch layout
-[ ] 11.1.1 Single versioned save + migrations (§1.5)
-[ ] 11.1.2 One schema covers all domains; migration tests pass (test)
+- [~] Stats, economy, mission, pos, settings, scrimshaw, touch layout + inventory/radio/…
+[~] 11.1.1 Single versioned save + migrations (§1.5) — V2 collect + clearAllSaves
+[~] 11.1.2 One schema covers all domains; migration tests pass (test)
 
 11.2 Missing domains — (M)
 
-[ ] 11.2.1 Boat state
-[ ] 11.2.2 Race bests
-[ ] 11.2.3 Radio station
-[ ] 11.2.4 Weapon/melee/armed state
-[ ] 11.2.5 Waypoint
-[ ] 11.2.6 Car damage
-[ ] 11.2.7 Each domain round-trips (test)
+[x] 11.2.1 Boat state (piggy-backs position record)
+[x] 11.2.2 Race bests
+[x] 11.2.3 Radio station
+[~] 11.2.4 Weapon/melee/armed state
+[~] 11.2.5 Waypoint
+[x] 11.2.6 Car damage
+[~] 11.2.7 Each domain round-trips (test)
 
 11.3 Continue correctness — (S)
 
-- [~] Continue must not succeed with missing pos/mission keys
-[ ] 11.3.1 Validate required keys before enabling Continue
-[ ] 11.3.2 Fall back to New Game with clear message
-[ ] 11.3.3 Delete pos/mission key → Continue disabled, no crash (test)
+- [~] Continue requires stats + position; mission optional for legacy saves
+[x] 11.3.1 Validate required keys before enabling Continue (`canContinue`)
+[x] 11.3.2 Fall back to New Game with clear message (StartMenu reason line)
+[~] 11.3.3 Delete pos key → Continue disabled; missing mission alone still allows Continue
 
 11.4 Recovery & slots — (M)
 
@@ -1128,12 +1145,13 @@ M11 Finale … … …
 - [~] Quality tiers (DPR + stream ring)
 [x] NPC caps (pedCount/carCount)
 [x] Shadow map size
-[ ] 12.1.1 Named-device matrix committed:
+[~] 12.1.1 Named-device matrix committed:
   | Device | Tier | FPS p50 | FPS p1 | Mem |
   |--------|------|---------|--------|-----|
   | Device A (mid Android 2021) | mid | ≥ 50 | ≥ 30 | < 400MB |
   | Device B (iPhone 12) | high | ≥ 55 | ≥ 40 | < 500MB |
   | Device C (low Android 2019) | low | ≥ 30 | ≥ 20 | < 300MB |
+  Template + soak protocol: `docs/FPS-MATRIX.md` (cells still pending measurement)
 [ ] 12.1.2 Thermal budget: sustained 20 min within 10% of p50
 [ ] 12.1.3 Measured matrix committed to repo
 
@@ -1182,20 +1200,20 @@ M11 Finale … … …
 
 13.3 Police soft-fail — (S)
 
-- [~] Police requires sim.graph or chase soft-fails
-[ ] 13.3.1 Chase degrades gracefully without sim.graph
-[ ] 13.3.2 Chase runs (reduced) with graph missing; no crash (test)
+- [~] ChaseController never soft-locks on empty path
+[x] 13.3.1 Chase degrades gracefully without sim.graph / empty path
+[~] 13.3.2 Chase runs (reduced) with graph missing; no crash (test)
 
 13.4 Earth stack — (M)
 
-[ ] 13.4.1 Resolve parallel earth stack vs shared sim (§2.11)
-[ ] 13.4.2 One sim boot path documented + used (test)
+[x] 13.4.1 Resolve parallel earth stack vs shared sim (§2.11) — earth demoted
+[~] 13.4.2 One sim boot path documented + used (test) — stylized + SimBootstrap
 
 13.5 Legal — (S)
 
-[ ] 13.5.1 Provenance notes (CesiumMan / voice / music)
-[ ] 13.5.2 License files committed per asset
-[ ] 13.5.3 Asset audit: 100% licensed (test, CI gate §0.5)
+[~] 13.5.1 Provenance notes (CesiumMan / voice / music) — ElevenLabs pending-commercial
+[x] 13.5.2 License catalog committed (`public/assets-licenses.json`)
+[x] 13.5.3 Asset audit: 100% licensed rows (`npm run assets:audit`; wire into CI §0.5)
 
 13.6 Integration — (L)
 
@@ -1325,8 +1343,8 @@ M11 Finale … … …
 [ ] 17.6 Feature-flag rollout plan (canary → full)
 [ ] 17.7 Rollback procedure documented + tested
 [ ] 17.8 PWA packaging (§10.7) + store listing (if any)
-[ ] 17.9 Release checklist (save-migration dry-run, perf gate, a11y gate)
-[ ] 17.10 Post-release hotfix path
+[~] 17.9 Release checklist (save-migration dry-run, perf gate, a11y gate) — `docs/RELEASE-CHECKLIST.md`
+[~] 17.10 Post-release hotfix path — see `docs/ROLLBACK.md`
 
 ---
 
@@ -1372,9 +1390,9 @@ Exit: §1.5 + §11 complete; fuzz + migration green.
 
 · Blocks: release candidate gating.
 
-M4 — Earth decision (1 week)
+M4 — Earth decision (1 week) — DONE 2026-11-07
 
-Exit: §2.11 decision recorded; if keep, §2.1 + §2.9 started.
+Exit: §2.11 decision recorded — earth demoted to diagnostic (`docs/EARTH-DECISION.md`).
 
 · Gate: R1 mitigation.
 
@@ -1450,22 +1468,28 @@ Master dependency DAG (condensed)
 Priority implementation order (updated)
 
 1. [x] Close streamer evict/dispose + quality NPC/shadow caps
-2. [~] §0 Foundations — flags, Rng, telemetry schema, registries shipped; tooling/assets TBD
-3. [~] §1.1 GameLoop — core loop + pause/scale shipped; migrate systems next ← current
-4. [~] §1.2 PedGraph — baseline sidewalk graph + PedestrianAI bind shipped; deepen per task tree
-5. [~] §1.3 MissionRuntime — baseline event bus / ownership / fail-retry-abandon shipped; deepen per task tree
-6. [ ] §1.6 WorldManifest + §7.3 Cape/FR — unblocks mid/late campaign
-7. [ ] §1.5 SaveGame + §11 — unified save, migrations, recovery
-8. [ ] §3.2–§3.4 heat escalation + §5.2 ammo/inventory
-9. [ ] §2.11 earth decision — keep or demote (gate R1)
-10. [ ] §9.2 spatial audio + §9.3 radio content
-11. [ ] §10 HUD/a11y/tutorial + §6.2 interiors + §2.6/§2.7 GLB actors
-12. [ ] §15 matrix green + §17 release checklist → M8
+2. [~] §0 Foundations — flags, Rng, registries, assets:audit landed; telemetry schema + CI wire-up TBD
+3. [x] §1.1 GameLoop — core + pause/scale; peds/traffic/chase/weather on fixed step (car/boat still deepen)
+4. [~] §1.2 PedGraph — baseline sidewalk graph + PedestrianAI bind behind flag.pedGraph; deepen doors/crosswalks
+5. [~] §1.3 MissionRuntime — baseline event bus / ownership / fail-retry-abandon; deepen triggers/DSL
+6. [~] §1.6 WorldManifest scaffold; §7.3 Cape/FR authored tiles still open ← remaining content gate
+7. [~] §1.5 SaveGame v2 + Continue gate + inventory/boat/carDamage/radio/race domains
+8. [x] §3.2 heat tier table + §5.2 inventory persistence (escalation/PIT polish TBD)
+9. [x] §2.11 earth demoted to diagnostic (`docs/EARTH-DECISION.md`)
+10. [~] §1.4 ClockWeather (snow sync + friction + fog stream hint) + §9.2 spatial audio
+11. [~] §15 AcceptanceHarness stages 0–7 + SoakHarness; §17 release checklist drafted
+12. [ ] §7.3 Cape/FR authored tiles — blocked on content → then §15 matrix + measured FPS → M8
 
 ---
 
 Changelog
 
+· v3.1 (2026-11-07) — Status sync after live-lineage reintegration (PR #14).
+  Marked landed baselines across §0.2/§0.5/§0.6, §1.1–§1.5, §1.7–§1.8,
+  §1.12, §2.11, §3.2, §5.2, §7.5, §8.1.3, §11, §12.1 template, §13.3–§13.5,
+  §17.9. Continue gate: stats+position required; mission optional for
+  legacy. PedGraph behind flag.pedGraph. Car/boat fixed-step still [~] on
+  live. No new Implementation MD — this file remains the canonical v3 doc.
 · v3 — Deep expansion: §0 Foundations, §14–§19 new (pipeline, QA, l10n,
   release, risk, milestones), every epic now has Contract / Task tree / Test
   matrix / Perf budget / Edge cases / Accept, stable IDs, dependency DAG,
