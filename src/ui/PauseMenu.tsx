@@ -241,6 +241,10 @@ export function PauseMenu() {
             Lizzie &amp; Remington Borden — original Mount Hope content pack
             (menu previews; in-world procedural body until human GLBs ship).<br /><br />
 
+            <b style={{ color: "#e7e0ff" }}>CC0 vendor packs</b><br />
+            Kenney.nl city / nature / car / watercraft kits — CC0.<br />
+            Poly Haven asphalt, cobble, brick, plank, roof, sand maps — CC0.<br /><br />
+
             <b style={{ color: "#e7e0ff" }}>Engine &amp; libraries</b><br />
             Three.js · React Three Fiber · @react-three/rapier · @react-three/drei.<br /><br />
 

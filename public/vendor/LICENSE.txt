@@ -1,0 +1,9 @@
+Vendor CC0 packs for QUAHOG_Web visual fill.
+
+Kenney Game Assets — Creative Commons CC0 1.0
+  https://kenney.nl
+
+Poly Haven textures — Creative Commons CC0 1.0
+  https://polyhaven.com
+
+Downloaded via scripts/download_cc0_packs.mjs

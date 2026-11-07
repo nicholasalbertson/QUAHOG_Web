@@ -9,6 +9,7 @@ import { emitTelemetry } from "../telemetry/schema";
 export type Surface =
   | "asphalt"
   | "wetAsphalt"
+  | "cobble"
   | "dirt"
   | "grass"
   | "sand"
@@ -22,6 +23,7 @@ const CYCLE: WeatherKind[] = ["clear", "rain", "snow", "fog"];
 const BASE_FRICTION: Record<Surface, number> = {
   asphalt: 1,
   wetAsphalt: 0.72,
+  cobble: 0.88,
   dirt: 0.78,
   grass: 0.65,
   sand: 0.55,
@@ -115,7 +117,7 @@ export class ClockWeather {
 
   friction(surface: Surface = "asphalt"): number {
     let s = surface;
-    if (s === "asphalt" && this.wetness > 0.25) s = "wetAsphalt";
+    if ((s === "asphalt" || s === "cobble") && this.wetness > 0.25) s = "wetAsphalt";
     let f = BASE_FRICTION[s];
     if (this.weather === "fog") f *= 0.95;
     if (this.weather === "snow") f *= 0.7;

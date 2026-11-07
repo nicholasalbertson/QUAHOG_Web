@@ -216,7 +216,19 @@ export class PedestrianAI {
   snapToGraph(a: PedAgent): void {
     const g = this.graph;
     if (!g) return;
-    const id = g.nearestNode(a.x, a.z) ?? g.randomNodeNear(this.center.x, this.center.z, 0, 200);
+    // Prefer sidewalk over crosswalk so spawn isn't mid-street.
+    let id = g.nearestNode(a.x, a.z);
+    if (id != null) {
+      const n0 = g.node(id);
+      if (n0 && n0.kind === "crosswalk") {
+        const side = g.randomNodeNear(a.x, a.z, 0, 18, "sidewalk");
+        if (side != null) id = side;
+      }
+    }
+    if (id == null) {
+      id = g.randomNodeNear(this.center.x, this.center.z, 0, 200, "sidewalk")
+        ?? g.randomNodeNear(this.center.x, this.center.z, 0, 200);
+    }
     if (id == null) return;
     const n = g.node(id)!;
     a.x = n.x;
@@ -230,7 +242,10 @@ export class PedestrianAI {
 
   randomInWander(): Vec2 {
     if (this.graph && this.graph.nodeCount > 0) {
-      const id = this.graph.randomNodeNear(this.center.x, this.center.z, 0, this.wander * 2);
+      // Prefer sidewalk nodes over crosswalks so peds almost never idle in the street.
+      const id =
+        this.graph.randomNodeNear(this.center.x, this.center.z, 0, this.wander * 2, "sidewalk") ??
+        this.graph.randomNodeNear(this.center.x, this.center.z, 0, this.wander * 2);
       if (id != null) {
         const n = this.graph.node(id)!;
         return { x: n.x, z: n.z };

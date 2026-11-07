@@ -159,6 +159,24 @@
       "license": "ElevenLabs-generated-speech",
       "status": "original",
       "attribution": "Allowlisted radio host lines \u2014 generated speech, not songs"
+    },
+    {
+      "id": "kenney-cc0",
+      "globs": [
+        "vendor/kenney/**/*"
+      ],
+      "license": "CC0-1.0",
+      "status": "cleared",
+      "attribution": "Kenney.nl game assets \u2014 Creative Commons CC0 1.0"
+    },
+    {
+      "id": "polyhaven-cc0",
+      "globs": [
+        "vendor/polyhaven/**/*"
+      ],
+      "license": "CC0-1.0",
+      "status": "cleared",
+      "attribution": "Poly Haven textures \u2014 Creative Commons CC0 1.0"
     }
   ]
 }
