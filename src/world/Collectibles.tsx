@@ -6,34 +6,32 @@ import { useGame, useToasts } from "../store";
 import { useStats } from "../game";
 import { sfx } from "../audio/sfx";
 import { loadJSON, saveJSON } from "../storage";
+import { SCRIMSHAW_SPOTS, SCRIMSHAW_TOTAL } from "../content/scrimshawSpots";
 
-// Hidden collectibles (§18): scrimshaw "whaling artifacts" scattered around the
-// core. Walk into one to grab it — small cash bounty + a toast. Persisted.
+export { SCRIMSHAW_SPOTS, SCRIMSHAW_TOTAL };
+
+// Hidden collectibles (§18 / §6.4): scrimshaw across NB, Fall River, Brockton,
+// and the Cape. Expanding SPOTS pads older saves with false.
 
 const KEY = "mounthope.scrimshaw.v1";
 const REWARD = 120;
-const SPOTS: [number, number, number][] = [
-  [-272, 1.2, 106], [-244, 1.2, 70], [-300, 1.2, 130], [-210, 1.2, 100],
-  [-330, 1.2, 80], [-256, 1.2, 150], [-225, 1.2, 60], [-290, 1.2, 175],
-];
-export const SCRIMSHAW_TOTAL = SPOTS.length;
 
 function loadGot(): boolean[] {
-  return loadJSON<boolean[]>(KEY, SPOTS.map(() => false));
+  const saved = loadJSON<boolean[]>(KEY, []);
+  return SCRIMSHAW_SPOTS.map((_, i) => !!saved[i]);
 }
 
 export function Collectibles() {
   const got = useRef<boolean[]>(loadGot());
   const meshes = useRef<(THREE.Mesh | null)[]>([]);
 
-  // publish the loaded count so the HUD can show a found/total tally
   useEffect(() => { useGame.getState().setScrimshaw(got.current.filter(Boolean).length); }, []);
 
   useFrame((state, dt) => {
     if (useGame.getState().paused) return;
     const body = useGame.getState().mode === "car" ? shared.car : shared.player;
     const t = body?.translation();
-    SPOTS.forEach((s, i) => {
+    SCRIMSHAW_SPOTS.forEach((s, i) => {
       const m = meshes.current[i];
       if (!m) return;
       if (got.current[i]) { m.visible = false; return; }
@@ -46,7 +44,7 @@ export function Collectibles() {
         sfx.cash();
         const n = got.current.filter(Boolean).length;
         useGame.getState().setScrimshaw(n);
-        useToasts.getState().push(`Scrimshaw ${n}/${SPOTS.length} · +$${REWARD}`, "#ffd24a");
+        useToasts.getState().push(`Scrimshaw ${n}/${SCRIMSHAW_TOTAL} · +$${REWARD}`, "#ffd24a");
         saveJSON(KEY, got.current);
       }
     });
@@ -54,7 +52,7 @@ export function Collectibles() {
 
   return (
     <group>
-      {SPOTS.map((s, i) => (
+      {SCRIMSHAW_SPOTS.map((s, i) => (
         <mesh key={i} ref={(el) => (meshes.current[i] = el)} position={s} visible={!got.current[i]}>
           <octahedronGeometry args={[0.6, 0]} />
           <meshStandardMaterial color="#f3ead2" emissive="#caa24a" emissiveIntensity={0.7} roughness={0.4} metalness={0.3} />

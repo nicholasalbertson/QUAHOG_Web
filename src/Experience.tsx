@@ -326,9 +326,9 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       <StoryProps />
       {/* Tier-1 approved-model mount (batches 2 + 3): visual-only GLBs at
           their real Fall River footprints. OUTSIDE <Physics> (no colliders)
-          and OUTSIDE <CullByDistance> (FR models sit kilometres from the NB
-          core, beyond its radius) on purpose. FR-district only. */}
-      {!isNB && <Tier1Models />}
+          and OUTSIDE <CullByDistance> on purpose. Fall River only — do not
+          mount FR packs while in Brockton/Cape. */}
+      {district.id === "fallRiver" && <Tier1Models />}
       {/* New Bedford Tier-1 mount (batches 4–8, bulk job 2026-11-03):
           visual-only GLBs at their GIS/tile footprints. Same outside-
           Physics, outside-CullByDistance placement. NB-district only. */}

@@ -851,7 +851,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [ ] 6.4.1 Citywide sets (e.g. 30) + progress tracking
 [ ] 6.4.2 Map progress view + per-set rewards
 [ ] 6.4.3 Unique rewards (vehicles, weapons, cosmetics)
-[ ] 6.4.4 FR/Cape collectibles when content lands (§7.3)
+[x] 6.4.4 FR/Cape/Brockton collectibles (`SCRIMSHAW_SPOTS` expanded)
 [ ] 6.4.5 Full set grants reward exactly once; saves (test)
 
 ---
@@ -868,17 +868,17 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 7.2 Districts — (L)
 
-[ ] 7.2.1 Lived-in Fall River (props, peds, businesses)
-[ ] 7.2.2 NB polish (props, signage, lighting)
-[ ] 7.2.3 Each district passes walk-through checklist
+[~] 7.2.1 Lived-in Fall River — heroes, 3 fronts, 3 scrimshaw, Tier1 packs; dressing density TBD
+[~] 7.2.2 NB polish (props, signage, lighting)
+[~] 7.2.3 Each district passes walk-through checklist (fast-travel smoke; full playtest TBD)
 
 7.3 Cape / Hyannis / Brockton (Act II/III) — (XXL)
 
-[ ] 7.3.1 Cape road graph + tiles
-[ ] 7.3.2 Hyannis tiles + roads
-[ ] 7.3.3 Brockton tiles + roads
-[ ] 7.3.4 Act II/III missions unblocked (§8.6)
-[ ] 7.3.5 No void reachable by driving from start (test)
+[x] 7.3.1 Cape road graph + tiles (`slice-cape.json` + tile ring)
+[x] 7.3.2 Hyannis tiles + roads + marina/compound heroes
+[x] 7.3.3 Brockton tiles + roads + Cappiello gym hero
+[x] 7.3.4 Act II/III missions unblocked via fast-travel (§8.6)
+[~] 7.3.5 No void via fast-travel; continuous drive corridor still out of scope
 
 7.4 Water & weather gameplay — (L)
 

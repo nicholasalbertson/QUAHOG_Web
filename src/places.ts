@@ -51,3 +51,7 @@ export const FAST_TRAVEL: { name: string; pos: [number, number]; district: Distr
 export const BATTLESHIP_COVE: [number, number, number] = [-20273, 0, -7625]; // USS Massachusetts, Fall River
 export const LIZZIE_BORDEN: [number, number, number] = [-19599, 0, -7080];   // 92 Second St, Fall River
 export const DARTMOUTH_MALL: [number, number, number] = [-3921, 0, 378];     // Route 6, Dartmouth
+// Expansion heroes (2026-11-07): real anchors from slice landmarks (slice N → world -z).
+export const CAPPIELLO_GYM: [number, number, number] = [-8266.35, 0, -49696.48]; // 162 Main St, Brockton
+export const HYANNIS_MARINA: [number, number, number] = [53822.06, 0, -1616.7]; // 1 Willow St, Hyannis
+export const KENNEDY_COMPOUND: [number, number, number] = [51428.28, 0, 670.15]; // 50 Marchant Ave, Hyannis Port

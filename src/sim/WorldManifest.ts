@@ -4,6 +4,9 @@
  */
 
 import type { Slice, Road, Landmark } from "../slice";
+import { DISTRICTS, districtOfWorld, type DistrictId } from "../districts";
+import { BUSINESSES } from "../economy";
+import { SCRIMSHAW_SPOTS } from "../content/scrimshawSpots";
 
 export interface ZoneDef {
   id: string;
@@ -48,8 +51,21 @@ export interface ManifestValidation {
   warnings: string[];
 }
 
-/** Build a minimal manifest from the loaded OSM slice. */
-export function manifestFromSlice(slice: Slice): WorldManifest {
+function resolveDistrict(slice: Slice, districtId?: DistrictId): DistrictId {
+  if (districtId) return districtId;
+  const byFile = (Object.values(DISTRICTS) as (typeof DISTRICTS)[DistrictId][]).find(
+    (d) => d.sliceFile.replace(/\.json$/, "") === slice.name.replace(/\s+/g, "-").toLowerCase(),
+  );
+  if (byFile) return byFile.id;
+  const lower = slice.name.toLowerCase();
+  if (lower.includes("fall river")) return "fallRiver";
+  if (lower.includes("brockton")) return "brockton";
+  if (lower.includes("cape") || lower.includes("hyannis")) return "cape";
+  return "newBedford";
+}
+
+/** Build a minimal manifest from the loaded OSM slice (+ district zone / fronts). */
+export function manifestFromSlice(slice: Slice, districtId?: DistrictId): WorldManifest {
   const xs = slice.buildings.flatMap((b) => b.footprint.map((p) => p[0]));
   const ns = slice.buildings.flatMap((b) => b.footprint.map((p) => p[1]));
   const minX = xs.length ? Math.min(...xs) : -500;
@@ -57,10 +73,42 @@ export function manifestFromSlice(slice: Slice): WorldManifest {
   const minZ = ns.length ? -Math.max(...ns) : -500;
   const maxZ = ns.length ? -Math.min(...ns) : 500;
 
+  const did = resolveDistrict(slice, districtId);
+  const district = DISTRICTS[did];
+  const zones: ZoneDef[] = [{ id: "core", name: slice.name, bounds: { minX, maxX, minZ, maxZ } }];
+  if (district.bounds) {
+    zones.push({
+      id: district.id,
+      name: district.name,
+      bounds: {
+        minX: district.bounds.xMin,
+        maxX: district.bounds.xMax,
+        minZ: district.bounds.zMin,
+        maxZ: district.bounds.zMax,
+      },
+    });
+  }
+
+  const inDistrict = (x: number, z: number) => districtOfWorld(x, z) === did;
+
+  const fronts = BUSINESSES.filter((b) => inDistrict(b.pos[0], b.pos[2])).map((b) => ({
+    id: b.id,
+    name: b.name,
+    x: b.pos[0],
+    z: b.pos[2],
+    cost: b.cost,
+  }));
+  const collectibles = SCRIMSHAW_SPOTS.filter((s) => inDistrict(s[0], s[2])).map((s, i) => ({
+    id: `scrimshaw-${did}-${i}`,
+    kind: "scrimshaw",
+    x: s[0],
+    z: s[2],
+  }));
+
   return {
     version: 1,
     name: slice.name,
-    zones: [{ id: "core", name: slice.name, bounds: { minX, maxX, minZ, maxZ } }],
+    zones,
     roads: slice.roads,
     landmarks: slice.landmarks,
     markers: slice.landmarks.map((l, i) => ({
@@ -71,13 +119,13 @@ export function manifestFromSlice(slice: Slice): WorldManifest {
       label: l.name,
     })),
     spawns: [
-      { id: "player-start", kind: "player", x: 0, z: 0 },
+      { id: "player-start", kind: "player", x: district.spawn[0], z: district.spawn[1] },
     ],
     doors: [],
     signals: [],
     raceTracks: [],
-    collectibles: [],
-    fronts: [],
+    collectibles,
+    fronts,
     territories: [],
   };
 }
@@ -100,6 +148,5 @@ export function validateManifest(m: unknown): ManifestValidation {
       else ids.add(mk.id);
     }
   }
-  if (Array.isArray(man.roads) && man.roads.length === 0) warnings.push("roads: empty");
   return { ok: errors.length === 0, errors, warnings };
 }

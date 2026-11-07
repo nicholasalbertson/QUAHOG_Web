@@ -22,6 +22,16 @@ export const BUSINESSES: Business[] = [
   // out on Sconticut Neck toward Long Island — 56 Goulart Memorial Drive
   { id: "longisland", name: "Off the Hook Bar and Grill", blurb: "Long Island waterfront bar & marina", pos: [6092, 0, 4485], cost: 1800, perDay: 600 },
   { id: "dartmall", name: "Dartmouth Mall", blurb: "Route 6 retail hub", pos: [-3921, 0, 398], cost: 2500, perDay: 850 },
+  // Fall River (§7.2) — near Battleship Cove / Second St / Government Center.
+  { id: "covechowder", name: "Cove Chowder House", blurb: "waterfront kitchen", pos: [-19980, 0, -7360], cost: 1400, perDay: 480 },
+  { id: "secondst", name: "Second Street Parlor", blurb: "Borden-block café", pos: [-19590, 0, -7070], cost: 1100, perDay: 400 },
+  { id: "govcenter", name: "City Hall Newsstand", blurb: "downtown rack", pos: [-19495, 0, -7200], cost: 950, perDay: 340 },
+  // Brockton (§7.3) — Main Street / Champion City.
+  { id: "championfront", name: "Champion City Front", blurb: "gym street stall", pos: [-8285, 0, -49685], cost: 1600, perDay: 520 },
+  { id: "mainstbox", name: "Main Street Ticket Box", blurb: "fight-night stubs", pos: [-8250, 0, -49650], cost: 1200, perDay: 420 },
+  // Cape Cod — Hyannis (§7.3) — marina + Hyannis Port.
+  { id: "willowslip", name: "Willow Slip Outfitters", blurb: "marina gear", pos: [53840, 0, -1630], cost: 1700, perDay: 560 },
+  { id: "marchantcafe", name: "Marchant Avenue Café", blurb: "compound-block coffee", pos: [51420, 0, 680], cost: 1500, perDay: 500 },
 ];
 
 // Where the pilotable boat is moored (just off the Long Island marina).

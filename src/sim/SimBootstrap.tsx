@@ -26,7 +26,7 @@ export function SimBootstrap() {
     if (!slice) return;
     if (bound.current === slice.name) return;
     bound.current = slice.name;
-    sim.bindSlice(slice);
+    sim.bindSlice(slice, useGame.getState().district);
   }, [slice]);
 
   useEffect(() => {

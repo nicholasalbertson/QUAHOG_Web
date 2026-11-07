@@ -24,6 +24,6 @@ Ported the open-world sim layer + RC polish from the bf4e agent tip (`92feb8a`) 
 - Continue gate requires stats + position + mission; New Game clears unified + legacy domains.
 
 ### Known blockers (not in this RC)
-- Cape Cod / Fall River authored tiles (campaign mid/late map).
+- Continuous drive corridor between NB / FR / Brockton / Cape (fast-travel only).
 - Named-device FPS matrix + 30-minute stream memory soak (measurement pending).
 - ElevenLabs music/TTS commercial entitlement confirmation (`pending-commercial` in license audit).

@@ -6,6 +6,7 @@
 
 import type { Road, Slice } from "../slice";
 import type { Quality } from "../quality";
+import type { DistrictId } from "../districts";
 import { FrameBudget } from "./FrameBudget";
 import { CameraRig } from "./CameraRig";
 import { ObjectiveNav } from "./ObjectiveNav";
@@ -57,14 +58,14 @@ class SimRuntime {
   }
 
   /** Build / rebuild road + sidewalk graphs when a slice loads. */
-  bindSlice(slice: Slice): void {
+  bindSlice(slice: Slice, districtId?: DistrictId): void {
     if (this.boundSlice === slice.name && this.graph && this.pedGraph) return;
     this.boundSlice = slice.name;
     const roads = slice.roads as Road[];
     this.graph = RoadGraph.fromRoads(roads);
     this.pedGraph = PedGraph.fromRoads(roads);
     this.nav.setGraph(this.graph);
-    this.manifest = manifestFromSlice(slice);
+    this.manifest = manifestFromSlice(slice, districtId);
     const v = validateManifest(this.manifest);
     if (!v.ok) console.warn("[WorldManifest]", v.errors.join("; "));
   }

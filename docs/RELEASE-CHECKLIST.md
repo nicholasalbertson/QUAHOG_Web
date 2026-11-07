@@ -6,7 +6,7 @@ Gate for M8 / release candidate. Check off only with evidence.
 
 - [x] Earth demoted to diagnostic (`docs/EARTH-DECISION.md`)
 - [x] Canonical brand on start menu (`BRAND.name`)
-- [ ] Mid/late campaign map content (Cape / Fall River) — **blocked on authored tiles**
+- [~] Mid/late campaign map content (Cape / Brockton / Fall River) — fast-travel playable; corridor TBD
 - [x] Continue disabled without pos+mission+stats
 - [x] New Game clears unified + legacy save domains
 

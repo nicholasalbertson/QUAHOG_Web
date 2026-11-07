@@ -107,6 +107,15 @@ export const FR_SERVICE_EXEMPT = new Set([
   "17th Street",
   "Battleship Cove Drive",
 ]);
+
+/** Cape marina access — slips + dock approach would otherwise be SKIP'd. */
+export const CAPE_SERVICE_EXEMPT = new Set([
+  "Slip 1",
+  "Slip 2",
+  "Ocean Street Dock",
+  "Quinlan Way",
+]);
+
 export function prepareRoads(
   roads: Road[],
   water: [number, number][][],
@@ -118,9 +127,13 @@ export function prepareRoads(
     districtId === "fallRiver"
       ? roads.filter((r) => r.highway === "service" && !!r.name && FR_SERVICE_EXEMPT.has(r.name))
       : [];
+  const capeServiceRoads =
+    districtId === "cape"
+      ? roads.filter((r) => r.highway === "service" && !!r.name && CAPE_SERVICE_EXEMPT.has(r.name))
+      : [];
   let out = roads.filter((r) => !SKIP_HIGHWAY.has(r.highway));
   out = flagCausewayBridges(out, water);
   out = removeDeadEndForks(out, landmarkNames);
   out = normalizeRoadNames(out);
-  return [...out, ...mallRoads, ...frServiceRoads];
+  return [...out, ...mallRoads, ...frServiceRoads, ...capeServiceRoads];
 }

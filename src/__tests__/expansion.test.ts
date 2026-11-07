@@ -7,8 +7,13 @@ import marinaTileRaw from "../../public/tiles/b_107_3.json?raw";
 import compoundTileRaw from "../../public/tiles/b_102_-2.json?raw";
 import type { Building } from "../slice";
 import { DISTRICTS, districtOfWorld, isCrossDistrictObjective, worldCenter } from "../districts";
-import { FAST_TRAVEL } from "../places";
+import { CAPPIELLO_GYM, FAST_TRAVEL, HYANNIS_MARINA, KENNEDY_COMPOUND } from "../places";
 import { MISSIONS } from "../mission";
+import { BUSINESSES } from "../economy";
+import { SCRIMSHAW_SPOTS, SCRIMSHAW_TOTAL } from "../content/scrimshawSpots";
+import { CAPE_SERVICE_EXEMPT, prepareRoads } from "../world/roadPrep";
+import { manifestFromSlice } from "../sim/WorldManifest";
+import type { Road } from "../slice";
 
 // Expansion (2026-11-07): Brockton + Cape zones — registry, fast-travel,
 // tile manifest, shipped-slice data contract, and the Act II/III mission
@@ -209,5 +214,66 @@ describe("expansion mission re-pointing", () => {
         expect(s.target).not.toEqual([-8480, 0, 52100]);
       }
     }
+  });
+});
+
+describe("expansion lived-in content (§7.2–§7.3)", () => {
+  it("hero anchors match slice landmark world coords", () => {
+    expect(CAPPIELLO_GYM).toEqual([-8266.35, 0, -49696.48]);
+    expect(HYANNIS_MARINA).toEqual([53822.06, 0, -1616.7]);
+    expect(KENNEDY_COMPOUND).toEqual([51428.28, 0, 670.15]);
+  });
+
+  it("adds buyable fronts in Fall River, Brockton, and Cape", () => {
+    const byDistrict = (id: "fallRiver" | "brockton" | "cape") =>
+      BUSINESSES.filter((b) => districtOfWorld(b.pos[0], b.pos[2]) === id);
+    expect(byDistrict("fallRiver").map((b) => b.id).sort()).toEqual(
+      ["covechowder", "govcenter", "secondst"].sort(),
+    );
+    expect(byDistrict("brockton").map((b) => b.id).sort()).toEqual(
+      ["championfront", "mainstbox"].sort(),
+    );
+    expect(byDistrict("cape").map((b) => b.id).sort()).toEqual(
+      ["marchantcafe", "willowslip"].sort(),
+    );
+  });
+
+  it("extends scrimshaw into FR / Brockton / Cape (pads legacy saves)", () => {
+    expect(SCRIMSHAW_TOTAL).toBe(15);
+    expect(SCRIMSHAW_SPOTS.filter((s) => districtOfWorld(s[0], s[2]) === "fallRiver")).toHaveLength(3);
+    expect(SCRIMSHAW_SPOTS.filter((s) => districtOfWorld(s[0], s[2]) === "brockton")).toHaveLength(2);
+    expect(SCRIMSHAW_SPOTS.filter((s) => districtOfWorld(s[0], s[2]) === "cape")).toHaveLength(2);
+    expect(SCRIMSHAW_SPOTS.filter((s) => districtOfWorld(s[0], s[2]) === "newBedford")).toHaveLength(8);
+  });
+
+  it("keeps Cape marina slips through prepareRoads", () => {
+    const roads: Road[] = [
+      { highway: "service", name: "Slip 1", width: 4, points: [[53820, 1610], [53830, 1610]] },
+      { highway: "service", name: "Ocean Street Dock", width: 4, points: [[53800, 1600], [53810, 1600]] },
+      { highway: "service", name: "Random Lot Aisle", width: 3, points: [[0, 0], [10, 0]] },
+      { highway: "tertiary", name: "Willow Street", width: 8, points: [[53800, 1620], [53840, 1620]] },
+    ];
+    const out = prepareRoads(roads, [], [], "cape");
+    expect(out.some((r) => r.name === "Slip 1")).toBe(true);
+    expect(out.some((r) => r.name === "Ocean Street Dock")).toBe(true);
+    expect(out.some((r) => r.name === "Willow Street")).toBe(true);
+    expect(out.some((r) => r.name === "Random Lot Aisle")).toBe(false);
+    expect(CAPE_SERVICE_EXEMPT.has("Quinlan Way")).toBe(true);
+  });
+
+  it("WorldManifest attaches district fronts + collectibles", () => {
+    const m = manifestFromSlice(
+      {
+        name: "Cape Cod — Hyannis · Hyannis Port",
+        buildings: [],
+        roads: [],
+        landmarks: [{ name: "Hyannis Marina", kind: "marina", pos: [53822, 1617] }],
+      } as never,
+      "cape",
+    );
+    expect(m.zones.some((z) => z.id === "cape")).toBe(true);
+    expect(m.fronts.map((f) => f.id).sort()).toEqual(["marchantcafe", "willowslip"].sort());
+    expect(m.collectibles).toHaveLength(2);
+    expect(m.spawns[0]).toMatchObject({ x: DISTRICTS.cape.spawn[0], z: DISTRICTS.cape.spawn[1] });
   });
 });
