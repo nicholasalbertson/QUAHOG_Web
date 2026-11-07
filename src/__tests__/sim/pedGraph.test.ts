@@ -23,6 +23,18 @@ describe("PedGraph", () => {
     expect(path!.points.length).toBeGreaterThan(1);
     expect(path!.length).toBeGreaterThan(0);
   });
+
+  it("stitches opposite-side crosswalks", () => {
+    const g = PedGraph.fromRoads(gridRoads, { quantize: 5 });
+    expect(g.crosswalkCount).toBeGreaterThan(0);
+  });
+
+  it("adds door nodes for landmarks", () => {
+    const g = PedGraph.fromRoads(gridRoads, { quantize: 5 });
+    const added = g.addDoorNodes([{ pos: [50, 10] }, { pos: [100, 50] }]);
+    expect(added).toBeGreaterThan(0);
+    expect(g.doorCount).toBeGreaterThan(0);
+  });
 });
 
 describe("PedestrianAI + PedGraph", () => {

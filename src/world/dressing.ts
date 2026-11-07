@@ -1,22 +1,38 @@
 // Central dressing switch — full-game plan, minimalist directive (Nic,
-// 2026-11-03, confirmed by him): most dressing and clutter is eliminated
-// everywhere, FOR NOW. This is a switch, not a deletion: the dressing layer
-// code stays intact and returns in one flip (set this to true) when Nic
-// wants it back. Experience.tsx gates the dressing mounts on it; the one
-// exception is HarborProps' land-side gear boxes, which read it inside the
-// component because they are a sub-part of a mount that otherwise stays on.
+ // 2026-11-03): dressing returns on quality ≥ Medium with density budgets.
+// Experience.tsx gates mounts via dressingEnabledForQuality(quality);
+// HarborProps' land-side gear boxes read the same helper.
 //
-// OFF (current) gates: Props, HighMasts, Awnings, StreetSigns, StreetExtras,
-// RoadFixtures, Foliage, Fences, Billboards, Dumpsters, PortClutter, and the
-// land-side gear boxes inside HarborProps — i.e. lamps, trees, hydrants,
-// mailboxes, benches, cones, signs, awnings, foliage, fences, dumpsters,
-// billboards, shipping containers / wharf crates, and the Rt 18 high masts
-// (dark while off).
-// HarborProps itself stays mounted (its pilings, buoys and boats are
-// water-edge items, not street clutter); only its land-side gear boxes read
-// this flag, so the "only Experience gates" line below no longer holds for
-// that one sub-part.
+// OFF on Low (quality 0). Medium / High scale prop density 0.35 / 0.65 / 1.0
+// across the quality ladder (Low scale is unused while gated off).
 // ALWAYS ON: roads, buildings (GIS + tiles), water, vehicles
 // (player/traffic/parked), mission elements, car headlights, crosswalks,
 // utility-pole visuals, traffic signals, and the debug overlay.
+
+import type { Quality } from "../quality";
+
+/** @deprecated Prefer dressingEnabledForQuality(quality). Kept false so legacy
+ *  constant-gated call sites stay off until migrated. */
 export const DRESSING_ENABLED = false;
+
+/** True when street dressing / clutter may mount for this quality preset. */
+export function dressingEnabledForQuality(q: Quality): boolean {
+  return q >= 1;
+}
+
+/** Prop / clutter density multiplier for the quality ladder. */
+export function dressingDensityScale(q: Quality): number {
+  return ([0.35, 0.65, 1] as const)[q] ?? 0.65;
+}
+
+/** Keep every Nth item so counts track densityScale without reshuffling. */
+export function scalePropCount<T>(items: T[], scale: number): T[] {
+  if (scale >= 0.999) return items;
+  if (scale <= 0 || items.length === 0) return [];
+  const keep = Math.max(1, Math.floor(items.length * scale));
+  if (keep >= items.length) return items;
+  const stride = items.length / keep;
+  const out: T[] = [];
+  for (let i = 0; i < keep; i++) out.push(items[Math.min(items.length - 1, Math.floor(i * stride))]);
+  return out;
+}

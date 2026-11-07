@@ -39,6 +39,16 @@ describe("ClockWeather", () => {
     const wet = c.friction("asphalt");
     expect(wet).toBeLessThanOrEqual(dry * 0.8);
   });
+
+  it("weatherVehicleLimits cuts top speed in snow/wet", () => {
+    const c = new ClockWeather();
+    const clear = c.weatherVehicleLimits(32, 12);
+    c.setWeather("snow", 0);
+    c.wetness = 1;
+    const snow = c.weatherVehicleLimits(32, 12);
+    expect(snow.forward).toBeLessThan(clear.forward);
+    expect(snow.steer).toBeLessThanOrEqual(clear.steer);
+  });
 });
 
 describe("WorldManifest", () => {

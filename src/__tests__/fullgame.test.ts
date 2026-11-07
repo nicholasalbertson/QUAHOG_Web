@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import sliceRaw from "../../public/slice-newbedford.json?raw";
 import type { Road } from "../slice";
-import { DRESSING_ENABLED } from "../world/dressing";
+import { DRESSING_ENABLED, dressingEnabledForQuality } from "../world/dressing";
 import {
   flagCausewayBridges,
   isMallServiceRoad,
@@ -29,10 +29,10 @@ const road = (
 ): Road => ({ highway, name, points, width, bridge });
 
 describe("minimalist dressing switch", () => {
-  it("is OFF — dressing mounts render nothing until Nic flips it", () => {
-    // Deliberately asserted: flipping this switch is a decision, not an
-    // accident, so the test must be updated in the same change.
+  it("legacy constant stays false; quality ≥ 1 enables dressing", () => {
     expect(DRESSING_ENABLED).toBe(false);
+    expect(dressingEnabledForQuality(0)).toBe(false);
+    expect(dressingEnabledForQuality(1)).toBe(true);
   });
 });
 

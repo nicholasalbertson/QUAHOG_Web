@@ -5,8 +5,8 @@
  * Clean-room Mount Hope design — independent of any proprietary ped network.
  */
 
-import type { Road } from "../slice";
-import type { NavPath, RoadEdge, RoadNode, Vec2 } from "./types";
+import type { Landmark, Road } from "../slice";
+import type { NavPath, PedEdgeTag, PedNodeKind, RoadEdge, RoadNode, Vec2 } from "./types";
 import { dijkstra, type GraphEdge } from "./Dijkstra";
 import { dist } from "./math";
 
@@ -48,6 +48,8 @@ export class PedGraph {
     const g = new PedGraph(opts);
     const minEdge = opts?.minEdge ?? 2.5;
     const curb = opts?.curb ?? 1.6;
+    /** Opposite-side sidewalk pairs at the same centerline vertex → crosswalk. */
+    const crossPairs: [number, number][] = [];
 
     for (const road of roads) {
       if (!WALKABLE.has(road.highway) || road.bridge) continue;
@@ -62,42 +64,50 @@ export class PedGraph {
       const half = isFoot ? 0 : Math.max(2.2, road.width * 0.5 + curb);
       const sides = isFoot ? [0] : [-half, half];
 
-      for (const side of sides) {
-        let prevId = -1;
-        let prevX = 0;
-        let prevZ = 0;
-        for (let i = 0; i < road.points.length; i++) {
-          const [e, n] = road.points[i];
-          const x0 = e;
-          const z0 = -n;
-          // Perp from local tangent (prefer forward segment, else back).
-          let tx = 0;
-          let tz = 0;
-          if (i + 1 < road.points.length) {
-            tx = road.points[i + 1][0] - e;
-            tz = -road.points[i + 1][1] - z0;
-          } else {
-            tx = e - road.points[i - 1][0];
-            tz = z0 - (-road.points[i - 1][1]);
-          }
-          const tlen = Math.hypot(tx, tz) || 1;
-          tx /= tlen;
-          tz /= tlen;
-          // Perpendicular in XZ: (tx,tz) → (-tz, tx)
+      const sidePrev: { id: number; x: number; z: number }[] = sides.map(() => ({
+        id: -1,
+        x: 0,
+        z: 0,
+      }));
+
+      for (let i = 0; i < road.points.length; i++) {
+        const [e, n] = road.points[i];
+        const x0 = e;
+        const z0 = -n;
+        // Perp from local tangent (prefer forward segment, else back).
+        let tx = 0;
+        let tz = 0;
+        if (i + 1 < road.points.length) {
+          tx = road.points[i + 1][0] - e;
+          tz = -road.points[i + 1][1] - z0;
+        } else {
+          tx = e - road.points[i - 1][0];
+          tz = z0 - (-road.points[i - 1][1]);
+        }
+        const tlen = Math.hypot(tx, tz) || 1;
+        tx /= tlen;
+        tz /= tlen;
+
+        const idsAtPoint: number[] = [];
+        for (let s = 0; s < sides.length; s++) {
+          const side = sides[s];
           const x = x0 + -tz * side;
           const z = z0 + tx * side;
-          const id = g.ensureNode(x, z);
-          if (prevId >= 0) {
-            const len = dist(prevX, prevZ, x, z);
+          const id = g.ensureNode(x, z, "sidewalk");
+          idsAtPoint.push(id);
+          const prev = sidePrev[s];
+          if (prev.id >= 0) {
+            const len = dist(prev.x, prev.z, x, z);
             if (len >= minEdge) {
-              g.addEdge(prevId, id, len);
-              g.addEdge(id, prevId, len);
+              g.addEdge(prev.id, id, len, "sidewalk");
+              g.addEdge(id, prev.id, len, "sidewalk");
             }
           }
-          prevId = id;
-          prevX = x;
-          prevZ = z;
+          prev.id = id;
+          prev.x = x;
+          prev.z = z;
         }
+        if (idsAtPoint.length === 2) crossPairs.push([idsAtPoint[0], idsAtPoint[1]]);
       }
     }
 
@@ -105,28 +115,106 @@ export class PedGraph {
     // can turn corners without authored crosswalks. Span must cover the
     // sidewalk offset (~half width + curb) at right-angle junctions.
     g.stitchNear(Math.max(12, g.quantize * 2.5));
+    // Explicit opposite-side stitches at quantized junctions.
+    g.stitchCrosswalks(crossPairs);
     return g;
   }
 
-  private ensureNode(x: number, z: number): number {
+  /** Tag opposite-side sidewalk pairs as crosswalk edges/nodes. */
+  stitchCrosswalks(pairs: [number, number][]): void {
+    for (const [a, b] of pairs) {
+      if (a === b) continue;
+      const na = this.nodes[a];
+      const nb = this.nodes[b];
+      if (!na || !nb) continue;
+      const len = dist(na.x, na.z, nb.x, nb.z);
+      if (len < 0.5 || len > 28) continue;
+      this.addEdge(a, b, len, "crosswalk");
+      this.addEdge(b, a, len, "crosswalk");
+      if (na.kind !== "door") na.kind = "crosswalk";
+      if (nb.kind !== "door") nb.kind = "crosswalk";
+    }
+  }
+
+  /**
+   * Create door nodes near landmark positions (slice [east, north]) and
+   * link each to the nearest sidewalk node so peds can enter/exit buildings.
+   */
+  addDoorNodes(landmarks: Landmark[] | { pos: [number, number] }[]): number {
+    let added = 0;
+    for (const lm of landmarks) {
+      const x = lm.pos[0];
+      const z = -lm.pos[1];
+      // Nudge slightly toward the nearest sidewalk so the door sits off the facade.
+      const near = this.nearestNode(x, z, 80);
+      let dx = 0;
+      let dz = 0;
+      if (near != null) {
+        const n = this.nodes[near];
+        const len = dist(x, z, n.x, n.z) || 1;
+        dx = ((n.x - x) / len) * 2.5;
+        dz = ((n.z - z) / len) * 2.5;
+      }
+      // Force a unique door key so we don't collide with an existing sidewalk cell.
+      const id = this.ensureNode(x + dx + 0.01, z + dz + 0.01, "door");
+      this.nodes[id].kind = "door";
+      // Prefer linking to a non-door sidewalk/crosswalk node.
+      let link: number | null = null;
+      let best = 80 * 80;
+      for (const n of this.nodes) {
+        if (n.id === id || n.kind === "door") continue;
+        const d2 = (n.x - this.nodes[id].x) ** 2 + (n.z - this.nodes[id].z) ** 2;
+        if (d2 < best) {
+          best = d2;
+          link = n.id;
+        }
+      }
+      if (link != null) {
+        const n = this.nodes[link];
+        const len = dist(this.nodes[id].x, this.nodes[id].z, n.x, n.z);
+        if (len > 0.25) {
+          this.addEdge(id, link, len, "door");
+          this.addEdge(link, id, len, "door");
+          added++;
+        }
+      }
+    }
+    return added;
+  }
+
+  private ensureNode(x: number, z: number, kind: PedNodeKind = "sidewalk"): number {
     const qx = Math.round(x / this.quantize) * this.quantize;
     const qz = Math.round(z / this.quantize) * this.quantize;
     const key = `${qx},${qz}`;
     const existing = this.keyToId.get(key);
-    if (existing !== undefined) return existing;
+    if (existing !== undefined) {
+      // Don't downgrade a crosswalk/door node back to sidewalk.
+      const n = this.nodes[existing];
+      if (kind === "door") n.kind = "door";
+      else if (kind === "crosswalk" && n.kind !== "door") n.kind = "crosswalk";
+      return existing;
+    }
     const id = this.nodes.length;
-    this.nodes.push({ id, x: qx, z: qz });
+    this.nodes.push({ id, x: qx, z: qz, kind });
     this.keyToId.set(key, id);
     this.adjacency.set(id, []);
     return id;
   }
 
-  private addEdge(from: number, to: number, length: number): void {
+  private addEdge(from: number, to: number, length: number, tag: PedEdgeTag = "sidewalk"): void {
     if (from === to) return;
     const list = this.adjacency.get(from)!;
-    if (list.some((e) => e.to === to)) return;
+    const existing = list.find((e) => e.to === to);
+    if (existing) {
+      // Upgrade sidewalk → crosswalk/door so stitchNear doesn't erase tags.
+      if (tag !== "sidewalk") {
+        const edge = this.edges.find((e) => e.from === from && e.to === to);
+        if (edge && edge.tag === "sidewalk") edge.tag = tag;
+      }
+      return;
+    }
     list.push({ to, weight: length });
-    this.edges.push({ from, to, length });
+    this.edges.push({ from, to, length, tag });
   }
 
   private stitchNear(maxDist: number): void {
@@ -158,8 +246,8 @@ export class PedGraph {
             const d2 = (n.x - o.x) * (n.x - o.x) + (n.z - o.z) * (n.z - o.z);
             if (d2 > 0 && d2 <= max2) {
               const len = Math.sqrt(d2);
-              this.addEdge(n.id, o.id, len);
-              this.addEdge(o.id, n.id, len);
+              this.addEdge(n.id, o.id, len, "sidewalk");
+              this.addEdge(o.id, n.id, len, "sidewalk");
             }
           }
         }
@@ -228,5 +316,13 @@ export class PedGraph {
 
   get edgeCount(): number {
     return this.edges.length;
+  }
+
+  get crosswalkCount(): number {
+    return this.edges.filter((e) => e.tag === "crosswalk").length;
+  }
+
+  get doorCount(): number {
+    return this.nodes.filter((n) => n.kind === "door").length;
   }
 }

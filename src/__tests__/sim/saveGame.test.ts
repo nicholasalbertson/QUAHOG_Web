@@ -3,10 +3,13 @@ import {
   canContinue,
   clearAllSaves,
   collectLegacySave,
+  hasRecoverableTmp,
+  isCorrupt,
+  recoverFromTmp,
   validateSave,
   SCHEMA_VERSION,
 } from "../../sim/SaveGame";
-import { saveJSON, removeItem } from "../../storage";
+import { saveJSON, removeItem, setItem } from "../../storage";
 import { SAVE_KEYS } from "../../registries";
 
 describe("SaveGame", () => {
@@ -42,5 +45,23 @@ describe("SaveGame", () => {
     const blob = collectLegacySave();
     expect(blob.carDamage).toBe(42);
     expect(blob.boat).toEqual({ x: 10, y: 1.2, z: 20, yaw: 0.5 });
+  });
+
+  it("isCorrupt / recoverFromTmp promote a healthy .tmp", () => {
+    clearAllSaves();
+    setItem(SAVE_KEYS.saveV2, "{not-json");
+    expect(isCorrupt(SAVE_KEYS.saveV2)).toBe(true);
+    const good = {
+      schemaVersion: SCHEMA_VERSION,
+      createdAt: 1,
+      build: "t",
+      stats: { cash: 10, health: 100, police: 0, faction: 0 },
+    };
+    saveJSON(SAVE_KEYS.saveV2 + ".tmp", good);
+    expect(hasRecoverableTmp()).toBe(true);
+    const recovered = recoverFromTmp();
+    expect(recovered?.stats?.cash).toBe(10);
+    expect(isCorrupt(SAVE_KEYS.saveV2)).toBe(false);
+    expect(hasRecoverableTmp()).toBe(false);
   });
 });

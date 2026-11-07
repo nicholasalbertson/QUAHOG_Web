@@ -44,4 +44,32 @@ describe("useMission", () => {
     expect(m().step).toBe(0);
     expect(m().done).toBe(false);
   });
+
+  it("fail / retry restores the checkpoint step", () => {
+    // Advance into Auction Rules (mi 1) then past step 0 so checkpoint = 1.
+    while (m().mi === 0) m().advance();
+    m().advance();
+    expect(m().mi).toBe(1);
+    expect(m().step).toBe(1);
+    expect(m().checkpoint).toBe(1);
+    m().fail("Wasted — you didn't make it");
+    expect(m().failed).toBe(true);
+    expect(m().failReason).toMatch(/Wasted/);
+    m().retry();
+    expect(m().failed).toBe(false);
+    expect(m().failReason).toBeNull();
+    expect(m().mi).toBe(1);
+    expect(m().step).toBe(1);
+    expect(m().objective).toBe(m().steps[1].text);
+  });
+
+  it("abandon skips the failed mission without reward soft-lock", () => {
+    while (m().mi === 0) m().advance();
+    const skipped = m().mi;
+    m().fail("Busted — the job's blown");
+    m().abandon();
+    expect(m().failed).toBe(false);
+    expect(m().mi).toBe(skipped + 1);
+    expect(m().step).toBe(0);
+  });
 });

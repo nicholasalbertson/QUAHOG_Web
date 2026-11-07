@@ -4,6 +4,7 @@ import { useFrame } from "@react-three/fiber";
 import { shared } from "../shared";
 import type { Road } from "../slice";
 import { buildFreewayCorridor, FREEWAY_TYPES } from "./freeway";
+import { scalePropCount } from "./dressing";
 
 // Street furniture + vegetation (§7): lamp posts (glow at night), hydrants,
 // mailboxes, benches, and street trees, laid out along the road edges near the
@@ -96,8 +97,26 @@ function fill(mesh: THREE.InstancedMesh | null, places: Place[], y: number) {
   mesh.count = places.length;
 }
 
-export function Props({ roads, center }: { roads: Road[]; center: [number, number] }) {
-  const L = useMemo(() => buildLayout(roads, center), [roads, center]);
+export function Props({
+  roads,
+  center,
+  densityScale = 1,
+}: {
+  roads: Road[];
+  center: [number, number];
+  densityScale?: number;
+}) {
+  const L = useMemo(() => {
+    const raw = buildLayout(roads, center);
+    if (densityScale >= 0.999) return raw;
+    return {
+      lamps: scalePropCount(raw.lamps, densityScale),
+      hydrants: scalePropCount(raw.hydrants, densityScale),
+      mailboxes: scalePropCount(raw.mailboxes, densityScale),
+      benches: scalePropCount(raw.benches, densityScale),
+      trees: scalePropCount(raw.trees, densityScale),
+    };
+  }, [roads, center, densityScale]);
 
   const poles = useRef<THREE.InstancedMesh>(null);
   const heads = useRef<THREE.InstancedMesh>(null);

@@ -24,7 +24,7 @@ export interface FlagDefs {
 
 const DEFAULTS: Record<BuildTarget, FlagDefs> = {
   stylized: {
-    helicopter: false,
+    helicopter: true,
     glbActors: true,
     weather: true,
     missionTimers: true,
@@ -33,7 +33,7 @@ const DEFAULTS: Record<BuildTarget, FlagDefs> = {
     deterministicSim: true,
   },
   earth: {
-    helicopter: false,
+    helicopter: true,
     glbActors: true,
     weather: true,
     missionTimers: true,

@@ -1,8 +1,9 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
-import { DRESSING_ENABLED } from "./dressing";
+import { dressingEnabledForQuality } from "./dressing";
 import { PackVessel } from "../actors/PackVessel";
+import { useGame } from "../store";
 
 // Mount job (2026-11-03): the harbour boats are P003 working vessels at the
 // same computed shoreline positions (visual swap only — the bob/roll group
@@ -30,6 +31,8 @@ export function HarborProps({
   polys: [number, number][][];
   center: [number, number];
 }) {
+  const quality = useGame((s) => s.quality);
+  const dressingOn = dressingEnabledForQuality(quality);
   const { pilings, buoys, boats, gear } = useMemo(() => {
     const pilings: [number, number][] = [];
     const buoys: [number, number][] = [];
@@ -132,7 +135,7 @@ export function HarborProps({
           gated by the minimalist dressing switch like the other clutter
           (PortClutter). Pilings, buoys and boats below stay on: they are
           water-edge items, not street clutter. */}
-      {DRESSING_ENABLED && (
+      {dressingOn && (
         <instancedMesh ref={gearRef} args={[undefined, undefined, Math.max(1, gear.length)]} castShadow>
           <boxGeometry args={[1.4, 1.0, 1.4]} />
           <meshStandardMaterial color="#5a5346" roughness={0.95} wireframe />

@@ -15,13 +15,13 @@ import { shared, addShake, addImpact } from "../shared";
 import { useGame, useToasts } from "../store";
 import { useStats } from "../game";
 import { sfx } from "../audio/sfx";
-import { snowVehicleLimits } from "../weather/snowstorm";
 import { isBlockedWater, blockedWaterEntry } from "../world/waterZones";
 import { computeLampPositions } from "../world/Props";
 import { buildStreetExtrasLayout } from "../world/StreetExtras";
 import { computeUtilityPolePositions } from "../world/UtilityPoles";
 import { computeTrafficLightPositions } from "../world/TrafficLights";
 import { CORE_WORLD } from "../world/freeway";
+import { sim } from "../sim";
 
 // Arcade tuning, slowed down (feel fix 2026-11-02): the old 44 m/s top
 // speed (~98 mph) was absurd for city streets and made steering feel
@@ -99,6 +99,7 @@ export function Car() {
     ];
   }, [slice]);
   const propHitTimes = useRef(new Map<number, number>());
+  const pendingDt = useRef(0);
   useEffect(() => { propHitTimes.current.clear(); }, [breakableProps]);
   const { world, rapier } = useRapier();
   const ray = useRef(new rapier.Ray({ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 1 }));
@@ -110,7 +111,17 @@ export function Car() {
     };
   }, []);
 
-  useFrame((_, dt) => {
+  // Fixed-step physics: accumulate sim.loop steps, apply in useFrame.
+  useEffect(() => {
+    return sim.loop.on("step", (dt) => {
+      pendingDt.current += dt;
+    });
+  }, []);
+
+  useFrame(() => {
+    const dt = pendingDt.current;
+    pendingDt.current = 0;
+    if (dt <= 0) return;
     const rb = body.current;
     if (!rb) return;
     const game = useGame.getState();
@@ -118,11 +129,9 @@ export function Car() {
     if (game.mode !== "car") { shared.skid = false; shared.carSpeed = 0; sfx.engine(0, false); return; }
 
     const ax = moveAxis();
-    const winter = game.weather === "snow";
-    // T1: per-type handling scales the snow limits' inputs, so winter and
-    // type multipliers compose instead of fighting.
+    // T1: per-type handling × ClockWeather vehicle limits (wet/snow/fog).
     const handling = HANDLING[carType] ?? HANDLING_DEFAULT;
-    const traction = snowVehicleLimits(winter, MAX_SPEED * handling.top, REVERSE_SPEED * handling.top);
+    const traction = sim.clock.weatherVehicleLimits(MAX_SPEED * handling.top, REVERSE_SPEED * handling.top);
     let yaw = shared.carYaw;
     const fwd = _fwd.set(Math.sin(yaw), 0, Math.cos(yaw));
     const v = rb.linvel();

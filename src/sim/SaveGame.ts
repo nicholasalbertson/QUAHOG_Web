@@ -153,3 +153,44 @@ export function validateSave(blob: unknown): string[] {
   }
   return errs;
 }
+
+/** True when the named key exists but fails JSON parse or validateSave. */
+export function isCorrupt(key: string = SAVE_KEYS.saveV2): boolean {
+  const raw = getItem(key);
+  if (raw == null) return false;
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return validateSave(parsed).length > 0;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Promote a valid saveV2.tmp over a missing/corrupt main blob.
+ * Returns the recovered blob, or null if nothing usable was found.
+ */
+export function recoverFromTmp(): SaveBlobV2 | null {
+  const tmpKey = SAVE_KEYS.saveV2 + ".tmp";
+  const tmp = loadJSON<SaveBlobV2 | null>(tmpKey, null);
+  if (!tmp || validateSave(tmp).length > 0) return null;
+  saveJSON(SAVE_KEYS.saveV2, tmp);
+  removeItem(tmpKey);
+  return tmp;
+}
+
+/** StartMenu / SaveRecovery gate — corrupt main + healthy tmp. */
+export function hasRecoverableTmp(): boolean {
+  const tmpKey = SAVE_KEYS.saveV2 + ".tmp";
+  if (!getItem(tmpKey)) return false;
+  const mainRaw = getItem(SAVE_KEYS.saveV2);
+  if (mainRaw) {
+    try {
+      if (validateSave(JSON.parse(mainRaw)).length === 0) return false;
+    } catch {
+      /* corrupt main — fall through */
+    }
+  }
+  const tmp = loadJSON<SaveBlobV2 | null>(tmpKey, null);
+  return !!tmp && validateSave(tmp).length === 0;
+}

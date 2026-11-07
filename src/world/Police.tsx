@@ -7,6 +7,7 @@ import { shared, type Cop } from "../shared";
 import { useStats } from "../game";
 import { useGame } from "../store";
 import { sfx } from "../audio/sfx";
+import { spatialAudio } from "../audio/SpatialAudio";
 import { POLICE_STATION } from "../places";
 
 // Police pursuit (§14): REMOVED 2026-11-02 per Nic — the pursuit homed
@@ -20,13 +21,16 @@ import { POLICE_STATION } from "../places";
 // the police-heat axis climbed and homed in — slow enough to outrun in a car
 // and lose on foot. They showed on the map. Being cornered (right on top)
 // for a 5s grace = busted. Cops could be shot (gun queues cop.dmg).)
-export const POLICE_ENABLED = false;
+// Soft-reenabled with standoff: units stop short of the player instead of
+// overlapping (Nic, 2026-11-02). On foot they close to arrest range.
+export const POLICE_ENABLED = true;
 
 const MAX_COPS = 3;
 const SPEED = 12.5;       // m/s — a car easily outruns this
 const SPAWN_DIST = 120;   // appear a few streets away (visible on the map)
 const GIVEUP_DIST = 170;  // beyond this for GIVEUP_TIME and they lose you
 const GIVEUP_TIME = 6;
+const STANDOFF_DIST = 9;  // stop this far when the player is in a vehicle
 const ARREST_DIST = 3.6;  // must be right on top to make the arrest
 const ARREST_GRACE = 5;   // seconds on top before busted
 const COP_HP = 3;
@@ -64,6 +68,8 @@ export function Police() {
     return () => { shared.cops = []; };
   }, []);
 
+  const sirenSpatialAcc = useRef(0);
+
   useFrame((_, dt) => {
     const game = useGame.getState();
     if (game.paused || game.down) { sfx.siren(false); return; }
@@ -74,7 +80,32 @@ export function Police() {
     // chase only at 3+ stars, and fewer units than the star count
     const desired = police >= 3 ? Math.min(MAX_COPS, Math.floor(police) - 1) : 0;
     let activeCount = units.current.filter((u) => u.active && u.hp > 0).length;
-    sfx.siren(activeCount > 0);
+    const sirenOn = activeCount > 0;
+    sfx.siren(sirenOn);
+
+    // §9.2 spatial siren chirp at the nearest active unit
+    if (sirenOn && target) {
+      sirenSpatialAcc.current += dt;
+      if (sirenSpatialAcc.current >= 1.4) {
+        sirenSpatialAcc.current = 0;
+        let nearest: Unit | null = null;
+        let best = Infinity;
+        for (const u of units.current) {
+          if (!u.active || u.hp <= 0) continue;
+          const d = Math.hypot(u.pos.x - target.x, u.pos.z - target.z);
+          if (d < best) { best = d; nearest = u; }
+        }
+        if (nearest) {
+          spatialAudio.playAt(nearest.pos.x, 1.2, nearest.pos.z, {
+            duration: 0.35,
+            freq: 780,
+            gain: 0.12,
+          });
+        }
+      }
+    } else {
+      sirenSpatialAcc.current = 0;
+    }
 
     units.current.forEach((u, i) => {
       const g = refs.current[i];
@@ -105,11 +136,15 @@ export function Police() {
       // apply queued gun damage
       if (u.car.dmg > 0) { u.hp -= u.car.dmg; u.car.dmg = 0; if (u.hp <= 0) { u.deadT = 1.2; stats.addCash(75); stats.heat(-0.4, 0); } }
 
-      // home toward the player
+      // home toward the player — stop at standoff in a car so units never
+      // overlap; close to arrest range only when the player is on foot.
       const dx = target.x - u.pos.x, dz = target.z - u.pos.z;
       const d = Math.hypot(dx, dz) || 1;
-      u.pos.x += (dx / d) * SPEED * dt;
-      u.pos.z += (dz / d) * SPEED * dt;
+      const stopAt = game.mode === "car" ? STANDOFF_DIST : ARREST_DIST * 0.85;
+      if (d > stopAt) {
+        u.pos.x += (dx / d) * SPEED * dt;
+        u.pos.z += (dz / d) * SPEED * dt;
+      }
       u.yaw = Math.atan2(dx, dz);
       u.car.pos.copy(u.pos);
 

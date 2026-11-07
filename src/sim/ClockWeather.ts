@@ -130,6 +130,28 @@ export class ClockWeather {
     return 1;
   }
 
+  /**
+   * Vehicle top-speed / steer / throttle response from current weather + wetness.
+   * Composes with per-type handling; snow is the harshest cut.
+   */
+  weatherVehicleLimits(maxForward = 32, maxReverse = 12): {
+    forward: number;
+    reverse: number;
+    steer: number;
+    throttleResponse: number;
+    handbrakeResponse: number;
+  } {
+    const f = this.friction("asphalt"); // already wet/snow aware
+    const scale = 0.55 + 0.45 * Math.min(1, f);
+    return {
+      forward: maxForward * scale,
+      reverse: maxReverse * scale,
+      steer: 0.7 + 0.3 * Math.min(1, f),
+      throttleResponse: 0.55 + 0.45 * Math.min(1, f),
+      handbrakeResponse: 0.6 + 0.4 * Math.min(1, f),
+    };
+  }
+
   syncFromShared(day: number, hour: number, weather: WeatherKind): void {
     this.day = day;
     this.hour = hour;

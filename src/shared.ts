@@ -162,6 +162,8 @@ export const shared = {
   navWrongWay: false,
   /** Current nav polyline in world XZ, or null. */
   navPath: null as { x: number; z: number }[] | null,
+  /** ★4+ heat — pursuit units may attempt a PIT (HeatResponse / Police). */
+  pitEligible: false,
 };
 
 /** Drop a cash pickup at a world point (capped so it can't grow unbounded). */

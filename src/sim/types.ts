@@ -22,16 +22,23 @@ export interface SectorCoord {
   sz: number;
 }
 
+export type PedNodeKind = "sidewalk" | "crosswalk" | "door";
+export type PedEdgeTag = "sidewalk" | "crosswalk" | "door";
+
 export interface RoadNode {
   id: number;
   x: number;
   z: number;
+  /** PedGraph optional kind (sidewalk / crosswalk / door). */
+  kind?: PedNodeKind;
 }
 
 export interface RoadEdge {
   from: number;
   to: number;
   length: number;
+  /** PedGraph optional edge tag. */
+  tag?: PedEdgeTag;
 }
 
 export interface NavPath {
