@@ -20,6 +20,25 @@ export function snowVehicleLimits(snowing: boolean, maxForward = 44, maxReverse 
     : { forward: maxForward, reverse: maxReverse, steer: 1, throttleResponse: 1, handbrakeResponse: 1 };
 }
 
+/**
+ * §1.4 / §1.9 — map ClockWeather.friction() into arcade traction limits.
+ * Prefer this over the boolean snow path so rain/wet/fog/snow all share one curve.
+ */
+export function weatherVehicleLimits(
+  friction: number,
+  maxForward = 44,
+  maxReverse = 16,
+) {
+  const grip = Math.min(1.15, Math.max(0.45, friction));
+  return {
+    forward: maxForward * grip,
+    reverse: maxReverse * grip,
+    steer: grip,
+    throttleResponse: 0.55 + 0.45 * grip,
+    handbrakeResponse: 0.6 + 0.4 * grip,
+  };
+}
+
 export function snowfallParticleCount(quality: 0 | 1 | 2): number {
   return quality === 0 ? 240 : quality === 1 ? 540 : 960;
 }

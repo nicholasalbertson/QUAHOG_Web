@@ -15,7 +15,8 @@ import { shared, addShake, addImpact } from "../shared";
 import { useGame, useToasts } from "../store";
 import { useStats } from "../game";
 import { sfx } from "../audio/sfx";
-import { snowVehicleLimits } from "../weather/snowstorm";
+import { weatherVehicleLimits } from "../weather/snowstorm";
+import { sim } from "../sim";
 import { isBlockedWater, blockedWaterEntry } from "../world/waterZones";
 import { computeLampPositions } from "../world/Props";
 import { buildStreetExtrasLayout } from "../world/StreetExtras";
@@ -118,11 +119,14 @@ export function Car() {
     if (game.mode !== "car") { shared.skid = false; shared.carSpeed = 0; sfx.engine(0, false); return; }
 
     const ax = moveAxis();
-    const winter = game.weather === "snow";
-    // T1: per-type handling scales the snow limits' inputs, so winter and
-    // type multipliers compose instead of fighting.
+    // §1.4: ClockWeather.friction drives wet/rain/fog/snow grip (replaces
+    // the snow-only boolean so rain also changes handling).
     const handling = HANDLING[carType] ?? HANDLING_DEFAULT;
-    const traction = snowVehicleLimits(winter, MAX_SPEED * handling.top, REVERSE_SPEED * handling.top);
+    const traction = weatherVehicleLimits(
+      sim.clock.friction("asphalt"),
+      MAX_SPEED * handling.top,
+      REVERSE_SPEED * handling.top,
+    );
     let yaw = shared.carYaw;
     const fwd = _fwd.set(Math.sin(yaw), 0, Math.cos(yaw));
     const v = rb.linvel();

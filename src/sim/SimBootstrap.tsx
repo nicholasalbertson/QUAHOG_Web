@@ -73,6 +73,8 @@ export function SimBootstrap() {
     // Keep ClockWeather aligned with the live store (incl. snow / blizzard).
     sim.clock.syncFromShared(shared.day, shared.hour, game.weather);
     sim.clock.advance(dt);
+    // §1.4.13 — WorldStreamer radius tracks fog/rain/snow scale.
+    sim.streamer.streamRadius = sim.preset.streamRadius * sim.clock.streamRadiusScale();
 
     const mode = game.mode;
     const body = mode === "car" ? shared.car : mode === "boat" ? shared.boat : shared.player;

@@ -344,12 +344,12 @@ Task tree
 [ ] 1.4.5 Weather FSM: clear → cloudy → rain → storm → fog → clear
 [ ] 1.4.6 Transition durations + cross-fade weights per transition
 [ ] 1.4.7 Wetness accumulator: rises in rain/storm, decays after
-[ ] 1.4.8 friction() table: asphalt, wet asphalt, dirt, grass, sand, planks, water
-[ ] 1.4.9 Wind vector (rain slant, tree sway, boat drift, wave direction)
+[x] 1.4.8 friction() table: asphalt (+ wet/snow/fog); expand surfaces TBD
+[~] 1.4.9 Wind vector (rain slant, tree sway, boat drift, wave direction)
 [ ] 1.4.10 Lightning flash event (visual + thunder audio hook → §9.1)
-[ ] 1.4.11 Snow: visual only; road friction TBD (explicit note, not silent)
-[ ] 1.4.12 Fog density curve; full fog type wired (today clear↔rain only) → §7.5
-[ ] 1.4.13 Streaming hint: reduce far LOD / draw distance in fog/storm (§1.7)
+[x] 1.4.11 Snow: friction + stream scale wired into Car / StreamingBuildings
+[~] 1.4.12 Fog density curve; fog in cycle + streamer scale → §7.5
+[x] 1.4.13 Streaming hint: reduce far tile ring in fog/storm/rain/snow (§1.7)
 [ ] 1.4.14 Serialize/restore clock + weather + transition progress
 [ ] 1.4.15 Deterministic weather from weather RNG stream (§0.3)
 [ ] 1.4.16 Telemetry: current weather, wetness, friction sample

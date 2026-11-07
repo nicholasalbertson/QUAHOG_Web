@@ -18,6 +18,7 @@ import { mobileBudget } from "../mobile/profile";
 import { requestLimit, trimCache } from "../mobile/requests";
 import { viewRadius } from "../quality";
 import type { Building } from "../slice";
+import { sim } from "../sim";
 
 // Multi-tile building streamer (Step 19). Loads building tiles (public/tiles/
 // b_<gx>_<gn>.json) within VIEW_R of the player and drops them when far, so
@@ -365,9 +366,11 @@ export function StreamingBuildings({ fallback, center }: { fallback: Building[];
     const px = t?.x ?? 0, pn = -(t?.z ?? 0); // north = -z
     const gx = Math.floor(px / m.tile), gn = Math.floor(pn / m.tile);
 
+    // §1.4.13 / §7.5 — shrink far tile ring in fog / snow / rain.
+    const vr = Math.max(1, Math.round(viewRadius(quality) * sim.clock.streamRadiusScale()));
     const want: { key: string; collide: boolean }[] = [];
-    for (let dx = -viewRadius(quality); dx <= viewRadius(quality); dx++) {
-      for (let dn = -viewRadius(quality); dn <= viewRadius(quality); dn++) {
+    for (let dx = -vr; dx <= vr; dx++) {
+      for (let dn = -vr; dn <= vr; dn++) {
         const key = `${gx + dx}_${gn + dn}`;
         if (!keySet.current.has(key)) continue;
         want.push({ key, collide: Math.abs(dx) <= COLLIDE_R && Math.abs(dn) <= COLLIDE_R });
