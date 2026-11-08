@@ -190,6 +190,10 @@ export {
 export type { InputMode, InputModeState } from "./InputMode";
 export { createSuspension, stepSuspension } from "./Suspension";
 export type { SuspensionState, WheelSusp } from "./Suspension";
+export { SurfaceSampler } from "./SurfaceSample";
+export type { SurfacePoly } from "./SurfaceSample";
+export { deformBudget, clampDeform } from "./DeformBudget";
+export type { DeformBudget } from "./DeformBudget";
 export { GameLoop } from "./GameLoop";
 export type { LoopPhase, PauseSource, LoopStats } from "./GameLoop";
 export { Rng, RngService, rng } from "./Rng";
