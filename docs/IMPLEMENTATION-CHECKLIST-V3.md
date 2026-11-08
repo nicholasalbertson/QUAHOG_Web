@@ -82,11 +82,11 @@ parallel work.
 [~] tsconfig strict: strict on; noUncheckedIndexedAccess/exactOptionalPropertyTypes deferred (repo-wide blast radius)
 [~] ESLint rules: no floating promises, no any in src/sim, import order — .eslintrc.cjs scaffold; deps TBD
 [x] Prettier + format-on-save config committed
-[ ] Pre-commit hook: typecheck + lint on staged files
+[~] Pre-commit hook: typecheck + lint on staged files — scripts/pre-commit-check.sh
 [ ] CI stages: install → typecheck → lint → unit → build → integration → perf-smoke
 [ ] CI artifact retention: test reports + perf traces on failure (30 days)
 [x] Path aliases (@sim, @ui, @content) with single source of truth
-[ ] Dev server with HMR; HMR preserves sim state where safe
+[~] Dev server with HMR; HMR preserves sim state where safe — docs/HMR-SIM-STATE.md
 [ ] Storybook-equivalent harness for HUD components (hud-harness.html)
 [ ] Accept: pnpm ci green on a clean clone; HMR reload < 300ms.
 
@@ -913,14 +913,14 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [x] 7.4.2 Storm-surge "Gloria" event
 [ ] 7.4.3 Stronger water reflections (tiered)
 [x] 7.4.4 Weather → tire friction (§1.4, §1.9)
-[ ] 7.4.5 Gloria surge + handling change; swim from any shoreline (test)
+[x] 7.4.5 Gloria surge + handling change; swim from any shoreline (test)
 
 7.5 Fog — (S)
 
 - [~] Fog wired in ClockWeather cycle (clear→rain→snow→fog)
 [x] 7.5.1 Fog reachable in cycle + toggle
 [x] 7.5.2 Fog affects draw distance + streaming hint
-[ ] 7.5.3 Toggling fog changes visibility immediately (test)
+[x] 7.5.3 Toggling fog changes visibility immediately (test)
 
 7.6 Night lighting — (M)
 
@@ -985,7 +985,7 @@ M11 Finale … … …
 [x] 8.4.2 Damage triggers
 [x] 8.4.3 Inventory/flag triggers
 [x] 8.4.4 Timer triggers
-[ ] 8.4.5 Each type fires exactly once in replay (test)
+[x] 8.4.5 Each type fires exactly once in replay (test)
 
 8.5 Fail / retry / abandon / replay — (M)
 
@@ -993,7 +993,7 @@ M11 Finale … … …
 [x] 8.5.2 Retry to checkpoint (§1.3)
 [x] 8.5.3 Abandon removes owned entities + markers
 [x] 8.5.4 Replay completed missions with no economy double-dip
-[ ] 8.5.5 All four flows work on a 3+ entity mission (test)
+[x] 8.5.5 All four flows work on a 3+ entity mission (test)
 
 8.6 Content — (XL)
 
@@ -1023,7 +1023,7 @@ M11 Finale … … …
 [x] 9.2.2 Distance attenuation per category
 [x] 9.2.3 Occlusion stub (muffle behind geometry)
 [x] 9.2.4 Listener from actor pose (SimBootstrap)
-[ ] 9.2.5 Passing siren pans + attenuates correctly (test)
+[x] 9.2.5 Passing siren pans + attenuates correctly (test)
 
 9.3 Radio — (M)
 
@@ -1066,19 +1066,19 @@ M11 Finale … … …
 [x] 10.2.1 Legend
 [x] 10.2.2 Fog-of-war
 [x] 10.2.3 Richer blips (shops/safehouses/races/collectibles)
-[ ] 10.2.4 Route line parity with minimap
-[ ] 10.2.5 All marker classes with distinct icons + legend (test)
+[x] 10.2.4 Route line parity with minimap
+[x] 10.2.5 All marker classes with distinct icons + legend (test)
 
 10.3 Input — (M)
 
-[ ] 10.3.1 Context-sensitive touch sets (§1.10)
-[ ] 10.3.2 Desktop remap UI + persistence
-[ ] 10.3.3 Gamepad support (scope gate)
-[ ] 10.3.4 Remapped keys persist + honored everywhere (test)
+[x] 10.3.1 Context-sensitive touch sets (§1.10)
+[x] 10.3.2 Desktop remap UI + persistence
+[x] 10.3.3 Gamepad support (scope gate) — input.ts poll
+[x] 10.3.4 Remapped keys persist + honored everywhere (test)
 
 10.4 Accessibility — (M)
 
-[ ] 10.4.1 Screen reader labels for HUD + menus
+[x] 10.4.1 Screen reader labels for HUD + menus
 [x] 10.4.2 Colorblind modes (wanted stars, map blips)
 [~] 10.4.3 Subtitle scale + background opacity
 [~] 10.4.4 Reduced motion (shake, flashes)
@@ -1094,21 +1094,21 @@ M11 Finale … … …
 
 [x] 10.6.1 Audio buses (master/music/sfx/radio)
 [ ] 10.6.2 Language selection
-[ ] 10.6.3 Graphics preset (ties to quality tiers §12.1)
+[x] 10.6.3 Graphics preset (ties to quality tiers §12.1)
 [~] 10.6.4 All settings persist (§1.5) — audio buses + touch layout; graphics/lang TBD
 
 10.7 PWA — (S)
 
-[ ] 10.7.1 theme-color
-[ ] 10.7.2 apple-touch-icon
-[ ] 10.7.3 Install prompt + manifest
-[ ] 10.7.4 Offline shell (core assets)
+[x] 10.7.1 theme-color
+[x] 10.7.2 apple-touch-icon
+[x] 10.7.3 Install prompt + manifest
+[~] 10.7.4 Offline shell (core assets) — manifest present; SW TBD
 [ ] 10.7.5 Installable on iOS + Android; offline shell → menu (test)
 
 10.8 Branding — (S)
 
 - [~] Dual branding cleanup — finish
-[ ] 10.8.1 Pick canonical name; replace stragglers in UI/meta/save keys
+[~] 10.8.1 Pick canonical name; replace stragglers in UI/meta/save keys — The Narrows in index/meta
 [ ] 10.8.2 Zero conflicting brand strings in shipped UI (test)
 
 ---

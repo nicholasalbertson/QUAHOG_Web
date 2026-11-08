@@ -66,6 +66,16 @@ import { deliverNarrative } from "../../sim/VoSilent";
 import { applyNewGame, DEFAULT_NEW_GAME } from "../../sim/NewGamePolicy";
 import { impostorsForTiles } from "../../sim/TileImpostor";
 import { disposeObject3D } from "../../sim/MeshDispose";
+import { loadKeyMap, remap, saveKeyMap, bindingFor } from "../../sim/KeyRemap";
+import { presetOf, saveGraphicsPreset, loadGraphicsPreset } from "../../sim/GraphicsPreset";
+import { sirenPan } from "../../sim/SirenPan";
+import { routeLineFromPath, routeLength } from "../../sim/RouteLine";
+import { labelFor } from "../../sim/A11yLabels";
+import { createFog, setFogEnabled, visibilityOf } from "../../sim/FogVisibility";
+import { createMissionEntities, allFlowsExercised } from "../../sim/MissionEntityFlows";
+import { fireOnceReplay } from "../../sim/TriggerReplayOnce";
+import { MAP_LEGEND } from "../../sim/MapLegend";
+import { actionsFor } from "../../sim/InputActionSets";
 
 function sampleManifest(): WorldManifest {
   return {
@@ -496,5 +506,52 @@ describe("checklist stability + manifest deepen", () => {
       children: [{ geometry: { dispose: () => undefined } }],
     });
     expect(disposed).toBe(3);
+  });
+
+  it("§7.5.3 fog + §8.4/8.5 mission flows + §9.2.5 siren + §10 remap/a11y/route", () => {
+    const fog = createFog(false);
+    const before = visibilityOf(fog);
+    setFogEnabled(fog, true);
+    expect(visibilityOf(fog)).toBeLessThan(before);
+    const ents = createMissionEntities(["a", "b", "c"]);
+    expect(allFlowsExercised(ents)).toBe(true);
+    const counts = fireOnceReplay(
+      [
+        { id: "s", kind: "sphere", x: 0, z: 0, r: 5 },
+        { id: "t", kind: "timer", duration: 0 },
+      ],
+      { x: 0, z: 0, dt: 1 },
+    );
+    expect(counts.sphere).toBe(1);
+    expect(counts.timer).toBe(1);
+    const pan = sirenPan({ x: 0, z: 0, yaw: 0 }, { x: 10, z: 0 });
+    expect(pan.gain).toBeGreaterThan(0);
+    expect(Math.abs(pan.pan)).toBeGreaterThan(0.5);
+    const route = routeLineFromPath([
+      { x: 0, z: 0 },
+      { x: 3, z: 4 },
+    ]);
+    expect(routeLength(route)).toBeCloseTo(5);
+    expect(labelFor("health")).toMatch(/health/i);
+    expect(MAP_LEGEND.length).toBeGreaterThan(3);
+    expect(actionsFor("foot")).toContain("interact");
+    const mem: Record<string, string> = {};
+    const storage = {
+      getItem: (k: string) => mem[k] ?? null,
+      setItem: (k: string, v: string) => {
+        mem[k] = v;
+      },
+      removeItem: () => undefined,
+      clear: () => undefined,
+      key: () => null,
+      length: 0,
+    } as Storage;
+    let map = loadKeyMap(storage);
+    map = remap(map, "interact", "KeyF");
+    saveKeyMap(map, storage);
+    expect(bindingFor(loadKeyMap(storage), "interact")).toBe("KeyF");
+    saveGraphicsPreset("low", storage);
+    expect(loadGraphicsPreset(storage)).toBe("low");
+    expect(presetOf("low").quality).toBe(0);
   });
 });

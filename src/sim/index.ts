@@ -403,3 +403,28 @@ export { tileImpostor, impostorsForTiles } from "./TileImpostor";
 export type { TileImpostor } from "./TileImpostor";
 export { disposeObject3D } from "./MeshDispose";
 export type { DisposableLike } from "./MeshDispose";
+export {
+  DEFAULT_KEY_MAP,
+  loadKeyMap,
+  saveKeyMap,
+  remap,
+  bindingFor,
+} from "./KeyRemap";
+export type { RemappableAction, KeyMap } from "./KeyRemap";
+export {
+  GRAPHICS_PRESETS,
+  loadGraphicsPreset,
+  saveGraphicsPreset,
+  presetOf,
+} from "./GraphicsPreset";
+export type { GraphicsPresetId, GraphicsPreset } from "./GraphicsPreset";
+export { sirenPan } from "./SirenPan";
+export type { SirenSample } from "./SirenPan";
+export { routeLineFromPath, routeLength } from "./RouteLine";
+export type { RoutePoint } from "./RouteLine";
+export { HUD_LABELS, labelFor } from "./A11yLabels";
+export { createFog, setFogEnabled, visibilityOf } from "./FogVisibility";
+export type { FogState } from "./FogVisibility";
+export { createMissionEntities, advanceEntity, allFlowsExercised } from "./MissionEntityFlows";
+export type { EntityFlow, MissionEntity } from "./MissionEntityFlows";
+export { fireOnceReplay } from "./TriggerReplayOnce";

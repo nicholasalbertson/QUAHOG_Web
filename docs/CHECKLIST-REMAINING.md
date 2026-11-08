@@ -4,22 +4,21 @@ Canonical: [`IMPLEMENTATION-CHECKLIST-V3.md`](./IMPLEMENTATION-CHECKLIST-V3.md) 
 
 | Status | Count |
 |--------|------:|
-| Done `[x]` | ~364 |
-| Partial `[~]` | ~169 |
-| Open `[ ]` | ~199 |
+| Done `[x]` | ~380 |
+| Partial `[~]` | ~173 |
+| Open `[ ]` | ~179 |
 
-Progress: next-50 → deepen → stability/manifest → heat/map/audio → loco/cover/boats → interiors/cutscenes/SFX/VO → impostor/dispose.
+Progress: autonomous V3 deepen through stability, systems, HUD/input/audio, PWA marks.
 
-## Hard blockers (~still open)
+## Hard blockers
 
-- §7.2–§7.3 district/Cape authored content (CONTENT-BLOCKED)
+- §7.2–§7.3 authored district / Cape tiles (CONTENT-BLOCKED)
 - §15 Device A/B/C measured FPS
-- §16–§17 l10n / store release
-- §2 Earth photoreal GLB/tile soaks
-- §9.1 audio *sample packs* (key catalogs exist)
-- Rapier live actor contacts
-- Mission 11/11 authored content + set pieces
+- §16–§17 l10n / store packaging
+- §2 Earth photoreal content soaks
+- §9.1 audio *binary* sample packs
+- Rapier live contacts; mission 11/11 authored set pieces
 
 ## Keep shipping
 
-Wire sim modules into StreetLife/HUD; remaining code-only opens; mark blockers honestly.
+Wire modules into StreetLife/HUD; remaining code-only opens; honest blocker marks.
