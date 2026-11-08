@@ -15,6 +15,8 @@ import { StreetLabelTracker, districtTown } from "./ui/streetLabel";
 import { POLICE_ENABLED } from "./world/Police";
 import { WorldJournalPanel } from "./world/WorldJournalPanel";
 import { SCRIMSHAW_TOTAL } from "./world/Collectibles";
+import { flag } from "./flags";
+import { formatDebugOverlayLine, readDebugOverlay } from "./sim/DebugOverlay";
 
 const stars = (n: number) => "★".repeat(Math.round(n)) + "☆".repeat(Math.max(0, 5 - Math.round(n)));
 
@@ -168,6 +170,11 @@ export function HUD({ sliceName }: { sliceName: string }) {
       <WorldJournalPanel />
     </nav>
     {mode === "car" && <div className="hud-speed"><strong>{mph}</strong><small>MPH</small><span className="hud-gear">{gear}</span></div>}
+    {/* §0.2 / §1.1.24 flag + loop overlay when ?flag.telemetry=1 */}
+    {flag("telemetry") && (() => {
+      const d = readDebugOverlay();
+      return d ? <div className="hud-debug" style={{ position: "absolute", left: 8, bottom: 28, fontSize: 10, color: "#9ab", whiteSpace: "pre" }}>{formatDebugOverlayLine(d)}</div> : null;
+    })()}
     <div className="hud-credit">Map © OpenStreetMap · ODbL</div>
     <div className="hud-build">{__BUILD_SHA__} · {__BUILD_DATE__}</div>
   </div>;

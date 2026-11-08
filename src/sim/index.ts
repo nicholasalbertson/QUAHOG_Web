@@ -64,3 +64,7 @@ export {
   soakSnapshot,
 } from "./SoakHarness";
 export type { SoakSample, SoakState } from "./SoakHarness";
+export { ReplayRecorder, replayRecorder } from "./ReplayRecorder";
+export type { ReplayFrame } from "./ReplayRecorder";
+export { publishDebugOverlay, readDebugOverlay, formatDebugOverlayLine } from "./DebugOverlay";
+export type { DebugOverlayState } from "./DebugOverlay";

@@ -7,6 +7,7 @@
 import type { RoadGraph } from "./RoadGraph";
 import type { Vec2 } from "./types";
 import { dist } from "./math";
+import { rng } from "./Rng";
 
 export interface TrafficAgent {
   id: number;
@@ -76,7 +77,7 @@ export class TrafficDirector {
       x: start.x,
       z: start.z,
       yaw: 0,
-      speed: this.speed * (0.85 + Math.random() * 0.3),
+      speed: this.speed * (0.85 + rng.stream("traffic").next() * 0.3),
       path: [],
       cursor: 0,
       stop: 0,

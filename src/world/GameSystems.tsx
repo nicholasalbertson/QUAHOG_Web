@@ -13,11 +13,10 @@ import { sfx } from "../audio/sfx";
 import { radio } from "../audio/radioEngine";
 import { loadJSON, saveJSON } from "../storage";
 import { SAVE_KEYS } from "../registries";
-import { catchUpWorldClock, weatherBusinessMultiplier } from "./worldContinuity";
+import { catchUpWorldClock } from "./worldContinuity";
 import type { WorldEventKind } from "./worldContinuity";
 import { worldJournal } from "./worldJournal";
 
-const DAY_SECONDS = 600; // matches DayNight's cycle length
 const POS_KEY = "mounthope.pos.v1";
 
 function saveMissionProgress() {
@@ -239,9 +238,7 @@ export function GameSystems() {
       }
     }
     const st = useStats.getState();
-    // passive business revenue (§15 RevenueManager)
-    const income = useEconomy.getState().incomePerSec(DAY_SECONDS);
-    if (income > 0) st.addCash(income * dt * weatherBusinessMultiplier(useGame.getState().weather));
+    // Passive income ticks on GameLoop fixed-step (§1.1.21 via SimBootstrap).
     // occasional margin-leak / boom event on an owned front (§15 RevenueManager)
     revAcc.current += dt;
     if (revAcc.current > nextRev.current) {

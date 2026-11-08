@@ -11,6 +11,26 @@ import { dijkstra, type GraphEdge } from "./Dijkstra";
 import { dist } from "./math";
 import { rng } from "./Rng";
 
+/** §1.2.14 String-pull smoothing — drop colinear/near-colinear waypoints. */
+function stringPull(points: Vec2[], slack = 1.2): Vec2[] {
+  if (points.length <= 2) return points;
+  const out: Vec2[] = [points[0]];
+  for (let i = 1; i < points.length - 1; i++) {
+    const a = out[out.length - 1];
+    const b = points[i];
+    const c = points[i + 1];
+    const abx = b.x - a.x, abz = b.z - a.z;
+    const bcx = c.x - b.x, bcz = c.z - b.z;
+    const cross = Math.abs(abx * bcz - abz * bcx);
+    const ab = Math.hypot(abx, abz) || 1;
+    const bc = Math.hypot(bcx, bcz) || 1;
+    // Keep corners; drop nearly-straight midpoints.
+    if (cross / (ab * bc) > 0.08 || ab < slack * 0.25) out.push(b);
+  }
+  out.push(points[points.length - 1]);
+  return out;
+}
+
 const WALKABLE = new Set([
   "motorway",
   "trunk",
@@ -40,6 +60,8 @@ export class PedGraph {
   private adjacency = new Map<number, GraphEdge[]>();
   private quantize: number;
   private keyToId = new Map<string, number>();
+  /** Orphan nodes removed on last build (§1.2.10). */
+  orphansPruned = 0;
 
   constructor(opts: PedGraphOptions = {}) {
     this.quantize = opts.quantize ?? 5;
@@ -106,20 +128,137 @@ export class PedGraph {
     // can turn corners without authored crosswalks. Span must cover the
     // sidewalk offset (~half width + curb) at right-angle junctions.
     g.stitchNear(Math.max(12, g.quantize * 2.5));
+    // Tag stitch midpoints as crosswalk-ish junctions (§1.2.4).
+    g.tagJunctionCrosswalks();
+    // §1.2.9 / §1.2.10 — prune tiny orphan components.
+    g.orphansPruned = g.pruneOrphans(4);
     return g;
   }
 
-  private ensureNode(x: number, z: number): number {
+  private ensureNode(x: number, z: number, kind: PedNodeKind = "sidewalk"): number {
     const qx = Math.round(x / this.quantize) * this.quantize;
     const qz = Math.round(z / this.quantize) * this.quantize;
     const key = `${qx},${qz}`;
     const existing = this.keyToId.get(key);
-    if (existing !== undefined) return existing;
+    if (existing !== undefined) {
+      const n = this.nodes[existing];
+      if (kind === "crosswalk" || kind === "door") n.kind = kind;
+      return existing;
+    }
     const id = this.nodes.length;
-    this.nodes.push({ id, x: qx, z: qz });
+    this.nodes.push({ id, x: qx, z: qz, kind });
     this.keyToId.set(key, id);
     this.adjacency.set(id, []);
     return id;
+  }
+
+  /** Mark highly-connected stitch nodes as crosswalks (§1.2.4). */
+  private tagJunctionCrosswalks(): void {
+    for (const n of this.nodes) {
+      const deg = this.adjacency.get(n.id)?.length ?? 0;
+      if (deg >= 5) n.kind = "crosswalk";
+    }
+  }
+
+  /**
+   * §1.2.9–10 Connected-component prune: drop components smaller than `minNodes`.
+   * Returns orphan count removed.
+   */
+  pruneOrphans(minNodes = 4): number {
+    const seen = new Set<number>();
+    const remove = new Set<number>();
+    for (const n of this.nodes) {
+      if (seen.has(n.id)) continue;
+      const stack = [n.id];
+      const comp: number[] = [];
+      seen.add(n.id);
+      while (stack.length) {
+        const id = stack.pop()!;
+        comp.push(id);
+        for (const e of this.adjacency.get(id) ?? []) {
+          if (!seen.has(e.to)) {
+            seen.add(e.to);
+            stack.push(e.to);
+          }
+        }
+      }
+      if (comp.length < minNodes) for (const id of comp) remove.add(id);
+    }
+    if (!remove.size) return 0;
+    // Rebuild compact graph without orphans.
+    const map = new Map<number, number>();
+    const nextNodes: RoadNode[] = [];
+    for (const n of this.nodes) {
+      if (remove.has(n.id)) continue;
+      const nid = nextNodes.length;
+      map.set(n.id, nid);
+      nextNodes.push({ id: nid, x: n.x, z: n.z, kind: n.kind });
+    }
+    const nextAdj = new Map<number, GraphEdge[]>();
+    const nextEdges: RoadEdge[] = [];
+    this.keyToId = new Map();
+    for (const n of nextNodes) {
+      nextAdj.set(n.id, []);
+      this.keyToId.set(`${n.x},${n.z}`, n.id);
+    }
+    for (const e of this.edges) {
+      if (remove.has(e.from) || remove.has(e.to)) continue;
+      const a = map.get(e.from)!;
+      const b = map.get(e.to)!;
+      nextAdj.get(a)!.push({ to: b, weight: e.length });
+      nextEdges.push({ from: a, to: b, length: e.length, tag: e.tag });
+    }
+    const orphaned = remove.size;
+    this.nodes.length = 0;
+    for (const n of nextNodes) this.nodes.push(n);
+    this.edges.length = 0;
+    for (const e of nextEdges) this.edges.push(e);
+    this.adjacency = nextAdj;
+    return orphaned;
+  }
+
+  /** Stats for telemetry (§1.2.25). */
+  stats(): { nodes: number; edges: number; orphansHint: number } {
+    return { nodes: this.nodes.length, edges: this.edges.length, orphansHint: this.orphansPruned };
+  }
+
+  /**
+   * §1.2.6 Door nodes from building footprints (WorldManifest / GIS).
+   * Places a door node at the south-most footprint edge midpoint.
+   */
+  addDoorNodes(
+    buildings: { footprint: [number, number][]; height: number }[],
+    limit = 80,
+  ): number {
+    let added = 0;
+    for (const b of buildings) {
+      if (added >= limit || b.footprint.length < 3 || b.height < 3) continue;
+      let bestI = 0;
+      let bestN = Infinity;
+      for (let i = 0; i < b.footprint.length; i++) {
+        const n = b.footprint[i][1];
+        if (n < bestN) {
+          bestN = n;
+          bestI = i;
+        }
+      }
+      const j = (bestI + 1) % b.footprint.length;
+      const [e0, n0] = b.footprint[bestI];
+      const [e1, n1] = b.footprint[j];
+      const x = (e0 + e1) / 2;
+      const z = -((n0 + n1) / 2);
+      const id = this.ensureNode(x, z, "door");
+      // Link door to nearest sidewalk within 14 m.
+      const side = this.nearestNode(x, z, 14);
+      if (side != null && side !== id) {
+        const sn = this.nodes[side];
+        const len = Math.hypot(sn.x - x, sn.z - z) || 1;
+        this.addEdge(id, side, len);
+        this.addEdge(side, id, len);
+      }
+      added++;
+    }
+    return added;
   }
 
   private addEdge(from: number, to: number, length: number): void {
@@ -234,7 +373,11 @@ export class PedGraph {
       const n = this.nodes[id];
       return { x: n.x, z: n.z };
     });
-    return { nodes: result.nodes, points, length: result.cost };
+    // §1.2.14 Path smoothing: string-pulling within a small corridor.
+    const smooth = stringPull(points, 1.2);
+    let length = 0;
+    for (let i = 1; i < smooth.length; i++) length += dist(smooth[i - 1].x, smooth[i - 1].z, smooth[i].x, smooth[i].z);
+    return { nodes: result.nodes, points: smooth, length: length || result.cost };
   }
 
   get nodeCount(): number {

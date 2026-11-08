@@ -63,6 +63,8 @@ class SimRuntime {
     const roads = slice.roads as Road[];
     this.graph = RoadGraph.fromRoads(roads);
     this.pedGraph = PedGraph.fromRoads(roads);
+    // §1.2.6 Door nodes from GIS footprints when present.
+    if (slice.buildings?.length) this.pedGraph.addDoorNodes(slice.buildings, 120);
     this.nav.setGraph(this.graph);
     this.manifest = manifestFromSlice(slice);
     const v = validateManifest(this.manifest);

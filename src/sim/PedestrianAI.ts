@@ -24,6 +24,10 @@ export interface PedAgent {
   /** Sidewalk polyline when PedGraph is active. */
   path?: Vec2[] | null;
   pathCursor?: number;
+  /** Stuck detection (§1.2.23): last progress sample. */
+  stuckX?: number;
+  stuckZ?: number;
+  stuckT?: number;
 }
 
 export interface PedestrianAIOptions {
@@ -117,6 +121,30 @@ export class PedestrianAI {
   }
 
   private stepAgent(a: PedAgent, dt: number, fleeFrom: Vec2 | null): void {
+    // Stuck detection (§1.2.23): no progress > 3s → re-path; > 10s → despawn.
+    {
+      const sx = a.stuckX ?? a.x;
+      const sz = a.stuckZ ?? a.z;
+      if (dist(a.x, a.z, sx, sz) > 0.45) {
+        a.stuckX = a.x;
+        a.stuckZ = a.z;
+        a.stuckT = 0;
+      } else {
+        a.stuckT = (a.stuckT ?? 0) + dt;
+        if (a.stuckT > 10) {
+          a.dead = true;
+          a.path = null;
+          return;
+        }
+        if (a.stuckT > 3) {
+          a.path = null;
+          a.pathCursor = 0;
+          a.stuckT = 0;
+          this.assignSidewalkRoute(a);
+        }
+      }
+    }
+
     if (fleeFrom && dist(a.x, a.z, fleeFrom.x, fleeFrom.z) < 26) {
       let dx = a.x - fleeFrom.x;
       let dz = a.z - fleeFrom.z;

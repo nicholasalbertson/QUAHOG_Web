@@ -5,6 +5,15 @@ import { useMission } from "../mission";
 import { shared } from "../shared";
 import { sim } from "./SimRuntime";
 import { soakUrlEnabled, startSoak, tickSoak } from "./SoakHarness";
+import { spatialAudio } from "../audio/SpatialAudio";
+import { publishDebugOverlay } from "./DebugOverlay";
+import { flag } from "../flags";
+import { useEconomy } from "../economy";
+import { useStats } from "../game";
+import { GAME_DAY_SECONDS, weatherBusinessMultiplier } from "../world/worldContinuity";
+import { moveAxis, isDown } from "../input";
+import { replayRecorder } from "./ReplayRecorder";
+import { setTelemetrySink } from "../telemetry/schema";
 
 /**
  * Boots the clean-room simulation layer once the slice is ready and keeps
@@ -17,6 +26,8 @@ export function SimBootstrap() {
   const paused = useGame((s) => s.paused);
   const bound = useRef<string | null>(null);
   const loopBound = useRef(false);
+  const stepUnsub = useRef<null | (() => void)>(null);
+  const slowSteps = useRef(0);
 
   useEffect(() => {
     sim.configureQuality(quality);
@@ -32,10 +43,45 @@ export function SimBootstrap() {
   useEffect(() => {
     if (loopBound.current) return;
     loopBound.current = true;
-    // Render-rate nav refresh uses loop alpha later; for now step is a no-op
-    // hook point for migrated systems (TrafficDirector, etc.).
     sim.loop.start();
+
+    // §1.1.11 / §1.1.19–21 — fixed-step: RNG advance, mission timers, economy, heat soften.
+    stepUnsub.current = sim.loop.on("step", (dt) => {
+      if (flag("deterministicSim")) sim.rng.stream("default").advance(1);
+
+      // Weather transition on fixed step (§1.1.22).
+      sim.clock.advance(dt);
+
+      // Mission timers on fixed step (§1.1.20).
+      if (flag("missionTimers")) sim.missions.advance(dt);
+
+      // Economy passive income on fixed step (§1.1.21).
+      const income = useEconomy.getState().incomePerSec(GAME_DAY_SECONDS);
+      if (income > 0) {
+        const w = weatherBusinessMultiplier(useGame.getState().weather);
+        useStats.getState().addCash(income * dt * w);
+      }
+
+      // Soft heat decay when not in combat alarm (§1.1.19) — safehouse still owns fast clear.
+      if (shared.alarm.t <= 0) {
+        const st = useStats.getState();
+        if (st.police > 0 || st.faction > 0) st.heat(-dt * 0.02, -dt * 0.015);
+      }
+
+      // Replay record hook (§1.1.12).
+      if (replayRecorder.isRecording) {
+        const ax = moveAxis();
+        replayRecorder.recordStep({
+          steer: ax.x,
+          throttle: ax.y,
+          bits: (isDown("Space") ? 1 : 0) | (isDown("ShiftLeft") || isDown("ShiftRight") ? 2 : 0),
+        });
+      }
+    });
+
     return () => {
+      stepUnsub.current?.();
+      stepUnsub.current = null;
       sim.loop.stop();
       loopBound.current = false;
     };
@@ -48,6 +94,19 @@ export function SimBootstrap() {
 
   useEffect(() => {
     if (soakUrlEnabled()) startSoak();
+  }, []);
+
+  // §0.4 Console telemetry sink when flag.telemetry is on.
+  useEffect(() => {
+    if (!flag("telemetry")) {
+      setTelemetrySink(() => undefined);
+      return;
+    }
+    setTelemetrySink((name, payload) => {
+      // eslint-disable-next-line no-console
+      console.debug(`[telemetry] ${name}`, payload ?? "");
+    });
+    return () => setTelemetrySink(() => undefined);
   }, []);
 
   // §1.1.10 / §12.5: tab hide pauses the fixed-step loop (single catch-up on return).
@@ -67,12 +126,23 @@ export function SimBootstrap() {
     // Drive fixed-step accumulator even when paused (input/render still run).
     sim.loop.tick(dt);
 
+    // §1.1.13 Watchdog: 3 consecutive slow step frames → drop quality tier.
+    if (sim.loop.stats.stepMs > 50) {
+      slowSteps.current++;
+      if (slowSteps.current >= 3 && game.quality > 0) {
+        game.setQuality((game.quality - 1) as 0 | 1 | 2);
+        slowSteps.current = 0;
+      }
+    } else {
+      slowSteps.current = 0;
+    }
+
     if (game.paused) return;
     sim.beginFrame();
 
     // Keep ClockWeather aligned with the live store (incl. snow / blizzard).
+    // Advance runs on fixed step (§1.1.22); sync only here.
     sim.clock.syncFromShared(shared.day, shared.hour, game.weather);
-    sim.clock.advance(dt);
 
     const mode = game.mode;
     const body = mode === "car" ? shared.car : mode === "boat" ? shared.boat : shared.player;
@@ -81,6 +151,9 @@ export function SimBootstrap() {
 
     const heading = mode === "car" ? shared.carYaw : mode === "boat" ? shared.boatYaw : shared.heading;
     const speed = mode === "car" ? shared.carSpeed : 0;
+
+    // §9.2 Spatial audio listener tracks actor pose.
+    spatialAudio.setListener(t.x, t.y + 1.6, t.z, Math.sin(heading), Math.cos(heading));
 
     // Mission target wins; else player waypoint.
     const ms = useMission.getState();
@@ -94,15 +167,27 @@ export function SimBootstrap() {
       sim.setNavGoal(null);
     }
 
-    // Nav step hook (#49): refresh guidance every frame; expose path for HUD/minimap.
     const guidance = sim.tickNav(dt, { x: t.x, z: t.z }, heading, speed);
     shared.navDist = guidance.distanceRemaining;
     shared.navBearing = guidance.bearing;
     shared.navWrongWay = guidance.wrongWay;
     shared.navPath = guidance.path?.points ?? null;
-    // Review soak note (#50): tab-pause already wired above; soak harness ticks here.
+
+    // §1.1.24 / §0.2 — publish debug overlay when telemetry flag is on.
+    if (flag("telemetry")) {
+      const ps = sim.pedGraph?.stats();
+      publishDebugOverlay({
+        loop: { ...sim.loop.stats },
+        pedNodes: ps?.nodes ?? 0,
+        pedEdges: ps?.edges ?? 0,
+        pedOrphans: ps?.orphansHint ?? 0,
+        roadNodes: sim.graph?.nodes.length ?? 0,
+        replay: replayRecorder.digest(),
+        stepDigest: sim.rng.digest(),
+      });
+    }
+
     tickSoak();
-    // Tile streamer advances inside StreamingBuildings after it publishes interest.
   });
 
   return null;

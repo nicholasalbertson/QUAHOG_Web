@@ -48,6 +48,11 @@ export class MissionRuntime {
   private owned = new Map<string, OwnedEntity>();
   private listeners = new Map<string, Set<EventHandler>>();
   private anyListeners = new Set<EventHandler>();
+  /** §1.3.5 Event log ring buffer (last 256). */
+  private log: GameEvent[] = [];
+  private logHead = 0;
+  private emitting = false;
+  private emitQueue: GameEvent[] = [];
 
   start(mi: number, step = 0, failSec: number | null = null): void {
     this.cleanupOwned();
@@ -126,8 +131,53 @@ export class MissionRuntime {
 
   emit(event: GameEvent): void {
     const e = { ...event, at: event.at ?? this.elapsed };
-    this.anyListeners.forEach((h) => h(e));
-    this.listeners.get(e.type)?.forEach((h) => h(e));
+    // §1.3.3 Re-entrancy: queue emits that happen during emit.
+    if (this.emitting) {
+      this.emitQueue.push(e);
+      return;
+    }
+    this.emitting = true;
+    this.pushLog(e);
+    this.dispatch(e);
+    while (this.emitQueue.length) {
+      const next = this.emitQueue.shift()!;
+      this.pushLog(next);
+      this.dispatch(next);
+    }
+    this.emitting = false;
+  }
+
+  private pushLog(e: GameEvent): void {
+    if (this.log.length < 256) this.log.push(e);
+    else {
+      this.log[this.logHead] = e;
+      this.logHead = (this.logHead + 1) % 256;
+    }
+  }
+
+  private dispatch(e: GameEvent): void {
+    // §1.3.4 Listener error isolation.
+    for (const h of this.anyListeners) {
+      try { h(e); } catch (err) { console.warn("[MissionRuntime] listener", err); }
+    }
+    const set = this.listeners.get(e.type);
+    if (!set) return;
+    for (const h of set) {
+      try { h(e); } catch (err) { console.warn("[MissionRuntime] listener", e.type, err); }
+    }
+  }
+
+  /** Snapshot of the ring buffer (oldest → newest). */
+  eventLog(): readonly GameEvent[] {
+    if (this.log.length < 256) return this.log.slice();
+    return [...this.log.slice(this.logHead), ...this.log.slice(0, this.logHead)];
+  }
+
+  /** §1.3.10 Leak detector — owned count must be 0 after mission end. */
+  assertNoLeaks(label = "mission-end"): void {
+    if (this.ownedCount === 0) return;
+    const ids = this.ownedIds().join(",");
+    console.warn(`[MissionRuntime] leak ${label}: owned=${this.ownedCount} [${ids}]`);
   }
 
   /**
@@ -163,6 +213,7 @@ export class MissionRuntime {
     this.phase = "complete";
     this.failReason = null;
     this.emit({ type: "mission.complete" });
+    this.assertNoLeaks("complete");
   }
 
   fail(reason: string): void {
@@ -171,6 +222,7 @@ export class MissionRuntime {
     this.phase = "failed";
     this.failReason = reason;
     this.emit({ type: "mission.fail", payload: { reason } });
+    this.assertNoLeaks("fail");
   }
 
   /** Retry the current mission index from the current step (or step 0). */
@@ -191,6 +243,7 @@ export class MissionRuntime {
     this.phase = "abandoned";
     this.failReason = null;
     this.emit({ type: "mission.abandon" });
+    this.assertNoLeaks("abandon");
   }
 
   serialize(): MissionRuntimeSnapshot {
