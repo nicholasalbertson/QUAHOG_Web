@@ -4,6 +4,7 @@
  * Independent Mount Hope design — not a port of proprietary mission scripts.
  */
 
+import { isSpawnKind, type SpawnKind } from "../registries";
 import { failReasonLabel, normalizeFailReason, type FailReason } from "./FailReasons";
 import { rng } from "./Rng";
 import { evalTrigger, type Trigger } from "./Triggers";
@@ -138,12 +139,13 @@ export class MissionRuntime {
    * §1.3.6 / §1.3.11 Deterministic spawn — id entropy from missions RNG stream.
    */
   spawn(
-    kind: string,
+    kind: SpawnKind | string,
     cleanup: () => void,
     opts: { step?: number; id?: string } = {},
   ): OwnedEntity {
-    const id = opts.id ?? `${kind}-${rng.stream("missions").int(0, 1_000_000_000)}`;
-    const entity: OwnedEntity = { id, kind, step: opts.step, cleanup };
+    const resolved: string = isSpawnKind(kind) ? kind : kind;
+    const id = opts.id ?? `${resolved}-${rng.stream("missions").int(0, 1_000_000_000)}`;
+    const entity: OwnedEntity = { id, kind: resolved, step: opts.step, cleanup };
     this.claim(entity);
     return entity;
   }

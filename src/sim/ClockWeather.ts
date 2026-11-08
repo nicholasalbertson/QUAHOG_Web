@@ -42,6 +42,22 @@ export interface ClockWeatherSave {
   weather: WeatherKind;
   wetness: number;
   blend: number;
+  pending?: WeatherKind | null;
+  blendSec?: number;
+  blendAcc?: number;
+}
+
+/** §1.4.6 Default cross-fade seconds per transition edge. */
+export const WEATHER_BLEND_SEC: Record<WeatherKind, number> = {
+  clear: 1.2,
+  rain: 1.6,
+  snow: 2.0,
+  fog: 1.8,
+};
+
+/** §1.4.9 Wind slant for rain / sway consumers. */
+export function windSlant(wind: { x: number; z: number }, scale = 1): { dx: number; dz: number } {
+  return { dx: wind.x * scale, dz: wind.z * scale };
 }
 
 export class ClockWeather {
@@ -123,9 +139,10 @@ export class ClockWeather {
     emitTelemetry("sim.weather.lightning", { wetness: this.wetness });
   }
 
-  setWeather(k: WeatherKind, blendSec = 0.8): void {
+  setWeather(k: WeatherKind, blendSec?: number): void {
+    const sec = blendSec ?? WEATHER_BLEND_SEC[k] ?? 0.8;
     if (k === this.weather && !this.pending) return;
-    if (blendSec <= 0) {
+    if (sec <= 0) {
       this.weather = k;
       this.pending = null;
       this.blend = 1;
@@ -133,7 +150,7 @@ export class ClockWeather {
       return;
     }
     this.pending = k;
-    this.blendSec = blendSec;
+    this.blendSec = sec;
     this.blendAcc = 0;
     this.blend = 0;
   }
@@ -194,6 +211,9 @@ export class ClockWeather {
       weather: this.weather,
       wetness: this.wetness,
       blend: this.blend,
+      pending: this.pending,
+      blendSec: this.blendSec,
+      blendAcc: this.blendAcc,
     };
   }
 
@@ -203,6 +223,8 @@ export class ClockWeather {
     this.weather = s.weather;
     this.wetness = s.wetness;
     this.blend = s.blend;
-    this.pending = null;
+    this.pending = s.pending ?? null;
+    this.blendSec = s.blendSec ?? 0;
+    this.blendAcc = s.blendAcc ?? 0;
   }
 }

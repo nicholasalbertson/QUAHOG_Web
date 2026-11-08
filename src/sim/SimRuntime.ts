@@ -39,7 +39,10 @@ class SimRuntime {
   readonly recoil: RecoilState = createRecoil();
   lastHeatStars = 0;
   readonly loop = new GameLoop({
-    onOverrun: () => emitTelemetry("sim.loop.overrun", { acc: this.loop.stats.accHighWater }),
+    onOverrun: () => {
+      this.budget.warn("sim.loop.overrun");
+      emitTelemetry("sim.loop.overrun", { acc: this.loop.stats.accHighWater });
+    },
   });
   readonly rng = rng;
   budget = FrameBudget.forQuality(1);

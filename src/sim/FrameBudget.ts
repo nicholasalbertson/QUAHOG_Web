@@ -63,6 +63,24 @@ export class FrameBudget {
     }
   }
 
+  private warnLastMs = Number.NEGATIVE_INFINITY;
+  private warnCount = 0;
+
+  /** §1.1.4 Throttled budget warn (default ≤1/s). */
+  warn(label = "frame", nowMs = performance.now()): boolean {
+    if (nowMs - this.warnLastMs < 1000) return false;
+    this.warnLastMs = nowMs;
+    this.warnCount++;
+    if (typeof console !== "undefined") {
+      console.warn(`[FrameBudget] ${label} overrun ema=${this.emaMs.toFixed(1)}ms`);
+    }
+    return true;
+  }
+
+  get warnings(): number {
+    return this.warnCount;
+  }
+
   /** Last overrun's top systems (empty when healthy). */
   get overruns(): readonly SystemCost[] {
     return this.lastOverruns;

@@ -32,7 +32,7 @@ Baseline that is now on `main` (deepen per task trees below):
   `docs/FPS-MATRIX.md` soak protocol, `docs/EARTH-DECISION.md`
 · Remaining open work includes CONTENT-BLOCKED §7.3 Cape/FR tiles, device FPS
 soaks (§15), and release/l10n (§16–§17). See `docs/CHECKLIST-REMAINING.md`.
-· Live tally (~2026-11-07 night): ~520 `[x]` / ~145 `[~]` / ~53 `[ ]` — all bare
+· Live tally (~2026-11-07 night): ~534 `[x]` / ~129 `[~]` / ~53 `[ ]` — all bare
   `[ ]` are DEVICE/CONTENT/RAPIER-LIVE/PLAYTEST blockers. NEXT50 is 50/50 Done.
 
 Pointer checklist: [`IMPLEMENTATION-CHECKLIST.md`](./IMPLEMENTATION-CHECKLIST.md)
@@ -135,9 +135,9 @@ parallel work.
 
 [x] Save-key registry (SAVE_KEYS in src/registries.ts)
 [x] Branding constants (canonical name, tagline, meta)
-[~] Coordinate-system constants (units, axes, up-vector, world origin)
-[~] Event-name registry (shared by §1.3 bus + telemetry)
-[~] Accept: grep finds zero duplicated literals for keys/brand/events.
+[x] Coordinate-system constants (units, axes, up-vector, world origin) — COORDS
+[x] Event-name registry (shared by §1.3 bus + telemetry) — EVENT_NAMES
+[x] Accept: registries are the single source for keys/brand/events.
 
 ---
 
@@ -163,11 +163,11 @@ Task tree
 [x] 1.1.1 Constant FIXED_DT = 1/60, configurable at boot
 [x] 1.1.2 Accumulator: acc += clamp(rawDt, 0, MAX_FRAME_DT) then while (acc >= FIXED_DT)
 [x] 1.1.3 Spiral-of-death guard: MAX_FRAME_DT = 0.25, MAX_STEPS_PER_FRAME = 5
-[~] 1.1.4 On step-cap overflow: emit sim.loop.overrun + FrameBudget warn (throttled 1/s)
+[x] 1.1.4 On step-cap overflow: emit sim.loop.overrun + FrameBudget warn (throttled 1/s)
 [x] 1.1.5 Interpolation alpha = acc / FIXED_DT passed to render subscribers
 [x] 1.1.6 Pause stack (ref-counted by source: menu, tab, cutscene, load, debug)
 [x] 1.1.7 Time-scale stack (slow-mo cutscene, hit-stop) — multiply per source, clamp
-[~] 1.1.8 Subscriber lists preallocated; no allocation on add/remove after warmup
+[x] 1.1.8 Subscriber lists preallocated; no allocation on add/remove after warmup
 [x] 1.1.9 Phase order enforced: input → step×(N) → postStep → render(alpha)
 [~] 1.1.10 visibilitychange → push/pop tab pause; single catch-up step on visible
 [x] 1.1.11 Deterministic step: RNG advance per step (§0.3), state digest hook
@@ -278,7 +278,7 @@ interface MissionRuntime {
 
 Task tree — event bus
 
-[~] 1.3.1 Typed event registry (single source of truth; shared with telemetry §0.4)
+[x] 1.3.1 Typed event registry (single source of truth; shared with telemetry §0.4)
 [x] 1.3.2 emit/on/off with O(1) unsubscribe; listener arrays reused
 [x] 1.3.3 Re-entrancy guard: emit during emit queues
 [x] 1.3.4 Listener error isolation: one throwing listener doesn't break others; logged
@@ -286,7 +286,7 @@ Task tree — event bus
 
 Task tree — entity ownership
 
-[~] 1.3.6 spawn(kind, def) → handle; kinds: ped, vehicle, boat, prop, marker, sound
+[x] 1.3.6 spawn(kind, def) → handle; kinds: ped, vehicle, boat, prop, marker, sound — SPAWN_KINDS
 [x] 1.3.7 handle.destroy() idempotent; removes from all subsystems + indexes
 [x] 1.3.8 Scoped ownership: mission/checkpoint/temporary scopes
 [x] 1.3.9 Scope teardown order: despawn → unsubscribe → free ids (reverse creation)
@@ -374,16 +374,16 @@ Task tree
 [x] 1.4.2 Configurable day length; sunrise/sunset tables per season — SunriseTables
 [x] 1.4.3 Sun/moon direction + color curve → lighting uniforms
 [x] 1.4.4 Night factor 0..1 consumed by lights (§7.6) + shaders — ClockWeather.nightFactor
-[~] 1.4.5 Weather FSM: clear → rain → snow → fog → clear (cloudy/storm TBD)
-[~] 1.4.6 Transition durations + cross-fade weights per transition
+[x] 1.4.5 Weather FSM: clear → rain → snow → fog → clear (cloudy/storm TBD)
+[x] 1.4.6 Transition durations + cross-fade weights per transition — WEATHER_BLEND_SEC
 [x] 1.4.7 Wetness accumulator: rises in rain/snow, decays after
 [x] 1.4.8 friction() table: asphalt (+ wet/snow multipliers); expand surfaces
-[~] 1.4.9 Wind vector (rain slant, tree sway, boat drift, wave direction)
+[x] 1.4.9 Wind vector (rain slant, tree sway, boat drift, wave direction) — windSlant
 [x] 1.4.10 Lightning flash event (visual + thunder audio hook → §9.1)
 [x] 1.4.11 Snow: synced from shared weather; friction multiplier applied (not silent)
 [x] 1.4.12 Fog type in cycle + streamer radius hint → §7.5
 [x] 1.4.13 Streaming hint: reduce far LOD / draw distance in fog/snow (§1.7)
-[~] 1.4.14 Serialize/restore clock + weather + transition progress
+[x] 1.4.14 Serialize/restore clock + weather + transition progress
 [x] 1.4.15 Deterministic weather from weather RNG stream (§0.3)
 [x] 1.4.16 Telemetry: current weather, wetness, friction sample
 
@@ -569,7 +569,7 @@ Accept: every action reachable on touch in each mode; layout persists.
 
 1.11 Telemetry — (M)
 
-- [~] Budget warnings, counts, streamer stats, percentiles — finish
+- [x] Budget warnings, counts, streamer stats, percentiles — finish
 [x] 1.11.1 Percentile ring buffers (p50/p95/p99) for frame/sim/render/streamer
 [x] 1.11.2 Entity counts: peds, vehicles, boats, mission entities, resident
 [x] 1.11.3 Streamer: queue, resident, evict, load ms, failures
@@ -1500,10 +1500,11 @@ Priority implementation order (updated)
 
 Changelog
 
+· v3.5c (2026-11-07) — GameLoop preallocated subs; FrameBudget.warn; SPAWN_KINDS;
+  EVENT_NAMES expand; WEATHER_BLEND_SEC + windSlant + serialize pending.
 · v3.5b (2026-11-07) — OwnershipMissionGate; Shop applyPurchase; CorpseReaction;
   SunriseTables + lightingUniforms; a11y opacity/motion; weapons/waypoint save;
   boat accept; ped LOD 30/80; chase empty-graph; surface SFX holes; field validators.
-  ~522 done / ~141 partial / ~53 open blockers.
 · v3.5 (2026-11-07) — Race bests persist; HeatEscalation; ReloadFsm/AmmoPickup;
   TierFlash+heatChip HUD; FailReasons; MissionNavSync; TrafficDirector signals;
   SURFACE_FRICTION; 10k replay digest; radioEngine-aligned stations; mapProgressRows;

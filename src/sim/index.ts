@@ -268,7 +268,7 @@ export { GameLoop } from "./GameLoop";
 export type { LoopPhase, PauseSource, LoopStats } from "./GameLoop";
 export { Rng, RngService, rng } from "./Rng";
 export type { RngStream } from "./Rng";
-export { ClockWeather, SURFACE_FRICTION } from "./ClockWeather";
+export { ClockWeather, SURFACE_FRICTION, WEATHER_BLEND_SEC, windSlant } from "./ClockWeather";
 export type { Surface } from "./ClockWeather";
 export { HEAT_TIERS, heatTier, desiredCops } from "./HeatTiers";
 export { manifestFromSlice, validateManifest } from "./WorldManifest";
