@@ -505,9 +505,9 @@ Accept: no pop-in > 1 frame at 60 km/h on Device A; memory flat over 30 min.
 [x] 1.8.5 radius(pos, r, mask) query
 [x] 1.8.6 segment(a, b, mask) LOS with per-cell early-out + maxDepth guard
 [ ] 1.8.7 Rapier broadphase integration where physics exists
-[ ] 1.8.8 Debug overlay: cell occupancy + last query
-[ ] 1.8.9 Tests: 2000 entities, 500 queries/frame < 1ms on Device A
-[ ] 1.8.10 Tests: LOS agrees with raycast ground truth on 100 random pairs
+[x] 1.8.8 Debug overlay: cell occupancy + last query
+[x] 1.8.9 Tests: 2000 entities, 500 queries/frame < 1ms on Device A
+[x] 1.8.10 Tests: LOS agrees with raycast ground truth on 100 random pairs
 
 Accept: unified index; LOS used by witnesses (§3.1), AI, and camera.
 
@@ -738,7 +738,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [x] 3.5.2 Backup call event (audio + HUD)
 [x] 3.5.3 Lose-heat zones on map + decay inside
 [x] 3.5.4 Full-screen tier transition flash
-[ ] 3.5.5 Player always knows tier + decay state (test)
+[~] 3.5.5 Player always knows tier + decay state (test)
 
 ---
 
@@ -1052,7 +1052,7 @@ M11 Finale … … …
 - [~] HUD, minimap, big map, touch editor, menus — finish
 [x] 10.1.1 Compass
 [x] 10.1.2 Damage direction indicator
-[ ] 10.1.3 Wanted full-screen tiers
+[~] 10.1.3 Wanted full-screen tiers
 [x] 10.1.4 Unified interact prompts (§1.10)
 [x] 10.1.5 Weapon wheel (§5.2)
 [ ] 10.1.6 Every element has a data source + updates without lag (test)
