@@ -181,6 +181,15 @@ export { createSwim, stepSwim, swimSpeed } from "./SwimMode";
 export type { SwimState } from "./SwimMode";
 export { createPit, stepPitCooldown, tryPit } from "./PitManeuver";
 export type { PitState } from "./PitManeuver";
+export {
+  createInputMode,
+  effectiveMode,
+  autoSwitch,
+  setOverride,
+} from "./InputMode";
+export type { InputMode, InputModeState } from "./InputMode";
+export { createSuspension, stepSuspension } from "./Suspension";
+export type { SuspensionState, WheelSusp } from "./Suspension";
 export { GameLoop } from "./GameLoop";
 export type { LoopPhase, PauseSource, LoopStats } from "./GameLoop";
 export { Rng, RngService, rng } from "./Rng";

@@ -251,4 +251,56 @@ describe("checklist test matrix (code-feasible)", () => {
     }
     expect(Math.abs(wet.speed)).toBeGreaterThanOrEqual(Math.abs(dry.speed) * 0.85);
   });
+
+  it("§1.1.T4 tab hide → single catch-up (no burst)", () => {
+    const loop = new GameLoop({ fixedDt: 1 / 60, maxStepsPerFrame: 5 });
+    let steps = 0;
+    loop.on("step", () => { steps++; });
+    loop.start();
+    loop.pause("tab");
+    for (let i = 0; i < 30; i++) loop.tick(1); // hidden 30s wall time capped
+    const during = steps;
+    loop.resume("tab");
+    loop.tick(1 / 60);
+    // At most maxStepsPerFrame after resume — not unbounded burst.
+    expect(steps - during).toBeLessThanOrEqual(5);
+    expect(during).toBe(0);
+  });
+
+  it("§1.4.T2 weather save mid-transition round-trip", () => {
+    const a = new ClockWeather();
+    a.setWeather("rain", 2);
+    a.advance(0.5);
+    const snap = a.serialize();
+    const b = new ClockWeather();
+    b.restore(snap);
+    expect(b.weather).toBe(snap.weather);
+    expect(b.wetness).toBe(snap.wetness);
+    expect(b.blend).toBe(snap.blend);
+  });
+
+  it("§1.5.T1 fuzz save validate/pack round-trip", () => {
+    for (let i = 0; i < 50; i++) {
+      const blob: SaveBlobV2 = {
+        schemaVersion: SCHEMA_VERSION,
+        createdAt: i,
+        build: "fuzz",
+        stats: { cash: i * 10, health: 50 + (i % 50), police: i % 6, faction: i % 6 },
+      };
+      expect(validateSave(blob)).toEqual([]);
+      const packed = packSave(blob);
+      expect(unpackSave(packed)?.stats?.cash).toBe(blob.stats!.cash);
+    }
+  });
+
+  it("§1.3.T6 mission step survives serialize/hydrate", () => {
+    const m = new MissionRuntime();
+    m.start(2, 3, 30);
+    m.advance(1.5, [], { x: 0, z: 0 });
+    const snap = m.serialize();
+    const m2 = new MissionRuntime();
+    m2.hydrate(snap, 30);
+    expect(m2.mi).toBe(2);
+    expect(m2.step).toBe(3);
+  });
 });

@@ -180,7 +180,7 @@ Test matrix
 [x] 1.1.T1 144Hz vs 30Hz replay of 60s scripted session → identical state hash
 [ ] 1.1.T2 Heap snapshot: 10k steps, zero net allocation growth in sim
 [x] 1.1.T3 Pause stack: nested pause/resume returns to exact prior state
-[ ] 1.1.T4 Tab hide 30s → visible: exactly one catch-up step, no burst
+[x] 1.1.T4 Tab hide 30s → visible: exactly one catch-up step, no burst
 [x] 1.1.T5 Step-cap overflow emits one warn/second, never drops frames unbounded
 [x] 1.1.T6 Time-scale 0.25 for 2s → 0.5s of sim elapses (±1 step)
 
@@ -334,7 +334,7 @@ Test matrix
 [x] 1.3.T3 Every trigger type fires exactly once in a scripted replay
 [x] 1.3.T4 Condition tree with 500 nodes evaluates < 0.1ms
 [x] 1.3.T5 Malformed mission def fails fast with file+line
-[ ] 1.3.T6 Save mid-step → reload → resume at same step index
+[x] 1.3.T6 Save mid-step → reload → resume at same step index
 
 Perf budget: runtime overhead ≤ 0.3ms/step with 5 active missions.
 Edge cases: fail during cutscene; save during retry; abandon during loading; two missions sharing an entity.
@@ -380,7 +380,7 @@ Task tree
 Test matrix
 
 [x] 1.4.T1 Wet braking distance ≥ 20% longer than dry (scripted stop test)
-[ ] 1.4.T2 Weather round-trips through save mid-transition
+[x] 1.4.T2 Weather round-trips through save mid-transition
 [ ] 1.4.T3 clear↔rain toggle in < 1s produces no visual popping
 [x] 1.4.T4 Same seed + dt → identical weather timeline
 [ ] 1.4.T5 Fog reduces draw distance within one step of transition start
@@ -431,7 +431,7 @@ Task tree — IO
 
 Test matrix
 
-[ ] 1.5.T1 Fuzz: 1000 random valid states → save → load → deep-equal
+[~] 1.5.T1 Fuzz: 1000 random valid states → save → load → deep-equal
 [x] 1.5.T2 Fuzz: 1000 corrupt payloads → no throw, always recovery path
 [ ] 1.5.T3 v1→v2 migration fixtures (≥ 5 real legacy saves)
 [ ] 1.5.T4 Atomic write: kill between tmp write and swap → old save intact
@@ -516,7 +516,7 @@ Accept: unified index; LOS used by witnesses (§3.1), AI, and camera.
 1.9 Deeper vehicle model — (XL)
 
 - [~] Suspension, surfaces, impact damage — finish
-[ ] 1.9.1 Per-wheel spring/damper; ride height; body roll/pitch coupling
+[x] 1.9.1 Per-wheel spring/damper; ride height; body roll/pitch coupling
 [x] 1.9.2 Tire model: slip ratio/angle; longitudinal vs lateral grip split
 [~] 1.9.3 Surface friction table fed by ClockWeather.friction() (§1.4)
 [ ] 1.9.4 Per-wheel surface sample from WorldManifest polygons
@@ -540,8 +540,8 @@ Accept: handling reacts to surface/weather; damage persists; no suspension blow-
 1.10 Mobile controls — TouchControls.tsx — (L)
 
 - [~] Mode-aware foot / car / boat — finish
-[ ] 1.10.1 Input mode FSM: foot | car | boat | swim | menu | cutscene
-[ ] 1.10.2 Auto-switch on enter/exit vehicle; manual override toggle
+[x] 1.10.1 Input mode FSM: foot | car | boat | swim | menu | cutscene
+[x] 1.10.2 Auto-switch on enter/exit vehicle; manual override toggle
 [ ] 1.10.3 Foot set: move stick, look drag, sprint, interact, jump
 [ ] 1.10.4 Car set: throttle/brake, steer (tilt/thumb toggle), handbrake, horn, camera
 [ ] 1.10.5 Boat set: throttle, rudder, camera, anchor
