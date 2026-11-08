@@ -498,8 +498,8 @@ Accept: no pop-in > 1 frame at 60 km/h on Device A; memory flat over 30 min.
 1.8 SpatialIndex (buildings / vehicles / LOS) — (L)
 
 - [~] Ped-primary today — segment/LOS landed; extend to all classes
-[~] 1.8.1 Class registry with per-class cell sizes (static large, dynamic small)
-[ ] 1.8.2 Static classes: buildings, props, markers
+[x] 1.8.1 Class registry with per-class cell sizes (static large, dynamic small)
+[x] 1.8.2 Static classes: buildings, props, markers
 [~] 1.8.3 Dynamic classes: vehicles, peds, boats, mission entities
 [x] 1.8.4 Insert/remove O(1) amortized; no full rebuild per frame
 [x] 1.8.5 radius(pos, r, mask) query
@@ -779,7 +779,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 4.5 Payout / balance — (M)
 
-[ ] 4.5.1 Day-based payout summary UI
+[x] 4.5.1 Day-based payout summary UI
 [ ] 4.5.2 Balance pass: time-to-first-upgrade, time-to-wealth
 [ ] 4.5.3 Distant business markers need world content (§7.2)
 [ ] 4.5.4 Fresh save reaches first upgrade ≤ 20 min (test)
@@ -803,7 +803,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [~] 5.2.2 Reload action with cancel + interrupt
 [x] 5.2.3 Inventory model + persistence (§1.5 / SAVE_KEYS.inventory)
 [~] 5.2.4 Pickups: world ammo/weapon, respawn rules
-[ ] 5.2.5 Recoil/accuracy: bloom, recovery, ADS
+[x] 5.2.5 Recoil/accuracy: bloom, recovery, ADS
 [x] 5.2.6 Weapon wheel / quick-swap (§10.1)
 [ ] 5.2.7 Cover system (scope gate)
 [~] 5.2.8 Spread-aware reticle + hit feedback
