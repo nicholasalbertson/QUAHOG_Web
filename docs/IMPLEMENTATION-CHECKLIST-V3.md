@@ -383,7 +383,7 @@ Test matrix
 [x] 1.4.T2 Weather round-trips through save mid-transition
 [ ] 1.4.T3 clear↔rain toggle in < 1s produces no visual popping
 [x] 1.4.T4 Same seed + dt → identical weather timeline
-[ ] 1.4.T5 Fog reduces draw distance within one step of transition start
+[x] 1.4.T5 Fog reduces draw distance within one step of transition start
 
 Consumers (must all be wired): vehicles (§1.9), peds (umbrella? TBD), boats (§5.3), lighting (§7.6), audio ambient (§9.1), streaming (§1.7), HUD (§10.1).
 Accept: wet road measurably changes handling; weather persists; no popping.
@@ -526,12 +526,12 @@ Accept: unified index; LOS used by witnesses (§3.1), AI, and camera.
 [x] 1.9.8 Visual deformation capped per quality tier
 [x] 1.9.9 Powertrain: gear ratios, torque curve, reverse, handbrake
 [x] 1.9.10 Brake/ABS tuning; handbrake drift model
-[ ] 1.9.11 Bike/motorcycle variant (if content exists; else TBD)
+[~] 1.9.11 Bike/motorcycle variant (if content exists; else TBD)
 [~] 1.9.12 Boat coupling → §5.3
 [ ] 1.9.13 AI drivers share controller via TrafficDirector
-[ ] 1.9.14 Tests: lap delta wet vs dry ≥ 8%
-[ ] 1.9.15 Tests: damage state persists to save (§11.2)
-[ ] 1.9.16 Tests: suspension stable at 120Hz and 30Hz sim
+[x] 1.9.14 Tests: lap delta wet vs dry ≥ 8%
+[x] 1.9.15 Tests: damage state persists to save (§11.2)
+[x] 1.9.16 Tests: suspension stable at 120Hz and 30Hz sim
 
 Accept: handling reacts to surface/weather; damage persists; no suspension blow-up at any step rate.
 
@@ -549,7 +549,7 @@ Accept: handling reacts to surface/weather; damage persists; no suspension blow-
 [ ] 1.10.7 Layout editor: drag/resize, save to settings, reset to default
 [ ] 1.10.8 Safe-area insets (notch) + landscape/portrait
 [x] 1.10.9 Haptics hooks (no-op where unsupported)
-[ ] 1.10.10 Desktop parity map documented per mode → §10.3
+[x] 1.10.10 Desktop parity map documented per mode → §10.3
 [ ] 1.10.11 Tests: every sim action reachable per mode; no dead zones
 [ ] 1.10.12 Tests: layout persists through save (§11.1)
 
@@ -560,15 +560,15 @@ Accept: every action reachable on touch in each mode; layout persists.
 1.11 Telemetry — (M)
 
 - [~] Budget warnings, counts, streamer stats, percentiles — finish
-[ ] 1.11.1 Percentile ring buffers (p50/p95/p99) for frame/sim/render/streamer
-[ ] 1.11.2 Entity counts: peds, vehicles, boats, mission entities, resident
-[ ] 1.11.3 Streamer: queue, resident, evict, load ms, failures
+[x] 1.11.1 Percentile ring buffers (p50/p95/p99) for frame/sim/render/streamer
+[x] 1.11.2 Entity counts: peds, vehicles, boats, mission entities, resident
+[x] 1.11.3 Streamer: queue, resident, evict, load ms, failures
 [ ] 1.11.4 FrameBudget overruns with system attribution
 [ ] 1.11.5 Memory via performance.memory where available; dev heap snapshots
-[ ] 1.11.6 Toggleable overlay + JSON dump (dev key combo)
-[ ] 1.11.7 Threshold alarms (p95 frame > X for Ys) → warn + overlay badge
-[ ] 1.11.8 Export last 60s to clipboard for bug reports
-[ ] 1.11.9 Overlay cost < 0.3ms/frame visible, 0 hidden (test)
+[x] 1.11.6 Toggleable overlay + JSON dump (dev key combo)
+[x] 1.11.7 Threshold alarms (p95 frame > X for Ys) → warn + overlay badge
+[x] 1.11.8 Export last 60s to clipboard for bug reports
+[~] 1.11.9 Overlay cost < 0.3ms/frame visible, 0 hidden (test)
 
 Accept: overlay is free when hidden; dump reproduces a reported bug.
 

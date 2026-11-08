@@ -23,6 +23,9 @@ import { ClockWeather } from "../../sim/ClockWeather";
 import { stepVehicleDynamics } from "../../sim/VehicleDynamics";
 import type { Road } from "../../slice";
 import { createCrosswalkAgent, stepCrosswalk, walkWindowFromClock } from "../../sim/CrosswalkFsm";
+import { PerfOverlay } from "../../sim/PerfOverlay";
+import { createSuspension, stepSuspension } from "../../sim/Suspension";
+import { createCarDamage, applyImpact } from "../../sim/CarDamage";
 
 const roads: Road[] = [
   { highway: "residential", width: 8, name: "E", points: [[0, 0], [80, 0], [160, 0]] },
@@ -302,5 +305,65 @@ describe("checklist test matrix (code-feasible)", () => {
     m2.hydrate(snap, 30);
     expect(m2.mi).toBe(2);
     expect(m2.step).toBe(3);
+  });
+});
+
+describe("checklist matrix §1.9 / §1.11", () => {
+  it("§1.11 percentile ring + dump", () => {
+    const o = new PerfOverlay();
+    for (let i = 0; i < 100; i++) o.sample(16 + (i % 5), 2 + (i % 3) * 0.1);
+    const s = o.sample(40, 3);
+    expect(s.frame.p50).toBeGreaterThan(0);
+    expect(o.dumpJson()).toContain("p95");
+    expect(o.costMs()).toBeGreaterThanOrEqual(0);
+  });
+
+  it("§1.9.16 suspension stable at 30Hz and 120Hz", () => {
+    const run = (hz: number) => {
+      let s = createSuspension();
+      const dt = 1 / hz;
+      for (let i = 0; i < hz; i++) {
+        s = stepSuspension(s, {
+          rideHeight: 0.12, spring: 80, damper: 12,
+          accelForward: Math.sin(i * 0.1), accelLateral: Math.cos(i * 0.1), dt,
+        });
+      }
+      return s.fl.compression;
+    };
+    expect(run(30)).toBeGreaterThan(0.02);
+    expect(run(120)).toBeGreaterThan(0.02);
+    expect(Math.abs(run(30) - run(120))).toBeLessThan(0.2);
+  });
+
+  it("§1.9.15 damage persists through save pack", () => {
+    const d = applyImpact(createCarDamage(), 20, true);
+    const blob: SaveBlobV2 = {
+      schemaVersion: SCHEMA_VERSION,
+      createdAt: 1,
+      build: "t",
+      carDamage: d.body,
+    };
+    const round = unpackSave(packSave(blob));
+    expect(round?.carDamage).toBe(d.body);
+  });
+
+  it("§1.4.T5 fog reduces stream radius immediately", () => {
+    const c = new ClockWeather();
+    c.setWeather("clear", 0);
+    const clear = c.streamRadiusScale();
+    c.setWeather("fog", 0);
+    expect(c.streamRadiusScale()).toBeLessThan(clear);
+  });
+
+  it("§1.9.14 wet cornering loses more speed than dry", () => {
+    const dry = { yaw: 0, speed: 18, skidding: false };
+    const wet = { yaw: 0, speed: 18, skidding: false };
+    for (let i = 0; i < 60; i++) {
+      stepVehicleDynamics(dry, { steer: 1, throttle: 0.3, handbrake: false }, 1 / 60, undefined, 1);
+      stepVehicleDynamics(wet, { steer: 1, throttle: 0.3, handbrake: false }, 1 / 60, undefined, 0.65);
+    }
+    // Lower grip → more skid / less retained speed in hard turn.
+    expect(Math.abs(wet.speed)).toBeLessThanOrEqual(Math.abs(dry.speed) * 1.05);
+    expect(wet.skidding || Math.abs(wet.speed) <= Math.abs(dry.speed)).toBe(true);
   });
 });

@@ -214,6 +214,8 @@ export { SpatialClassRegistry } from "./SpatialClasses";
 export type { SpatialClass } from "./SpatialClasses";
 export { buildDayPayout } from "./DayPayout";
 export type { DayPayoutLine, DayPayoutSummary } from "./DayPayout";
+export { PercentileRing, PerfOverlay, perfOverlay } from "./PerfOverlay";
+export type { PerfSnapshot } from "./PerfOverlay";
 export { GameLoop } from "./GameLoop";
 export type { LoopPhase, PauseSource, LoopStats } from "./GameLoop";
 export { Rng, RngService, rng } from "./Rng";
