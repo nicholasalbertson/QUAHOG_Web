@@ -4,9 +4,11 @@ Canonical: [`IMPLEMENTATION-CHECKLIST-V3.md`](./IMPLEMENTATION-CHECKLIST-V3.md) 
 
 | Status | Count |
 |--------|------:|
-| Done `[x]` | ~266 |
-| Partial `[~]` | ~106 |
-| Open `[ ]` | ~314 |
+| Done `[x]` | ~282 |
+| Partial `[~]` | ~110 |
+| Open `[ ]` | ~293 |
+
+Progress this deepen: started ~500+ open after next-50; now ~282 done.
 
 ## Hard blockers
 
@@ -16,6 +18,7 @@ Canonical: [`IMPLEMENTATION-CHECKLIST-V3.md`](./IMPLEMENTATION-CHECKLIST-V3.md) 
 - §2 Earth/DEM (diagnostic only)
 - §9.1 licensed audio sample packs (maps/keys exist)
 - Rapier contact wiring in live actors (§1.9.7 / §3.3.6)
+- Full mission content 11/11 + HUD chrome polish
 
 ## Keep shipping
 
