@@ -376,6 +376,11 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
             NB-only. */}
         {isNB && slice && <ParkedCarColliders roads={slice.roads} center={MALL_WORLD} hub="mall" />}
         <TrafficColliders />
+        {/* Cobble curb pads render RigidBody colliders → must live inside
+            <Physics>. (Moved here 2026-11-08: PR #25 mounted them outside
+            <Physics>, which crashed the scene on boot with "useRapier must
+            be used within <Physics />" — 0 draws / white screen.) */}
+        {isNB && slice && <CobbleCurbPads roads={slice.roads} center={world} />}
         {/* §1.9.7/§3.3.6: resolves real Rapier contacts between the player
             car and live traffic / police actors (polls contactPairsWith).
             Renders nothing; lives inside <Physics> next to the colliders
@@ -443,7 +448,6 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       {!DRESSING_ENABLED && slice && <TrafficStopZones roads={slice.roads} center={world} />}
       {/* Allowlisted Water St + Johnny Cake Hill furniture only (#18/#21). */}
       {isNB && slice && <CorridorDressing roads={slice.roads} center={world} />}
-      {isNB && slice && <CobbleCurbPads roads={slice.roads} center={world} />}
       {slice && <ParkedCars roads={slice.roads} center={world} />}
       {DRESSING_ENABLED && slice && <StreetExtras roads={slice.roads} center={world} />}
       {DRESSING_ENABLED && slice && <RoadFixtures roads={slice.roads} center={world} />}
