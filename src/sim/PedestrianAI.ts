@@ -34,7 +34,10 @@ export interface PedAgent {
   /** Stuck detection (§1.2.23): last progress sample. */
   stuckX?: number;
   stuckZ?: number;
+  /** Time since last progress (for re-path). */
   stuckT?: number;
+  /** Cumulative stuck time (for despawn) — not cleared on re-path. */
+  stuckTotal?: number;
   /** §1.2.22 Door interaction — TTL while "inside" building. */
   doorTTL?: number;
   doorX?: number;
@@ -185,7 +188,7 @@ export class PedestrianAI {
   }
 
   private stepAgent(a: PedAgent, dt: number, fleeFrom: Vec2 | null): void {
-    // Stuck detection (§1.2.23): no progress > 3s → re-path; > 10s → despawn.
+    // Stuck detection (§1.2.23): no progress > 3s → re-path; total > 10s → despawn.
     {
       const sx = a.stuckX ?? a.x;
       const sz = a.stuckZ ?? a.z;
@@ -193,9 +196,11 @@ export class PedestrianAI {
         a.stuckX = a.x;
         a.stuckZ = a.z;
         a.stuckT = 0;
+        a.stuckTotal = 0;
       } else {
         a.stuckT = (a.stuckT ?? 0) + dt;
-        if (a.stuckT > 10) {
+        a.stuckTotal = (a.stuckTotal ?? 0) + dt;
+        if ((a.stuckTotal ?? 0) > 10) {
           a.dead = true;
           a.path = null;
           return;
