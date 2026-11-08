@@ -52,19 +52,35 @@ export interface PedGraphOptions {
   minEdge?: number;
   /** Extra metres beyond half road width for the sidewalk offset. */
   curb?: number;
+  /** §1.2.13 Cost multipliers. */
+  crosswalkPenalty?: number;
+  doorBonus?: number;
+}
+
+export interface PedCostOpts {
+  /** Crowd density sampler → penalty multiplier ≥ 1. */
+  crowdAt?: (x: number, z: number) => number;
+  lanePenalty?: number;
+  crosswalkPenalty?: number;
 }
 
 export class PedGraph {
   readonly nodes: RoadNode[] = [];
   readonly edges: RoadEdge[] = [];
   private adjacency = new Map<number, GraphEdge[]>();
+  /** §1.2.13 Cost-weighted adjacency (length × penalties). */
+  private costAdj = new Map<number, GraphEdge[]>();
   private quantize: number;
   private keyToId = new Map<string, number>();
   /** Orphan nodes removed on last build (§1.2.10). */
   orphansPruned = 0;
+  private crosswalkPenalty: number;
+  private doorBonus: number;
 
   constructor(opts: PedGraphOptions = {}) {
     this.quantize = opts.quantize ?? 5;
+    this.crosswalkPenalty = opts.crosswalkPenalty ?? 1.35;
+    this.doorBonus = opts.doorBonus ?? 0.85;
   }
 
   static fromRoads(roads: Road[], opts?: PedGraphOptions): PedGraph {
@@ -214,6 +230,7 @@ export class PedGraph {
     this.edges.length = 0;
     for (const e of nextEdges) this.edges.push(e);
     this.adjacency = nextAdj;
+    this.rebuildCosts();
     return orphaned;
   }
 
@@ -267,6 +284,43 @@ export class PedGraph {
     if (list.some((e) => e.to === to)) return;
     list.push({ to, weight: length });
     this.edges.push({ from, to, length });
+    this.rebuildEdgeCost(from, to, length);
+  }
+
+  /**
+   * §1.2.13 Cost model: length × lanePenalty × crosswalkPenalty × crowdPenalty.
+   * Call after occupancy updates when crowd-aware routing is desired.
+   */
+  rebuildCosts(opts: PedCostOpts = {}): void {
+    const lane = opts.lanePenalty ?? 1;
+    const cw = opts.crosswalkPenalty ?? this.crosswalkPenalty;
+    this.costAdj = new Map();
+    for (const n of this.nodes) this.costAdj.set(n.id, []);
+    for (const e of this.edges) {
+      const toN = this.nodes[e.to];
+      let w = e.length * lane;
+      const kind = toN?.kind ?? "sidewalk";
+      if (kind === "crosswalk") w *= cw;
+      if (kind === "door") w *= this.doorBonus;
+      if (opts.crowdAt && toN) {
+        const dens = opts.crowdAt(toN.x, toN.z);
+        w *= 1 + Math.min(3, dens) * 0.25;
+      }
+      this.costAdj.get(e.from)!.push({ to: e.to, weight: w });
+    }
+  }
+
+  private rebuildEdgeCost(from: number, to: number, length: number): void {
+    if (!this.costAdj.has(from)) this.costAdj.set(from, []);
+    const toN = this.nodes[to];
+    let w = length;
+    const kind = toN?.kind ?? "sidewalk";
+    if (kind === "crosswalk") w *= this.crosswalkPenalty;
+    if (kind === "door") w *= this.doorBonus;
+    const list = this.costAdj.get(from)!;
+    const existing = list.find((e) => e.to === to);
+    if (existing) existing.weight = w;
+    else list.push({ to, weight: w });
   }
 
   private stitchNear(maxDist: number): void {
@@ -367,7 +421,9 @@ export class PedGraph {
   }
 
   routeNodes(start: number, goal: number): NavPath | null {
-    const result = dijkstra(this.adjacency, start, goal);
+    // Prefer cost-weighted graph (§1.2.13); fall back to geometric length.
+    if (this.costAdj.size === 0) this.rebuildCosts();
+    const result = dijkstra(this.costAdj.size ? this.costAdj : this.adjacency, start, goal);
     if (!result) return null;
     const points: Vec2[] = result.nodes.map((id) => {
       const n = this.nodes[id];

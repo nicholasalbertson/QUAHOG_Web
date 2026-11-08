@@ -24,7 +24,81 @@ export { dijkstra } from "./Dijkstra";
 export { RoadGraph } from "./RoadGraph";
 export { PedGraph } from "./PedGraph";
 export { MissionRuntime } from "./MissionRuntime";
-export type { GameEvent, MissionPhase, OwnedEntity } from "./MissionRuntime";
+export type { GameEvent, MissionPhase, OwnedEntity, MissionCheckpoint, ObjectiveState } from "./MissionRuntime";
+export {
+  evalCondition,
+  validateCondition,
+  serializeCondition,
+  deserializeCondition,
+  countNodes,
+} from "./Conditions";
+export type { ConditionNode, ConditionCtx } from "./Conditions";
+export { defineMission } from "./MissionAuthoring";
+export type { MissionDef, MissionStepDef } from "./MissionAuthoring";
+export {
+  beginCutscene,
+  endCutscene,
+  isCutsceneActive,
+  duckForWanted,
+  setCutsceneDuck,
+} from "./CutsceneStub";
+export {
+  createCrosswalkAgent,
+  stepCrosswalk,
+  walkWindowFromClock,
+} from "./CrosswalkFsm";
+export type { CrosswalkPhase, CrosswalkAgent } from "./CrosswalkFsm";
+export { HeatAxes, CRIME_TABLE } from "./HeatAxes";
+export type { CrimeKind, HeatAxesState } from "./HeatAxes";
+export { stepBoat, sampleWave, damageBoat, createBoat } from "./BoatDynamics";
+export type { BoatState, WaveSample } from "./BoatDynamics";
+export { FactionTerritory } from "./FactionTerritory";
+export type { FactionPoly, FactionHeat } from "./FactionTerritory";
+export { playThunderNear } from "./LightningAudio";
+export { meleeSwing, hitscan, ttkSeconds } from "./CombatStub";
+export type { WeaponId, HitResult, CombatActor } from "./CombatStub";
+export {
+  startDialogue,
+  advanceDialogue,
+  skipDialogue,
+  setSubtitleSink,
+  emitSubtitle,
+  speakLine,
+} from "./DialogueStub";
+export type { DialogueLine, DialogueSession } from "./DialogueStub";
+export { RACE_TRACKS, startRace, stepRace, racePosition } from "./RaceStub";
+export type { RaceTrack, RaceState, RaceOpponent } from "./RaceStub";
+export {
+  createSignal,
+  stepSignal,
+  pedWalkAllowed,
+  SignalNetwork,
+} from "./SignalFsm";
+export type { SignalPhase, SignalState } from "./SignalFsm";
+export { resolveDown } from "./WastedBusted";
+export type { DownCause, RespawnOutcome } from "./WastedBusted";
+export { createMusicState, pickLayer, stepMusic } from "./AdaptiveMusic";
+export type { MusicLayer, MusicState } from "./AdaptiveMusic";
+export {
+  getA11y,
+  setA11y,
+  loadA11y,
+  a11yColor,
+  DEFAULT_A11Y,
+} from "./Accessibility";
+export type { A11ySettings } from "./Accessibility";
+export { SHOPS, canPurchase, nearestShop } from "./ShopCatalog";
+export type { ShopKind, ShopItem, ShopDef, PurchaseCtx } from "./ShopCatalog";
+export {
+  createWeaponWheel,
+  openWheel,
+  closeWheel,
+  nudgeWheel,
+  unlockSlot,
+} from "./WeaponWheel";
+export type { WheelSlot, WeaponWheelState } from "./WeaponWheel";
+export { createParkingAgent, stepParking } from "./ParkingAI";
+export type { ParkingSlot, ParkPhase, ParkingAgent } from "./ParkingAI";
 export { GameLoop } from "./GameLoop";
 export type { LoopPhase, PauseSource, LoopStats } from "./GameLoop";
 export { Rng, RngService, rng } from "./Rng";
@@ -41,6 +115,15 @@ export {
   validateSave,
   collectLegacySave,
   SCHEMA_VERSION,
+  refuseFutureSave,
+  checksumSave,
+  packSave,
+  unpackSave,
+  exportSaveJson,
+  importSaveJson,
+  quicksave,
+  mayAutosave,
+  CLOUD_SYNC_DECISION,
 } from "./SaveGame";
 export { runAllStages, allStagesGreen } from "./AcceptanceHarness";
 export type { StageResult } from "./AcceptanceHarness";
@@ -71,4 +154,3 @@ export type { DebugOverlayState } from "./DebugOverlay";
 export { OccupancyGrid } from "./OccupancyGrid";
 export { evalTrigger, rearm } from "./Triggers";
 export type { Trigger } from "./Triggers";
-export { refuseFutureSave } from "./SaveGame";

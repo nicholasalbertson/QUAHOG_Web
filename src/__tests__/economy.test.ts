@@ -10,7 +10,7 @@ function seq(values: number[]): () => number {
 }
 
 describe("useEconomy", () => {
-  beforeEach(() => useEconomy.setState({ owned: {}, near: null }));
+  beforeEach(() => useEconomy.setState({ owned: {}, tiers: {}, employees: {}, near: null }));
 
   it("buy marks a front owned and ownedBusinesses reflects it", () => {
     expect(ownedBusinesses()).toHaveLength(0);
@@ -51,9 +51,28 @@ describe("useEconomy", () => {
   it("save/load round-trips owned fronts", () => {
     eco().buy(BUSINESSES[2]);
     eco().save();
-    useEconomy.setState({ owned: {} });
+    useEconomy.setState({ owned: {}, tiers: {}, employees: {} });
     expect(ownedBusinesses()).toHaveLength(0);
     eco().load();
     expect(ownedBusinesses().map((b) => b.id)).toContain(BUSINESSES[2].id);
+  });
+
+  it("§4.2 upgrade raises income; sell refunds 60%", () => {
+    const b = BUSINESSES[0];
+    eco().buy(b);
+    const base = eco().incomePerSec(60);
+    const cost = eco().upgrade(b.id);
+    expect(cost).toBeGreaterThan(0);
+    expect(eco().incomePerSec(60)).toBeGreaterThan(base);
+    const refund = eco().sell(b.id);
+    expect(refund).toBe(Math.round(b.cost * 0.6));
+    expect(eco().owned[b.id]).toBeUndefined();
+    expect(eco().unlockedMissions()).not.toContain("garage-chop");
+  });
+
+  it("§4.3 ownership unlocks tied missions", () => {
+    expect(eco().unlockedMissions()).toEqual([]);
+    eco().buy(BUSINESSES[0]); // unlockMission garage-chop
+    expect(eco().unlockedMissions()).toContain("garage-chop");
   });
 });

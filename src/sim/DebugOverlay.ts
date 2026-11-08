@@ -15,6 +15,10 @@ export interface DebugOverlayState {
   roadNodes: number;
   replay: string;
   stepDigest: string;
+  /** §1.2.24 / §1.3.40 occupancy + mission debug bits. */
+  occupancyHot?: number;
+  missionOwned?: number;
+  triggersArmed?: number;
 }
 
 let last: DebugOverlayState | null = null;
@@ -29,6 +33,9 @@ export function publishDebugOverlay(partial: Partial<DebugOverlayState> & { loop
     roadNodes: partial.roadNodes ?? last?.roadNodes ?? 0,
     replay: partial.replay ?? last?.replay ?? "",
     stepDigest: partial.stepDigest ?? last?.stepDigest ?? "",
+    occupancyHot: partial.occupancyHot ?? last?.occupancyHot ?? 0,
+    missionOwned: partial.missionOwned ?? last?.missionOwned ?? 0,
+    triggersArmed: partial.triggersArmed ?? last?.triggersArmed ?? 0,
   };
 }
 
@@ -39,5 +46,5 @@ export function readDebugOverlay(): DebugOverlayState | null {
 /** One-line HUD string when telemetry flag is on. */
 export function formatDebugOverlayLine(s: DebugOverlayState): string {
   const L = s.loop;
-  return `steps=${L.stepsThisFrame} acc=${L.accHighWater.toFixed(3)} scale=${L.timeScale.toFixed(2)} pause=${L.paused ? 1 : 0} ped=${s.pedNodes}/${s.pedEdges} orph=${s.pedOrphans}`;
+  return `steps=${L.stepsThisFrame} acc=${L.accHighWater.toFixed(3)} scale=${L.timeScale.toFixed(2)} pause=${L.paused ? 1 : 0} ped=${s.pedNodes}/${s.pedEdges} orph=${s.pedOrphans} occ=${s.occupancyHot ?? 0} own=${s.missionOwned ?? 0} trig=${s.triggersArmed ?? 0}`;
 }

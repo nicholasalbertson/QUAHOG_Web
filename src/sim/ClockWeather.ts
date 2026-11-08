@@ -53,6 +53,9 @@ export class ClockWeather {
   private blendSec = 0;
   private blendAcc = 0;
   wind = { x: 0, y: 0, z: 0 };
+  /** §1.4.10 Lightning flash remaining (seconds). */
+  lightningFlash = 0;
+  private stormAcc = 0;
 
   /** timeOfDay in 0..1 (midnight→midnight). */
   get time01(): number {
@@ -92,6 +95,24 @@ export class ClockWeather {
     const w = 0.4 + this.wetness * 1.2 + (this.weather === "fog" ? 0.3 : 0);
     this.wind.x = Math.sin(this.hour) * w;
     this.wind.z = Math.cos(this.hour * 0.7) * w;
+
+    // §1.4.10 Lightning during heavy rain / wetness spikes.
+    if (this.lightningFlash > 0) this.lightningFlash = Math.max(0, this.lightningFlash - dt);
+    if (this.weather === "rain" && this.wetness > 0.55) {
+      this.stormAcc += dt;
+      if (this.stormAcc > 4) {
+        this.stormAcc = 0;
+        if (rng.stream("weather").next() < 0.35) this.flashLightning();
+      }
+    } else {
+      this.stormAcc = 0;
+    }
+  }
+
+  /** §1.4.10 Emit lightning flash + thunder hook event. */
+  flashLightning(duration = 0.18): void {
+    this.lightningFlash = duration;
+    emitTelemetry("sim.weather.lightning", { wetness: this.wetness });
   }
 
   setWeather(k: WeatherKind, blendSec = 0.8): void {
@@ -131,6 +152,7 @@ export class ClockWeather {
       friction: this.friction(surface),
       night: this.nightFactor,
       wind: { ...this.wind },
+      lightning: this.lightningFlash,
     };
   }
 

@@ -6,6 +6,8 @@
 export class SpatialAudio {
   private ctx: AudioContext | null = null;
   private listenerReady = false;
+  /** §9.4 / §1.3.36 Master duck level 0..1. */
+  private duck = 1;
 
   private ensure(): AudioContext | null {
     if (typeof window === "undefined") return null;
@@ -18,6 +20,15 @@ export class SpatialAudio {
     } catch {
       return null;
     }
+  }
+
+  /** §1.3.36 / §9.4 Duck music/SFX during cutscene/chase. */
+  setDuck(level: number): void {
+    this.duck = Math.max(0, Math.min(1, level));
+  }
+
+  getDuck(): number {
+    return this.duck;
   }
 
   /** Update listener pose from camera (world metres). */
@@ -77,7 +88,7 @@ export class SpatialAudio {
       (panner as PannerNode & { setPosition?: (x: number, y: number, z: number) => void }).setPosition?.(x, y, z);
     }
     osc.frequency.value = opts.freq ?? 440;
-    gain.gain.value = (opts.gain ?? 0.15) * (occluded ? 0.35 : 1);
+    gain.gain.value = (opts.gain ?? 0.15) * (occluded ? 0.35 : 1) * this.duck;
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
     osc.connect(gain);
     if (occluded) {

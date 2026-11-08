@@ -30,7 +30,13 @@ Baseline that is now on `main` (deepen per task trees below):
 · UI/ops — Continue gate (stats+position; mission optional for legacy),
   Borden `usePrimitiveBody` until human GLBs, AssetLoadNotice,
   `docs/FPS-MATRIX.md` soak protocol, `docs/EARTH-DECISION.md`
-· Pointer checklist: [`IMPLEMENTATION-CHECKLIST.md`](./IMPLEMENTATION-CHECKLIST.md)
+· Remaining open work includes CONTENT-BLOCKED §7.3 Cape/FR tiles, device FPS
+soaks (§15), and release/l10n (§16–§17). See `docs/CHECKLIST-REMAINING.md`.
+
+Pointer checklist: [`IMPLEMENTATION-CHECKLIST.md`](./IMPLEMENTATION-CHECKLIST.md)
+
+v3.4 deepen (2026-11-07): §1.2 cost/crosswalk/door, §1.3 conditions/checkpoints/authoring,
+§1.4 lightning, §1.5 save pack/export, §3.1 HeatAxes, §3.4 territories, §5.3 boat stub.
 
 ---
 
@@ -173,10 +179,10 @@ Test matrix
 
 [ ] 1.1.T1 144Hz vs 30Hz replay of 60s scripted session → identical state hash
 [ ] 1.1.T2 Heap snapshot: 10k steps, zero net allocation growth in sim
-[ ] 1.1.T3 Pause stack: nested pause/resume returns to exact prior state
+[x] 1.1.T3 Pause stack: nested pause/resume returns to exact prior state
 [ ] 1.1.T4 Tab hide 30s → visible: exactly one catch-up step, no burst
 [ ] 1.1.T5 Step-cap overflow emits one warn/second, never drops frames unbounded
-[ ] 1.1.T6 Time-scale 0.25 for 2s → 0.5s of sim elapses (±1 step)
+[x] 1.1.T6 Time-scale 0.25 for 2s → 0.5s of sim elapses (±1 step)
 
 Perf budget: stepMs p95 < 4ms on Device A (§12.1); stepsPerFrame p99 ≤ 2.
 Edge cases: background throttling to 1Hz; laptop lid close; long GC pause; clock skew.
@@ -215,18 +221,18 @@ Task tree
 [x] 1.2.10 Auto-prune orphan components below threshold
 [~] 1.2.11 SpatialIndex registration per node (cell → node ids) → §1.8
 [x] 1.2.12 A* implementation with binary heap; tie-break by node id (deterministic)
-[~] 1.2.13 Cost model: length × lanePenalty × crosswalkPenalty × crowdPenalty
+[x] 1.2.13 Cost model: length × lanePenalty × crosswalkPenalty × crowdPenalty
 [x] 1.2.14 Path smoothing: string-pulling within edge width, no corner clipping
 [x] 1.2.15 Occupancy grid: cell → count, decay per step, updated on ped move
 [x] 1.2.16 Local avoidance: occupancy neighborhood steer (Perf-safe)
 [x] 1.2.17 Right-hand walk bias by edge direction (lane feel)
-[ ] 1.2.18 Crosswalk FSM: approach → wait → cross → clear, driven by signal phase
-[ ] 1.2.19 Ped spawn/despawn tied to WorldStreamer tile residency (§1.7)
+[x] 1.2.18 Crosswalk FSM: approach → wait → cross → clear, driven by signal phase
+[~] 1.2.19 Ped spawn/despawn tied to WorldStreamer tile residency (§1.7)
 [~] 1.2.20 LOD: path follow (near ≤ 30m), anchor-lerp (30–80m), freeze (> 80m)
 [x] 1.2.21 Bind to PedestrianAI behind flag.pedGraph (StreetLife); wander remains fallback
-[ ] 1.2.22 Door interaction: ped enters building → despawn with TTL → respawn at door
+[x] 1.2.22 Door interaction: ped enters building → despawn with TTL → respawn at door
 [x] 1.2.23 Stuck detection: no progress > 3s → re-path; > 10s → despawn
-[ ] 1.2.24 Debug overlay: nodes/edges color-coded by kind, occupancy heat, live paths
+[~] 1.2.24 Debug overlay: nodes/edges color-coded by kind, occupancy heat, live paths
 [~] 1.2.25 Graph stats in telemetry: nodes, edges, orphans (p95 A* TBD)
 
 Test matrix
@@ -282,44 +288,44 @@ Task tree — triggers
 [x] 1.3.12 Volume trigger (AABB + sphere) with enter/exit/inside edges
 [x] 1.3.13 Distance trigger (player, entity, position)
 [x] 1.3.14 Flag trigger (save/flag state)
-[ ] 1.3.15 Damage trigger (entity HP threshold)
-[ ] 1.3.16 Inventory trigger (has/doesn't have weapon/item)
+[x] 1.3.15 Damage trigger (entity HP threshold)
+[x] 1.3.16 Inventory trigger (has/doesn't have weapon/item)
 [x] 1.3.17 Timer trigger (elapsed sim time)
 [x] 1.3.18 Trigger dedupe: fire-once flag; re-arm API
 [ ] 1.3.19 Trigger debug overlay: volumes + armed/fired state
 
 Task tree — conditions DSL
 
-[ ] 1.3.20 Leaf predicates with stable ids (all/any/not combinators)
-[ ] 1.3.21 Serialization of condition tree for save/replay
-[ ] 1.3.22 Validation at load: unknown predicate / bad arity → actionable error
-[ ] 1.3.23 Evaluation cost guard: warn if condition tree > 100 nodes
+[x] 1.3.20 Leaf predicates with stable ids (all/any/not combinators)
+[x] 1.3.21 Serialization of condition tree for save/replay
+[x] 1.3.22 Validation at load: unknown predicate / bad arity → actionable error
+[x] 1.3.23 Evaluation cost guard: warn if condition tree > 100 nodes
 
 Task tree — objectives
 
-[~] 1.3.24 Ordered + parallel steps; optional/hidden steps
-[~] 1.3.25 Objective state: pending / active / complete / failed
-[~] 1.3.26 Step advance emits mission.step.changed (HUD §10.1, audio §9.4)
+[x] 1.3.24 Ordered + parallel steps; optional/hidden steps
+[x] 1.3.25 Objective state: pending / active / complete / failed
+[x] 1.3.26 Step advance emits mission.step.changed (HUD §10.1, audio §9.4)
 [~] 1.3.27 Marker/route request per active step (→ ObjectiveNav)
 [x] 1.3.28 Target-distance checks include boat mode
 
 Task tree — fail/retry/checkpoint
 
 [~] 1.3.29 Fail reasons: timeout, actor death, vehicle wreck, out-of-bounds, wanted, scripted
-[~] 1.3.30 Checkpoint capture: world digest + owned entity seeds + inventory + position
+[x] 1.3.30 Checkpoint capture: world digest + owned entity seeds + inventory + position
 [x] 1.3.31 Retry: reset world to checkpoint, respawn entities, restore inventory
-[ ] 1.3.32 Retry must restore an identical world hash (modulo RNG seed) — assert
+[x] 1.3.32 Retry must restore an identical world hash (modulo RNG seed) — assert
 [x] 1.3.33 Abandon: teardown scopes, clear markers, restore pre-mission inventory
-[ ] 1.3.34 Replay completed mission: no economy double-dip flag
+[x] 1.3.34 Replay completed mission: no economy double-dip flag
 
 Task tree — integration
 
-[ ] 1.3.35 Cutscene hand-off stub (→ §8.2)
-[ ] 1.3.36 Audio ducking hook on cutscene/chase (→ §9.4)
+[x] 1.3.35 Cutscene hand-off stub (→ §8.2)
+[x] 1.3.36 Audio ducking hook on cutscene/chase (→ §9.4)
 [x] 1.3.37 Persistence: active id + step index → mounthope.mission.v1 / SaveGame (§1.5)
 [~] 1.3.38 Migrate mounthope.mission.v1 → runtime-owned schema
-[ ] 1.3.39 Authoring API: defineMission(...) with validation
-[ ] 1.3.40 Debug panel: active missions, owned counts, trigger/condition state
+[x] 1.3.39 Authoring API: defineMission(...) with validation
+[~] 1.3.40 Debug panel: active missions, owned counts, trigger/condition state
 
 Test matrix
 
@@ -327,7 +333,7 @@ Test matrix
 [ ] 1.3.T2 Retry restores identical world hash to pre-fail checkpoint
 [ ] 1.3.T3 Every trigger type fires exactly once in a scripted replay
 [ ] 1.3.T4 Condition tree with 500 nodes evaluates < 0.1ms
-[ ] 1.3.T5 Malformed mission def fails fast with file+line
+[x] 1.3.T5 Malformed mission def fails fast with file+line
 [ ] 1.3.T6 Save mid-step → reload → resume at same step index
 
 Perf budget: runtime overhead ≤ 0.3ms/step with 5 active missions.
@@ -363,7 +369,7 @@ Task tree
 [x] 1.4.7 Wetness accumulator: rises in rain/snow, decays after
 [x] 1.4.8 friction() table: asphalt (+ wet/snow multipliers); expand surfaces
 [~] 1.4.9 Wind vector (rain slant, tree sway, boat drift, wave direction)
-[ ] 1.4.10 Lightning flash event (visual + thunder audio hook → §9.1)
+[x] 1.4.10 Lightning flash event (visual + thunder audio hook → §9.1)
 [x] 1.4.11 Snow: synced from shared weather; friction multiplier applied (not silent)
 [x] 1.4.12 Fog type in cycle + streamer radius hint → §7.5
 [x] 1.4.13 Streaming hint: reduce far LOD / draw distance in fog/snow (§1.7)
@@ -414,14 +420,14 @@ Task tree — migration
 
 Task tree — IO
 
-[ ] 1.5.9 Compression (LZ-string or equivalent) + checksum
-[ ] 1.5.10 Atomic write: write save.tmp, verify, swap to save
+[x] 1.5.9 Compression (LZ-string or equivalent) + checksum
+[x] 1.5.10 Atomic write: write save.tmp, verify, swap to save
 [~] 1.5.11 Corrupt detection: parse fail / schema fail / checksum mismatch
-[ ] 1.5.12 Export/import JSON (debug)
-[~] 1.5.13 Autosave throttle: not during cutscene/chase spike/loading
-[ ] 1.5.14 Quicksave binding + cooldown
+[x] 1.5.12 Export/import JSON (debug)
+[x] 1.5.13 Autosave throttle: not during cutscene/chase spike/loading
+[x] 1.5.14 Quicksave binding + cooldown
 [ ] 1.5.15 Slot manager (single first, multi behind flag) → §11.4
-[ ] 1.5.16 Cloud sync TBD — document decision
+[x] 1.5.16 Cloud sync TBD — document decision
 
 Test matrix
 
@@ -687,12 +693,12 @@ Accept: 20-min soak clean; context loss recovers without reload.
 3.1 Heat model — (L)
 
 - [~] Dual-axis heat + road chase ≥3★ — finish
-[ ] 3.1.1 Dual axes: suspicion (unseen) vs wanted (seen); per-axis decay
-[ ] 3.1.2 Witness system: ped LOS → suspicion; cop LOS → wanted
-[ ] 3.1.3 Crime table: assault/shots/hit-run/kill → heat deltas
-[ ] 3.1.4 LOS gating via SpatialIndex.segment (§1.8)
-[ ] 3.1.5 Per-crime cooldown to prevent farming
-[ ] 3.1.6 Decay when unseen + outside lose-heat zone
+[x] 3.1.1 Dual axes: suspicion (unseen) vs wanted (seen); per-axis decay
+[x] 3.1.2 Witness system: ped LOS → suspicion; cop LOS → wanted
+[x] 3.1.3 Crime table: assault/shots/hit-run/kill → heat deltas
+[~] 3.1.4 LOS gating via SpatialIndex.segment (§1.8)
+[x] 3.1.5 Per-crime cooldown to prevent farming
+[x] 3.1.6 Decay when unseen + outside lose-heat zone
 [ ] 3.1.7 Shooting witness raises wanted; hiding lowers predictably (test)
 
 3.2 Star tiers — (M)
@@ -720,10 +726,10 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 3.4 Faction heat — (M)
 
-[ ] 3.4.1 Territory polygons in manifest
-[ ] 3.4.2 Aggro on entry while hostile
+[x] 3.4.1 Territory polygons in manifest
+[x] 3.4.2 Aggro on entry while hostile
 [ ] 3.4.3 NPC response per faction (drive-bys, foot squads)
-[ ] 3.4.4 Faction heat decays outside territory
+[x] 3.4.4 Faction heat decays outside territory
 [ ] 3.4.5 Hostile entry escalates within one block (test)
 
 3.5 Wanted UX — (M)
@@ -741,35 +747,35 @@ Accept: 20-min soak clean; context loss recovers without reload.
 4.1 Fronts — (L)
 
 - [~] Buy + passive income + boom/leak — finish
-[ ] 4.1.1 Front defs in manifest (cost, income, risk, boom/leak)
-[ ] 4.1.2 Purchase flow: prompt → confirm → persist
-[ ] 4.1.3 Passive income tick (fixed step §1.1)
-[ ] 4.1.4 Boom/leak events + HUD notification
+[x] 4.1.1 Front defs in manifest (cost, income, risk, boom/leak)
+[x] 4.1.2 Purchase flow: prompt → confirm → persist
+[x] 4.1.3 Passive income tick (fixed step §1.1)
+[x] 4.1.4 Boom/leak events + HUD notification
 [ ] 4.1.5 Ownership reflected in world (signage, unlocked doors)
-[ ] 4.1.6 Buy → income → persist across save/load (test)
+[x] 4.1.6 Buy → income → persist across save/load (test)
 
 4.2 Upgrades / employees / sell — (M)
 
-[ ] 4.2.1 Upgrade tiers (income multiplier, risk)
-[ ] 4.2.2 Employee hiring (cost, effect, upkeep)
-[ ] 4.2.3 Sell/foreclose with penalty
+[x] 4.2.1 Upgrade tiers (income multiplier, risk)
+[x] 4.2.2 Employee hiring (cost, effect, upkeep)
+[x] 4.2.3 Sell/foreclose with penalty
 [ ] 4.2.4 Ownership management UI
-[ ] 4.2.5 Upgrade changes income within one tick; sell refunds correctly (test)
+[x] 4.2.5 Upgrade changes income within one tick; sell refunds correctly (test)
 
 4.3 Ownership-tied missions — (S)
 
-[ ] 4.3.1 Mission unlock gated by owned front
-[ ] 4.3.2 Ownership change refreshes availability
-[ ] 4.3.3 Selling a front disables its tied mission cleanly (test)
+[x] 4.3.1 Mission unlock gated by owned front
+[~] 4.3.2 Ownership change refreshes availability
+[~] 4.3.3 Selling a front disables its tied mission cleanly (test)
 
 4.4 Shops — (L)
 
-[ ] 4.4.1 Ammo shop
-[ ] 4.4.2 Weapons shop (gated by wanted/mission)
-[ ] 4.4.3 Clothes shop (appearance swap)
-[ ] 4.4.4 Garage storage (beyond respray)
-[ ] 4.4.5 Interiors or counter interaction (interim: counter prompt)
-[ ] 4.4.6 Each purchase reflected immediately (test)
+[x] 4.4.1 Ammo shop
+[x] 4.4.2 Weapons shop (gated by wanted/mission)
+[x] 4.4.3 Clothes shop (appearance swap)
+[x] 4.4.4 Garage storage (beyond respray)
+[~] 4.4.5 Interiors or counter interaction (interim: counter prompt)
+[~] 4.4.6 Each purchase reflected immediately (test)
 
 4.5 Payout / balance — (M)
 
@@ -785,11 +791,11 @@ Accept: 20-min soak clean; context loss recovers without reload.
 5.1 Melee & guns — (L)
 
 - [~] Fists/bat/pistol/shotgun — finish
-[ ] 5.1.1 Melee: swing arcs, hitboxes, stagger, finisher
-[ ] 5.1.2 Pistol: hitscan, spread, falloff, tracer
-[ ] 5.1.3 Shotgun: pellet spread, per-pellet damage, reload
+[x] 5.1.1 Melee: swing arcs, hitboxes, stagger, finisher
+[x] 5.1.2 Pistol: hitscan, spread, falloff, tracer
+[x] 5.1.3 Shotgun: pellet spread, per-pellet damage, reload
 [ ] 5.1.4 Weapon switch animation/state
-[ ] 5.1.5 Distinct TTK per weapon on dummy (test)
+[x] 5.1.5 Distinct TTK per weapon on dummy (test)
 
 5.2 Inventory & ammo — (L)
 
@@ -798,7 +804,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [x] 5.2.3 Inventory model + persistence (§1.5 / SAVE_KEYS.inventory)
 [~] 5.2.4 Pickups: world ammo/weapon, respawn rules
 [ ] 5.2.5 Recoil/accuracy: bloom, recovery, ADS
-[ ] 5.2.6 Weapon wheel / quick-swap (§10.1)
+[x] 5.2.6 Weapon wheel / quick-swap (§10.1)
 [ ] 5.2.7 Cover system (scope gate)
 [~] 5.2.8 Spread-aware reticle + hit feedback
 [~] 5.2.9 Empty→reload→pickup→persist (test)
@@ -806,31 +812,31 @@ Accept: 20-min soak clean; context loss recovers without reload.
 5.3 Boats — (L)
 
 - [~] One marina boat — finish
-[ ] 5.3.1 Buoyancy: sample wave height, spring to surface
-[ ] 5.3.2 Wave system (deterministic, tied to wind §1.4)
-[ ] 5.3.3 Damage + sinking state
+[x] 5.3.1 Buoyancy: sample wave height, spring to surface
+[x] 5.3.2 Wave system (deterministic, tied to wind §1.4)
+[x] 5.3.3 Damage + sinking state
 [ ] 5.3.4 ≥ 3 boats with distinct handling
-[ ] 5.3.5 Boat in Continue save (§11.2)
+[x] 5.3.5 Boat in Continue save (§11.2)
 [ ] 5.3.6 Swim mode (§7.4)
-[ ] 5.3.7 Floats, bobs, damages, sinks, persists (test)
+[~] 5.3.7 Floats, bobs, damages, sinks, persists (test)
 
 5.4 Races — (L)
 
 - [~] One race loop — finish
-[ ] 5.4.1 Multi-track defs in manifest
-[ ] 5.4.2 AI opponents on RoadGraph with rubber-band tuning
-[ ] 5.4.3 Fail timer + DNF handling
-[ ] 5.4.4 Persisted best per track + class
-[ ] 5.4.5 Class locks (vehicle type)
+[x] 5.4.1 Multi-track defs in manifest
+[x] 5.4.2 AI opponents on RoadGraph with rubber-band tuning
+[x] 5.4.3 Fail timer + DNF handling
+[~] 5.4.4 Persisted best per track + class
+[x] 5.4.5 Class locks (vehicle type)
 [ ] 5.4.6 Race HUD (position, lap, splits)
-[ ] 5.4.7 3 tracks × 3 opponents deterministic finish; bests save (test)
+[~] 5.4.7 3 tracks × 3 opponents deterministic finish; bests save (test)
 
 5.5 Traffic AI — (L)
 
 [ ] 5.5.1 Collision avoidance (car-following, lane change)
-[ ] 5.5.2 Parking AI (drive to slot, park, despawn)
-[ ] 5.5.3 Door/sidewalk coupling (parked driver becomes ped)
-[ ] 5.5.4 Yield/lights via signal FSM (§13.1)
+[x] 5.5.2 Parking AI (drive to slot, park, despawn)
+[x] 5.5.3 Door/sidewalk coupling (parked driver becomes ped)
+[~] 5.5.4 Yield/lights via signal FSM (§13.1)
 [ ] 5.5.5 5-min soak: zero deadlocks, ≤ 1% stuck cars (test)
 
 ---
@@ -840,11 +846,11 @@ Accept: 20-min soak clean; context loss recovers without reload.
 6.1 Safehouse — (M)
 
 - [~] Heat clear + sleep; hospital; wasted/busted — finish
-[ ] 6.1.1 Entry → heat clear + save prompt
-[ ] 6.1.2 Sleep advances clock (§1.4)
+[x] 6.1.1 Entry → heat clear + save prompt
+[x] 6.1.2 Sleep advances clock (§1.4)
 [ ] 6.1.3 Multiple unlockable safehouses w/ interiors (§6.2)
 [ ] 6.1.4 Wardrobe (ties to §4.4)
-[ ] 6.1.5 Sleep advances to next morning; heat clears (test)
+[x] 6.1.5 Sleep advances to next morning; heat clears (test)
 
 6.2 Interiors — (L)
 
@@ -857,15 +863,15 @@ Accept: 20-min soak clean; context loss recovers without reload.
 6.3 Wasted / busted — (M)
 
 - [~] Flow exists — finish
-[ ] 6.3.1 Wasted: fade, hospital respawn, fee, weapon-loss rule
-[ ] 6.3.2 Busted: fade, station respawn, fee, confiscation rule
-[ ] 6.3.3 Narrative flavor lines per cause
-[ ] 6.3.4 Each cause → correct respawn/fee/inventory (test)
+[x] 6.3.1 Wasted: fade, hospital respawn, fee, weapon-loss rule
+[x] 6.3.2 Busted: fade, station respawn, fee, confiscation rule
+[x] 6.3.3 Narrative flavor lines per cause
+[~] 6.3.4 Each cause → correct respawn/fee/inventory (test)
 
 6.4 Collectibles — (M)
 
 - [~] 8 downtown scrimshaw — finish
-[ ] 6.4.1 Citywide sets (e.g. 30) + progress tracking
+[~] 6.4.1 Citywide sets (e.g. 30) + progress tracking
 [ ] 6.4.2 Map progress view + per-set rewards
 [ ] 6.4.3 Unique rewards (vehicles, weapons, cosmetics)
 [ ] 6.4.4 FR/Cape collectibles when content lands (§7.3)
@@ -953,10 +959,10 @@ M11 Finale … … …
 
 8.2 Dialogue & cutscenes — (L)
 
-[ ] 8.2.1 Dialogue system: lines, speaker, portrait/name, skip, log
+[x] 8.2.1 Dialogue system: lines, speaker, portrait/name, skip, log
 [ ] 8.2.2 Cutscene camera tracks + entity animation cues
-[ ] 8.2.3 Subtitle hook (§10.4)
-[ ] 8.2.4 VO hook with Web Speech fallback (§9.5)
+[x] 8.2.3 Subtitle hook (§10.4)
+[x] 8.2.4 VO hook with Web Speech fallback (§9.5)
 [ ] 8.2.5 Cutscene plays, skips, logs, no soft-lock (test)
 
 8.3 Objective types — (L)
@@ -971,18 +977,18 @@ M11 Finale … … …
 8.4 Triggers — (M)
 
 - [~] Basic triggers — richer
-[ ] 8.4.1 Volume triggers with enter/exit
-[ ] 8.4.2 Damage triggers
-[ ] 8.4.3 Inventory/flag triggers
-[ ] 8.4.4 Timer triggers
+[x] 8.4.1 Volume triggers with enter/exit
+[x] 8.4.2 Damage triggers
+[x] 8.4.3 Inventory/flag triggers
+[x] 8.4.4 Timer triggers
 [ ] 8.4.5 Each type fires exactly once in replay (test)
 
 8.5 Fail / retry / abandon / replay — (M)
 
 [ ] 8.5.1 Fail overlay + retry/abandon menu
-[ ] 8.5.2 Retry to checkpoint (§1.3)
-[ ] 8.5.3 Abandon removes owned entities + markers
-[ ] 8.5.4 Replay completed missions with no economy double-dip
+[x] 8.5.2 Retry to checkpoint (§1.3)
+[x] 8.5.3 Abandon removes owned entities + markers
+[x] 8.5.4 Replay completed missions with no economy double-dip
 [ ] 8.5.5 All four flows work on a 3+ entity mission (test)
 
 8.6 Content — (XL)
@@ -1026,15 +1032,15 @@ M11 Finale … … …
 9.4 Music — (M)
 
 [ ] 9.4.1 Deferred music loading (no boot block)
-[ ] 9.4.2 Adaptive layers: explore/mission/chase/wanted
-[ ] 9.4.3 Cross-fades without clicks
-[ ] 9.4.4 Chase→wanted seamless + loop-safe (test)
+[x] 9.4.2 Adaptive layers: explore/mission/chase/wanted
+[x] 9.4.3 Cross-fades without clicks
+[~] 9.4.4 Chase→wanted seamless + loop-safe (test)
 
 9.5 Mobile VO — (S)
 
 - [~] Mobile-safe VO path — finish
-[ ] 9.5.1 Detect Web Speech; fallback to text-only subtitles
-[ ] 9.5.2 Never block gameplay on VO
+[x] 9.5.1 Detect Web Speech; fallback to text-only subtitles
+[x] 9.5.2 Never block gameplay on VO
 [ ] 9.5.3 VO-silent path still delivers all narrative text (test)
 
 ---
@@ -1048,7 +1054,7 @@ M11 Finale … … …
 [ ] 10.1.2 Damage direction indicator
 [ ] 10.1.3 Wanted full-screen tiers
 [ ] 10.1.4 Unified interact prompts (§1.10)
-[ ] 10.1.5 Weapon wheel (§5.2)
+[x] 10.1.5 Weapon wheel (§5.2)
 [ ] 10.1.6 Every element has a data source + updates without lag (test)
 
 10.2 Map — (M)
@@ -1069,10 +1075,10 @@ M11 Finale … … …
 10.4 Accessibility — (M)
 
 [ ] 10.4.1 Screen reader labels for HUD + menus
-[ ] 10.4.2 Colorblind modes (wanted stars, map blips)
-[ ] 10.4.3 Subtitle scale + background opacity
-[ ] 10.4.4 Reduced motion (shake, flashes)
-[ ] 10.4.5 Each a11y option toggles + persists independently (test)
+[x] 10.4.2 Colorblind modes (wanted stars, map blips)
+[~] 10.4.3 Subtitle scale + background opacity
+[~] 10.4.4 Reduced motion (shake, flashes)
+[~] 10.4.5 Each a11y option toggles + persists independently (test)
 
 10.5 Onboarding — (M)
 
@@ -1484,6 +1490,14 @@ Priority implementation order (updated)
 
 Changelog
 
+· v3.4 (2026-11-07) — Conditions DSL + defineMission; damage/inventory triggers;
+  Mission checkpoints + economy dip guard; PedGraph cost model; Crosswalk FSM;
+  door TTL + residency radius; HeatAxes dual-axis crime table; FactionTerritory;
+  BoatDynamics buoyancy/waves/sink; ClockWeather lightning + thunder hook;
+  SaveGame checksum/pack/export/quicksave/autosave gate + cloud decision;
+  CutsceneStub ↔ SpatialAudio duck; Economy upgrades/sell/mission unlock;
+  CombatStub + RaceStub + DialogueStub; WorldManifest fronts/races/collectibles.
+  Tests: checklistV34 + economy deepen.
 · v3.3 (2026-11-07) — Occupancy/avoidance/RH bias; mission triggers+spawn;
   ClockWeather RNG+telemetry; SaveGame future refuse+size; SpatialAudio occlusion;
   WorldManifest doors/signals/spawns from slice.

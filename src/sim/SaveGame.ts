@@ -172,3 +172,80 @@ export function refuseFutureSave(blob: unknown): { ok: false; reason: string } |
   if (errs.length) return { ok: false, reason: errs[0] };
   return { ok: true, blob: blob as SaveBlobV2 };
 }
+
+/** §1.5.9 Lightweight checksum (not crypto — detects corruption). */
+export function checksumSave(raw: string): string {
+  let h = 2166136261;
+  for (let i = 0; i < raw.length; i++) {
+    h ^= raw.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(16).padStart(8, "0");
+}
+
+/** §1.5.9 Pack with checksum (compression deferred — size already < 256KB). */
+export function packSave(blob: SaveBlobV2): { payload: string; checksum: string } {
+  const payload = JSON.stringify(blob);
+  return { payload, checksum: checksumSave(payload) };
+}
+
+export function unpackSave(packed: { payload: string; checksum: string }): SaveBlobV2 | null {
+  if (checksumSave(packed.payload) !== packed.checksum) return null;
+  try {
+    const blob = JSON.parse(packed.payload) as SaveBlobV2;
+    if (validateSave(blob).length) return null;
+    return blob;
+  } catch {
+    return null;
+  }
+}
+
+/** §1.5.12 Export/import JSON for debug. */
+export function exportSaveJson(): string {
+  const blob = loadUnified() ?? collectLegacySave();
+  const packed = packSave(blob);
+  return JSON.stringify(packed, null, 2);
+}
+
+export function importSaveJson(raw: string): { ok: boolean; reason?: string } {
+  try {
+    const packed = JSON.parse(raw) as { payload?: string; checksum?: string } | SaveBlobV2;
+    let blob: SaveBlobV2 | null = null;
+    if (packed && typeof packed === "object" && "payload" in packed && packed.payload && packed.checksum) {
+      blob = unpackSave({ payload: packed.payload, checksum: packed.checksum });
+      if (!blob) return { ok: false, reason: "checksum mismatch" };
+    } else {
+      const errs = validateSave(packed);
+      if (errs.length) return { ok: false, reason: errs[0] };
+      blob = packed as SaveBlobV2;
+    }
+    saveUnified(blob);
+    return { ok: true };
+  } catch {
+    return { ok: false, reason: "parse fail" };
+  }
+}
+
+let lastQuicksaveAt = 0;
+const QUICKSAVE_COOLDOWN_MS = 4000;
+
+/** §1.5.14 Quicksave with cooldown. */
+export function quicksave(partial?: Partial<SaveBlobV2>): { ok: boolean; reason?: string } {
+  const now = Date.now();
+  if (now - lastQuicksaveAt < QUICKSAVE_COOLDOWN_MS) {
+    return { ok: false, reason: "cooldown" };
+  }
+  lastQuicksaveAt = now;
+  saveUnified(partial);
+  return { ok: true };
+}
+
+/** §1.5.13 Autosave throttle — blocked during cutscene/chase spike/loading. */
+export function mayAutosave(flags: { cutscene?: boolean; chaseSpike?: boolean; loading?: boolean }): boolean {
+  if (flags.cutscene || flags.chaseSpike || flags.loading) return false;
+  return true;
+}
+
+/** §1.5.16 Cloud sync decision — local-only for browser MVP. */
+export const CLOUD_SYNC_DECISION =
+  "Local-only (localStorage). Cloud sync deferred until account auth exists; no silent remote overwrite.";

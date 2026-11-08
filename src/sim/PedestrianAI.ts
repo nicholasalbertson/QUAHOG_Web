@@ -10,6 +10,12 @@ import type { Vec2 } from "./types";
 import { dist } from "./math";
 import { rng } from "./Rng";
 import { OccupancyGrid } from "./OccupancyGrid";
+import {
+  createCrosswalkAgent,
+  stepCrosswalk,
+  walkWindowFromClock,
+  type CrosswalkAgent,
+} from "./CrosswalkFsm";
 
 export type PedLod = "near" | "mid" | "far";
 
@@ -29,6 +35,12 @@ export interface PedAgent {
   stuckX?: number;
   stuckZ?: number;
   stuckT?: number;
+  /** §1.2.22 Door interaction — TTL while "inside" building. */
+  doorTTL?: number;
+  doorX?: number;
+  doorZ?: number;
+  /** §1.2.18 Crosswalk FSM state. */
+  crosswalk?: CrosswalkAgent;
 }
 
 export interface PedestrianAIOptions {
@@ -53,6 +65,9 @@ export class PedestrianAI {
   private farAcc = 0;
   private center: Vec2 = { x: 0, z: 0 };
   private graph: PedGraph | null = null;
+  /** §1.2.19 Stream residency radius (metres); 0 = unlimited. */
+  private residencyR = 0;
+  private simElapsed = 0;
 
   constructor(opts: PedestrianAIOptions = {}) {
     this.nearR = opts.nearR ?? 40;
@@ -69,6 +84,12 @@ export class PedestrianAI {
 
   setGraph(g: PedGraph | null): void {
     this.graph = g;
+    g?.rebuildCosts({ crowdAt: (x, z) => this.occupancy.countAt(x, z) });
+  }
+
+  /** §1.2.19 Tie spawn/despawn to streamer interest radius. */
+  setResidencyRadius(r: number): void {
+    this.residencyR = Math.max(0, r);
   }
 
   rebuildIndex(agents: PedAgent[]): void {
@@ -105,16 +126,42 @@ export class PedestrianAI {
     if (runMid) this.midAcc = 0;
     if (runFar) this.farAcc = 0;
 
+    this.simElapsed += dt;
+
     // §1.2.15 Occupancy decay + rebuild for active agents.
     this.occupancy.decay(0.8);
     for (const a of agents) {
-      if (!a.dead && a.down <= 0) this.occupancy.insert(a.x, a.z);
+      if (!a.dead && a.down <= 0 && !(a.doorTTL && a.doorTTL > 0)) this.occupancy.insert(a.x, a.z);
+    }
+    // Refresh crowd costs periodically (§1.2.13).
+    if (this.graph && Math.floor(this.simElapsed * 2) !== Math.floor((this.simElapsed - dt) * 2)) {
+      this.graph.rebuildCosts({ crowdAt: (x, z) => this.occupancy.countAt(x, z) });
     }
 
     let simulated = 0;
     for (const a of agents) {
       if (performance.now() - t0 > budgetMs) break;
       if (a.dead || a.down > 0) continue;
+
+      // §1.2.19 Despawn outside residency ring (streamer-tied).
+      if (this.residencyR > 0 && dist(a.x, a.z, this.center.x, this.center.z) > this.residencyR) {
+        a.dead = true;
+        continue;
+      }
+
+      // §1.2.22 Door TTL — invisible until respawn at door.
+      if (a.doorTTL != null && a.doorTTL > 0) {
+        a.doorTTL -= dt;
+        if (a.doorTTL <= 0) {
+          a.x = a.doorX ?? a.x;
+          a.z = a.doorZ ?? a.z;
+          a.doorTTL = 0;
+          a.path = null;
+          this.assignSidewalkRoute(a);
+        }
+        simulated++;
+        continue;
+      }
 
       const lod = this.lodOf(a, player);
       if (lod === "mid" && !runMid) continue;
@@ -186,11 +233,41 @@ export class PedestrianAI {
       const wp = a.path[Math.min(cursor, a.path.length - 1)];
       a.goalX = wp.x;
       a.goalZ = wp.z;
+
+      // §1.2.18 Crosswalk FSM when near a crosswalk node.
+      if (this.graph) {
+        const nid = this.graph.nearestNode(a.x, a.z, 6);
+        const nk = nid != null ? this.graph.node(nid)?.kind : undefined;
+        const atCw = nk === "crosswalk";
+        if (!a.crosswalk) a.crosswalk = createCrosswalkAgent();
+        const phase = stepCrosswalk(
+          a.crosswalk,
+          dt,
+          atCw,
+          walkWindowFromClock(this.simElapsed, a.id * 0.37),
+        );
+        if (phase === "wait") {
+          a.heading = Math.atan2(a.goalX - a.x, a.goalZ - a.z);
+          return;
+        }
+      }
+
       let dx = a.goalX - a.x;
       let dz = a.goalZ - a.z;
       const d = Math.hypot(dx, dz);
       if (d < 0.7) {
+        // §1.2.22 Enter door at path end.
         if (cursor + 1 >= a.path.length) {
+          if (this.graph) {
+            const endId = this.graph.nearestNode(a.x, a.z, 4);
+            if (endId != null && this.graph.node(endId)?.kind === "door") {
+              a.doorX = a.x;
+              a.doorZ = a.z;
+              a.doorTTL = 4 + rng.stream("peds").next() * 8;
+              a.path = null;
+              return;
+            }
+          }
           this.assignSidewalkRoute(a);
           return;
         }

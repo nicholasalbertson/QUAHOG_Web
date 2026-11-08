@@ -2,7 +2,7 @@
  * §1.3.12–18 Mission triggers — volume / distance / timer with fire-once.
  */
 
-export type TriggerKind = "sphere" | "aabb" | "distance" | "timer" | "flag";
+export type TriggerKind = "sphere" | "aabb" | "distance" | "timer" | "flag" | "damage" | "inventory";
 
 export interface TriggerBase {
   id: string;
@@ -46,13 +46,33 @@ export interface FlagTrigger extends TriggerBase {
   expect: boolean;
 }
 
-export type Trigger = SphereTrigger | AabbTrigger | DistanceTrigger | TimerTrigger | FlagTrigger;
+export interface DamageTrigger extends TriggerBase {
+  kind: "damage";
+  hpBelow: number;
+}
+
+export interface InventoryTrigger extends TriggerBase {
+  kind: "inventory";
+  item: string;
+  min?: number;
+}
+
+export type Trigger =
+  | SphereTrigger
+  | AabbTrigger
+  | DistanceTrigger
+  | TimerTrigger
+  | FlagTrigger
+  | DamageTrigger
+  | InventoryTrigger;
 
 export interface TriggerEvalCtx {
   x: number;
   z: number;
   dt: number;
   flag?: (key: string) => boolean;
+  hp?: number;
+  inventory?: Record<string, number>;
 }
 
 /** Evaluate one trigger; returns true when it fires this tick. */
@@ -77,6 +97,12 @@ export function evalTrigger(t: Trigger, ctx: TriggerEvalCtx): boolean {
       break;
     case "flag":
       hit = (ctx.flag?.(t.flagKey) ?? false) === t.expect;
+      break;
+    case "damage":
+      hit = (ctx.hp ?? 100) < t.hpBelow;
+      break;
+    case "inventory":
+      hit = (ctx.inventory?.[t.item] ?? 0) >= (t.min ?? 1);
       break;
   }
   if (!hit) return false;

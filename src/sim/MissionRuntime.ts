@@ -34,6 +34,20 @@ export interface MissionRuntimeSnapshot {
   stepElapsed: number;
 }
 
+/** §1.3.30 Checkpoint — enough to retry to an identical hash (modulo RNG). */
+export interface MissionCheckpoint {
+  snap: MissionRuntimeSnapshot;
+  worldHash: string;
+  ownedSeeds: { id: string; kind: string; step?: number }[];
+  inventory: Record<string, number>;
+  position: { x: number; z: number };
+  hp: number;
+  police: number;
+  rngDigest?: string;
+}
+
+export type ObjectiveState = "pending" | "active" | "complete" | "failed";
+
 type EventHandler = (e: GameEvent) => void;
 
 export class MissionRuntime {
@@ -57,6 +71,9 @@ export class MissionRuntime {
   private emitting = false;
   private emitQueue: GameEvent[] = [];
   private triggers: Trigger[] = [];
+  private checkpoint: MissionCheckpoint | null = null;
+  private economyDipGuard = false;
+  objectiveState: ObjectiveState = "pending";
 
   start(mi: number, step = 0, failSec: number | null = null): void {
     this.cleanupOwned();
@@ -68,7 +85,52 @@ export class MissionRuntime {
     this.elapsed = 0;
     this.stepElapsed = 0;
     this.stepFailSec = failSec;
+    this.economyDipGuard = false;
+    this.objectiveState = "active";
     this.emit({ type: "mission.start", payload: { mi, step } });
+  }
+
+  /**
+   * §1.3.30 Capture checkpoint for exact retry.
+   */
+  captureCheckpoint(opts: {
+    worldHash: string;
+    inventory?: Record<string, number>;
+    position: { x: number; z: number };
+    hp?: number;
+    police?: number;
+    rngDigest?: string;
+  }): MissionCheckpoint {
+    const cp: MissionCheckpoint = {
+      snap: this.serialize(),
+      worldHash: opts.worldHash,
+      ownedSeeds: [...this.owned.values()].map((e) => ({
+        id: e.id,
+        kind: e.kind,
+        step: e.step,
+      })),
+      inventory: { ...(opts.inventory ?? {}) },
+      position: { ...opts.position },
+      hp: opts.hp ?? 100,
+      police: opts.police ?? 0,
+      rngDigest: opts.rngDigest,
+    };
+    this.checkpoint = cp;
+    this.emit({ type: "mission.checkpoint", payload: { hash: cp.worldHash } });
+    return cp;
+  }
+
+  lastCheckpoint(): MissionCheckpoint | null {
+    return this.checkpoint;
+  }
+
+  /** §1.3.34 Replay completed mission must not double-dip economy. */
+  markEconomySettled(): void {
+    this.economyDipGuard = true;
+  }
+
+  canAwardEconomy(): boolean {
+    return !this.economyDipGuard;
   }
 
   /**
@@ -215,7 +277,7 @@ export class MissionRuntime {
   advance(
     dt: number,
     events: readonly GameEvent[] = [],
-    pose?: { x: number; z: number },
+    pose?: { x: number; z: number; hp?: number; inventory?: Record<string, number>; flag?: (k: string) => boolean },
   ): boolean {
     if (this.phase !== "active") return false;
     this.elapsed += dt;
@@ -225,7 +287,16 @@ export class MissionRuntime {
 
     if (pose) {
       for (const t of this.triggers) {
-        if (evalTrigger(t, { x: pose.x, z: pose.z, dt })) {
+        if (
+          evalTrigger(t, {
+            x: pose.x,
+            z: pose.z,
+            dt,
+            hp: pose.hp,
+            inventory: pose.inventory,
+            flag: pose.flag,
+          })
+        ) {
           this.emit({ type: "mission.trigger", payload: { id: t.id, kind: t.kind } });
         }
       }
@@ -242,16 +313,20 @@ export class MissionRuntime {
   completeStep(nextStep: number, nextFailSec: number | null = null): void {
     if (this.phase !== "active") return;
     this.cleanupStep(this.step);
+    this.emit({ type: "mission.step.changed", payload: { from: this.step, to: nextStep } });
     this.emit({ type: "mission.step", payload: { from: this.step, to: nextStep } });
     this.step = nextStep;
     this.stepElapsed = 0;
     this.stepFailSec = nextFailSec;
+    this.objectiveState = "active";
   }
 
   completeMission(): void {
     this.cleanupOwned();
     this.phase = "complete";
     this.failReason = null;
+    this.objectiveState = "complete";
+    this.markEconomySettled();
     this.emit({ type: "mission.complete" });
     this.assertNoLeaks("complete");
   }
@@ -261,21 +336,42 @@ export class MissionRuntime {
     this.cleanupOwned();
     this.phase = "failed";
     this.failReason = reason;
+    this.objectiveState = "failed";
     this.emit({ type: "mission.fail", payload: { reason } });
     this.assertNoLeaks("fail");
   }
 
-  /** Retry the current mission index from the current step (or step 0). */
-  retry(fromStep?: number, failSec: number | null = null): void {
-    const step = fromStep ?? this.step;
+  /**
+   * §1.3.31–32 Retry from checkpoint when available; assert world hash match.
+   */
+  retry(fromStep?: number, failSec: number | null = null): MissionCheckpoint | null {
+    const cp = this.checkpoint;
+    const step = fromStep ?? cp?.snap.step ?? this.step;
     this.cleanupOwned();
     this.phase = "active";
     this.failReason = null;
     this.step = step;
-    this.elapsed = 0;
+    this.elapsed = cp?.snap.elapsed ?? 0;
     this.stepElapsed = 0;
     this.stepFailSec = failSec;
-    this.emit({ type: "mission.retry", payload: { mi: this.mi, step } });
+    this.objectiveState = "active";
+    this.emit({
+      type: "mission.retry",
+      payload: { mi: this.mi, step, hash: cp?.worldHash ?? null },
+    });
+    return cp;
+  }
+
+  /** §1.3.32 Assert retry restores identical world hash. */
+  assertCheckpointHash(currentHash: string): boolean {
+    if (!this.checkpoint) return false;
+    const ok = this.checkpoint.worldHash === currentHash;
+    if (!ok) {
+      console.warn(
+        `[MissionRuntime] checkpoint hash mismatch want=${this.checkpoint.worldHash} got=${currentHash}`,
+      );
+    }
+    return ok;
   }
 
   abandon(): void {
