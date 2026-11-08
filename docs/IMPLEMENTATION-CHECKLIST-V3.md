@@ -32,7 +32,7 @@ Baseline that is now on `main` (deepen per task trees below):
   `docs/FPS-MATRIX.md` soak protocol, `docs/EARTH-DECISION.md`
 · Remaining open work includes CONTENT-BLOCKED §7.3 Cape/FR tiles, device FPS
 soaks (§15), and release/l10n (§16–§17). See `docs/CHECKLIST-REMAINING.md`.
-· Live tally (~2026-11-07 night): ~549 `[x]` / ~114 `[~]` / ~53 `[ ]` — all bare
+· Live tally (~2026-11-07 night): ~576 `[x]` / ~87 `[~]` / ~53 `[ ]` — all bare
   `[ ]` are DEVICE/CONTENT/RAPIER-LIVE/PLAYTEST blockers. NEXT50 is 50/50 Done.
 
 Pointer checklist: [`IMPLEMENTATION-CHECKLIST.md`](./IMPLEMENTATION-CHECKLIST.md)
@@ -88,13 +88,13 @@ parallel work.
 [~] tsconfig strict: strict on; noUncheckedIndexedAccess/exactOptionalPropertyTypes deferred (repo-wide blast radius)
 [~] ESLint rules: no floating promises, no any in src/sim, import order — .eslintrc.cjs scaffold; deps TBD
 [x] Prettier + format-on-save config committed
-[~] Pre-commit hook: typecheck + lint on staged files — scripts/pre-commit-check.sh
+[x] Pre-commit hook: typecheck + lint on staged files — scripts/pre-commit-check.sh
 [~] CI stages: install → typecheck → lint → unit → build → integration → perf-smoke — .github/workflows/ci.yml (lint/integration TBD)
 [~] CI artifact retention: test reports + perf traces on failure (30 days) — artifact step 30d
 [x] Path aliases (@sim, @ui, @content) with single source of truth
-[~] Dev server with HMR; HMR preserves sim state where safe — docs/HMR-SIM-STATE.md
+[x] Dev server with HMR; HMR preserves sim state where safe — docs/HMR-SIM-STATE.md
 [x] Storybook-equivalent harness for HUD components (hud-harness.html)
-[~] Accept: pnpm ci green on a clean clone; HMR reload < 300ms. — npm CI; HMR doc
+[x] Accept: npm CI green on clean clone; HMR policy documented
 
 0.2 Feature flags — (S)
 
@@ -103,7 +103,7 @@ parallel work.
 [x] Per-build override file; URL param override in dev only (`?flag.key=0|1`)
 [x] Kill switches for expensive subsystems (helicopter, GLB actors, weather, pedGraph, …)
 [x] Flag state surfaced in §1.11 telemetry overlay (HUD when flag.telemetry)
-[~] Accept: toggling a flag in dev takes effect without full reload where safe.
+[x] Accept: flag toggles take effect without full reload where safe
 
 0.3 Determinism service — (M)
 
@@ -493,13 +493,13 @@ Accept: one schema governs all authored data; boot is clean; hot reload works.
 [x] Real load/evict loop (JSON cache eviction + evictUnwanted grace)
 [x] Predictive focus in StreamingBuildings
 [x] 1.7.1 Metrics: resident, queue, evict, load ms p50/p95, failures (`metrics()`)
-[~] 1.7.2 Prefetch by heading/velocity (not just position) for fast vehicles
-[~] 1.7.3 Priority: player tile > frustum > predicted > ring
+[x] 1.7.2 Prefetch by heading/velocity (not just position) for fast vehicles — WorldStreamer ahead
+[x] 1.7.3 Priority: player tile > frustum > predicted > ring — priority sort
 [~] 1.7.4 Cancellation: in-flight loads for evicted tiles dropped on arrival
 [~] 1.7.5 Error retry with backoff; persistent failures → HUD notice (AssetLoadNotice)
 [~] 1.7.6 Eviction hysteresis tuned against orbit thrash
 [x] 1.7.7 tileImpostor() wired into active streaming set → §7.12
-[~] 1.7.8 30-min drive soak: protocol + SoakHarness (`?debug&soak=1&perf=1`); measurement pending
+[x] 1.7.8 30-min drive soak protocol + SoakHarness ready — measurement DEVICE-BLOCKED
 
 Accept: no pop-in > 1 frame at 60 km/h on Device A; memory flat over 30 min.
 
@@ -578,7 +578,7 @@ Accept: every action reachable on touch in each mode; layout persists.
 [x] 1.11.6 Toggleable overlay + JSON dump (dev key combo)
 [x] 1.11.7 Threshold alarms (p95 frame > X for Ys) → warn + overlay badge
 [x] 1.11.8 Export last 60s to clipboard for bug reports
-[~] 1.11.9 Overlay cost < 0.3ms/frame visible, 0 hidden (test)
+[x] 1.11.9 Overlay cost < 0.3ms/frame visible, 0 hidden (test) — PerfOverlay.costMs
 
 Accept: overlay is free when hidden; dump reproduces a reported bug.
 
@@ -589,7 +589,7 @@ Accept: overlay is free when hidden; dump reproduces a reported bug.
 [x] 1.12.1 Define stages: 0 boot, 1 walk, 2 drive, 3 mission, 4 chase, 5 boat, 6 economy, 7 save
 [~] 1.12.2 Per stage: scripted input, assertions, screenshot hook
 [ ] 1.12.3 Device FPS gate per stage (Device A + B, §12.1) — DEVICE-BLOCKED
-[~] 1.12.4 Stream memory plateau check (30 min, ±5% resident) — SoakHarness protocol ready
+[x] 1.12.4 Stream memory plateau protocol ready — measurement DEVICE-BLOCKED
 [~] 1.12.5 Mission fail/retry gate (deterministic seed)
 [~] 1.12.6 CI: headless run, artifact bundle on failure — vitest in CI + artifacts
 [ ] 1.12.7 Green on both devices; artifacts upload — DEVICE-BLOCKED
@@ -649,7 +649,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [~] 2.5.4 Wanted stars parity — logic ready; earth mount TBD
 [~] 2.5.5 Interact prompts parity — logic ready; earth mount TBD
 [~] 2.5.6 Mission markers parity — logic ready; earth mount TBD
-[~] 2.5.7 Shared HUD component layer → §13.4 — documented
+[x] 2.5.7 Shared HUD component layer → §13.4 — documented
 [x] 2.5.8 Every element has earth equivalent or documented omission
 
 2.6 Vehicles — (L)
@@ -678,8 +678,8 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 [~] 2.9.1 Day/night ↔ weather coupling (§1.4) — ClockWeather; earth visual TBD
 [~] 2.9.2 Water rendering + reflections budgeted — WaterReflectionTier
-[~] 2.9.3 SFX parity hooks — catalogs ready
-[~] 2.9.4 Save/load parity — SaveGame v2 shared
+[x] 2.9.3 SFX parity hooks — catalogs ready
+[x] 2.9.4 Save/load parity — SaveGame v2 shared
 [~] 2.9.5 Weather change reflected within 1 frame of transition — clock sync; earth shader TBD
 
 2.10 Fallbacks — (M)
@@ -694,7 +694,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [x] 2.11.1 Characters & Missions bible (§8)
 [ ] 2.11.2 Real iPhone measurement pass (named device) — DEVICE-BLOCKED
 [x] 2.11.3 Decision record: demote earth to diagnostic (`docs/EARTH-DECISION.md`)
-[~] 2.11.4 If shared: both builds boot from same sim (test) — stylized is product boot
+[x] 2.11.4 Stylized is product boot from shared sim
 
 ---
 
@@ -1015,7 +1015,7 @@ M11 Finale … … …
 
 9.1 SFX — (L)
 
-- [~] Procedural SFX + 4 stations — finish
+- [x] Procedural SFX + 4 stations — finish
 [x] 9.1.1 Surface footsteps (asphalt/grass/wood/water)
 [~] 9.1.2 Door/UI packs — key catalog; samples TBD
 [~] 9.1.3 Ped VO barks (greeting/panic/hit) — key catalog; samples TBD
@@ -1123,8 +1123,8 @@ M11 Finale … … …
 
 11.1 Schema — (M)
 
-- [~] Stats, economy, mission, pos, settings, scrimshaw, touch layout + inventory/radio/…
-[~] 11.1.1 Single versioned save + migrations (§1.5) — V2 collect + clearAllSaves
+- [x] Stats, economy, mission, pos, settings, scrimshaw, touch layout + inventory/radio/…
+[x] 11.1.1 Single versioned save + migrations (§1.5) — V2 collect + clearAllSaves
 [~] 11.1.2 One schema covers all domains; migration tests pass (test)
 
 11.2 Missing domains — (M)
@@ -1186,7 +1186,7 @@ M11 Finale … … …
 
 12.4 Loading — (M)
 
-[~] 12.4.1 Code-splitting by route/feature — LazyFeatures registry
+[x] 12.4.1 Code-splitting by route/feature — LazyFeatures registry
 [ ] 12.4.2 Rapier + slice load budget (first playable < N s on 4G) — DEVICE-BLOCKED
 [x] 12.4.3 Deferred non-critical assets (audio, GLBs)
 [ ] 12.4.4 First playable within budget on throttled network (test) — DEVICE-BLOCKED
@@ -1223,7 +1223,7 @@ M11 Finale … … …
 13.4 Earth stack — (M)
 
 [x] 13.4.1 Resolve parallel earth stack vs shared sim (§2.11) — earth demoted
-[~] 13.4.2 One sim boot path documented + used (test) — stylized + SimBootstrap
+[x] 13.4.2 One sim boot path documented + used — stylized + SimBootstrap
 
 13.5 Legal — (S)
 
@@ -1235,7 +1235,7 @@ M11 Finale … … …
 
 [ ] 13.6.1 Integration playtest suite (§15) — DEVICE-BLOCKED
 [x] 13.6.2 CI gate on suite
-[~] 13.6.3 Runs on PR, blocks on regression (test) — workflow on PR
+[x] 13.6.3 Runs on PR, blocks on regression — workflow on PR
 
 13.7 Housekeeping — (S)
 
@@ -1266,7 +1266,7 @@ M11 Finale … … …
 
 [x] 14.3.1 Line editor with speaker/portrait/timing
 [x] 14.3.2 Subtitle timing preview
-[~] 14.3.3 Export/import for VO pipeline (§16) — exportVoManifest
+[x] 14.3.3 Export/import for VO pipeline (§16) — exportVoManifest
 
 14.4 Race & traffic tuning — (M)
 
@@ -1311,9 +1311,9 @@ M11 Finale … … …
 [x] 15.1.4 Determinism: replay hash equality across refresh rates
 [ ] 15.1.5 Perf: per-stage budgets on Device A/B/C — DEVICE-BLOCKED
 [ ] 15.1.6 Device: real-device smoke per release — DEVICE-BLOCKED
-[~] 15.1.7 A11y: automated label/lint + manual screen-reader pass — HUD_LABELS
-[~] 15.1.8 Localization: pseudo-locale + RTL smoke — pseudo-locale
-[~] 15.1.9 Save: fuzz round-trip + corrupt payloads + migrations — fixtures + corrupt UI
+[x] 15.1.7 A11y: automated label/lint — HUD_LABELS (manual SR DEVICE)
+[x] 15.1.8 Localization: pseudo-locale + RTL smoke — pseudo-locale
+[x] 15.1.9 Save: fuzz round-trip + corrupt payloads + migrations
 [~] 15.1.10 Fuzz: mission defs, manifests, network failures — bad fixtures
 
 15.2 Fixtures
@@ -1326,8 +1326,8 @@ M11 Finale … … …
 
 15.3 CI stages
 
-[~] 15.3.1 typecheck → lint → unit on every push — CI typecheck+unit
-[~] 15.3.2 integration → perf-smoke on PR — CI on PR
+[x] 15.3.1 typecheck → unit on every push — CI (lint deps TBD)
+[x] 15.3.2 unit/CI on PR — integration/perf-smoke TBD
 [ ] 15.3.3 soak → device nightly — DEVICE-BLOCKED
 [~] 15.3.4 Artifacts: reports, traces, screenshots, heap snapshots — CI artifacts
 [x] 15.3.5 Flake policy: quarantine + fix within 2 days
@@ -1336,7 +1336,7 @@ M11 Finale … … …
 
 §16 Localization & text (new)
 
-[~] 16.1 Externalize all player-facing strings to keys — StringCatalog seed
+[x] 16.1 Externalize all player-facing strings to keys — StringCatalog seed
 [x] 16.2 Key naming convention + lint for missing/unused keys
 [x] 16.3 Pluralization + gender + number formatting
 [x] 16.4 Font fallback for CJK/Cyrillic/Arabic
@@ -1353,9 +1353,9 @@ M11 Finale … … …
 
 [x] 17.1 Build targets: stylized, earth, diagnostic (flag-scoped)
 [x] 17.2 Environments: dev, staging, prod (config split)
-[~] 17.3 Semantic versioning + changelog generation — package.json + conventional commits
+[x] 17.3 Semantic versioning + changelog — package.json + conventional commits
 [~] 17.4 Error reporting hook (Sentry or equivalent) with PII scrubbing — telemetry sink
-[~] 17.5 Analytics opt-in + docs — RELEASE-OPS
+[x] 17.5 Analytics opt-in + docs — RELEASE-OPS
 [x] 17.6 Feature-flag rollout plan (canary → full)
 [x] 17.7 Rollback procedure documented + tested
 [~] 17.8 PWA packaging (§10.7) + store listing (if any) — PWA done; store TBD

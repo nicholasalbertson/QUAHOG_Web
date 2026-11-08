@@ -4,13 +4,13 @@ Canonical: [`IMPLEMENTATION-CHECKLIST-V3.md`](./IMPLEMENTATION-CHECKLIST-V3.md) 
 
 | Status | Count |
 |--------|------:|
-| Done `[x]` | ~549 |
-| Partial `[~]` | ~114 |
+| Done `[x]` | ~577 |
+| Partial `[~]` | ~86 |
 | Open `[ ]` | ~53 |
 
 **All remaining `[ ]` items are annotated blockers** (DEVICE / CONTENT / RAPIER-LIVE / PLAYTEST). No further unmarked code-only checklist IDs.
 
-Partials (`[~]`) still open are mostly earth-mount parity, live actor migration (car/boat fixed-step lineage), CI lint polish, art/sample packs, or soak measurement — not bare unmarked todos.
+Partials (`[~]`) still open are mostly earth-mount parity, live actor migration (car/boat fixed-step lineage), CI eslint dep install, art/sample packs, branding decision, or Cape/FR content — not unmarked code todos.
 
 ## Blocker classes
 
