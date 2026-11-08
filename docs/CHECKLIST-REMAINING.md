@@ -4,21 +4,21 @@ Canonical: [`IMPLEMENTATION-CHECKLIST-V3.md`](./IMPLEMENTATION-CHECKLIST-V3.md) 
 
 | Status | Count |
 |--------|------:|
-| Done `[x]` | ~380 |
-| Partial `[~]` | ~173 |
-| Open `[ ]` | ~179 |
+| Done `[x]` | ~396 |
+| Partial `[~]` | ~183 |
+| Open `[ ]` | ~153 |
 
-Progress: autonomous V3 deepen through stability, systems, HUD/input/audio, PWA marks.
+Autonomous deepen continues; remaining opens are mostly device/content/release or Earth photoreal.
 
 ## Hard blockers
 
 - §7.2–§7.3 authored district / Cape tiles (CONTENT-BLOCKED)
-- §15 Device A/B/C measured FPS
+- §15 Device A/B/C measured FPS + thermal matrix
 - §16–§17 l10n / store packaging
-- §2 Earth photoreal content soaks
-- §9.1 audio *binary* sample packs
-- Rapier live contacts; mission 11/11 authored set pieces
+- §2 Earth GLB packs / soaks / Rapier contacts
+- §9.1 audio binary sample packs
+- Mission 11/11 authored completion
 
 ## Keep shipping
 
-Wire modules into StreetLife/HUD; remaining code-only opens; honest blocker marks.
+Wire sim → StreetLife/HUD; CI stages; honest CONTENT-BLOCKED marks.

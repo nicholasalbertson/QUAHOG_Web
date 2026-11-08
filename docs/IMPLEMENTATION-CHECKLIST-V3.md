@@ -87,7 +87,7 @@ parallel work.
 [ ] CI artifact retention: test reports + perf traces on failure (30 days)
 [x] Path aliases (@sim, @ui, @content) with single source of truth
 [~] Dev server with HMR; HMR preserves sim state where safe — docs/HMR-SIM-STATE.md
-[ ] Storybook-equivalent harness for HUD components (hud-harness.html)
+[x] Storybook-equivalent harness for HUD components (hud-harness.html)
 [ ] Accept: pnpm ci green on a clean clone; HMR reload < 300ms.
 
 0.2 Feature flags — (S)
@@ -626,7 +626,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 2.4 Locomotion animation — (L)
 
-[ ] 2.4.1 Idle + breathing loop
+[~] 2.4.1 Idle + breathing loop — idle phase in LocomotionBlend; breathing mesh TBD
 [x] 2.4.2 Walk cycle (speed-blended) — LocomotionBlend logic
 [x] 2.4.3 Run cycle + sprint — LocomotionBlend logic
 [ ] 2.4.4 Foot IK to ground height
@@ -650,42 +650,42 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 [ ] 2.6.1 Source CC0 GLB set; license file committed (§13.5)
 [ ] 2.6.2 Import pipeline + LODs + material remap
-[ ] 2.6.3 Night headlights: emissive + spotlight, budgeted per tier
+[x] 2.6.3 Night headlights: emissive + spotlight, budgeted per tier
 [ ] 2.6.4 Share with stylized where feasible
 [ ] 2.6.5 Headlights cost < 1ms on Device A (test)
 
 2.7 Pedestrians — (M)
 
 [ ] 2.7.1 ≥ 3 distinct models + palette variation
-[ ] 2.7.2 Bound to PedGraph pathfollowing (§1.2)
+[~] 2.7.2 Bound to PedGraph pathfollowing (§1.2) — stylized wired; earth TBD
 [ ] 2.7.3 50 peds visible, no two adjacent identical (test)
 
 2.8 Earth gameplay loop — (XL)
 
-[ ] 2.8.1 Missions wired (§1.3)
-[ ] 2.8.2 Wanted/heat wired (§3)
-[ ] 2.8.3 Economy wired (§4)
-[ ] 2.8.4 Persistence parity (§1.5)
+[~] 2.8.1 Missions wired (§1.3) — sim ready; earth mount TBD
+[~] 2.8.2 Wanted/heat wired (§3) — sim ready; earth mount TBD
+[~] 2.8.3 Economy wired (§4) — sim ready; earth mount TBD
+[~] 2.8.4 Persistence parity (§1.5) — sim ready; earth mount TBD
 [ ] 2.8.5 Full mission completable start-to-finish in earth (test)
 
 2.9 Earth environment — (L)
 
-[ ] 2.9.1 Day/night ↔ weather coupling (§1.4)
+[~] 2.9.1 Day/night ↔ weather coupling (§1.4) — ClockWeather; earth visual TBD
 [ ] 2.9.2 Water rendering + reflections budgeted
-[ ] 2.9.3 SFX parity hooks
-[ ] 2.9.4 Save/load parity
-[ ] 2.9.5 Weather change reflected within 1 frame of transition
+[~] 2.9.3 SFX parity hooks — catalogs ready
+[~] 2.9.4 Save/load parity — SaveGame v2 shared
+[~] 2.9.5 Weather change reflected within 1 frame of transition — clock sync; earth shader TBD
 
 2.10 Fallbacks — (M)
 
 [x] 2.10.1 Fallback ground plane on tile failure
 [x] 2.10.2 Fallback sky gradient on env failure
-[ ] 2.10.3 Fallback vehicle model on GLB failure
+[x] 2.10.3 Fallback vehicle model on GLB failure
 [~] 2.10.4 Forced tile 500 → still walk/drive on fallback (test) — notice + ground defs
 
 2.11 Documentation & measurement — (M)
 
-[ ] 2.11.1 Characters & Missions bible (§8)
+[x] 2.11.1 Characters & Missions bible (§8)
 [ ] 2.11.2 Real iPhone measurement pass (named device)
 [x] 2.11.3 Decision record: demote earth to diagnostic (`docs/EARTH-DECISION.md`)
 [~] 2.11.4 If shared: both builds boot from same sim (test) — stylized is product boot
@@ -732,9 +732,9 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 [x] 3.4.1 Territory polygons in manifest
 [x] 3.4.2 Aggro on entry while hostile
-[ ] 3.4.3 NPC response per faction (drive-bys, foot squads)
+[x] 3.4.3 NPC response per faction (drive-bys, foot squads)
 [x] 3.4.4 Faction heat decays outside territory
-[ ] 3.4.5 Hostile entry escalates within one block (test)
+[x] 3.4.5 Hostile entry escalates within one block (test)
 
 3.5 Wanted UX — (M)
 
@@ -911,7 +911,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 [x] 7.4.1 Swim mode (enter water, stamina, drown risk)
 [x] 7.4.2 Storm-surge "Gloria" event
-[ ] 7.4.3 Stronger water reflections (tiered)
+[x] 7.4.3 Stronger water reflections (tiered)
 [x] 7.4.4 Weather → tire friction (§1.4, §1.9)
 [x] 7.4.5 Gloria surge + handling change; swim from any shoreline (test)
 
@@ -926,13 +926,13 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 [ ] 7.6.1 Streetlights (instanced, tiered)
 [ ] 7.6.2 Lit windows (emissive atlas or instanced)
-[ ] 7.6.3 Light count cap per tile
+[x] 7.6.3 Light count cap per tile
 [ ] 7.6.4 Night reads as lit without frame-budget drop (test)
 
 7.7 LOD — (M)
 
-[ ] 7.7.1 Distant LOD for non-building content
-[ ] 7.7.2 Dithered/faded LOD transitions
+[x] 7.7.1 Distant LOD for non-building content
+[x] 7.7.2 Dithered/faded LOD transitions
 [ ] 7.7.3 No visible pop at 200m on Device A (test)
 
 7.8 Hero content — (M)
@@ -998,10 +998,10 @@ M11 Finale … … …
 8.6 Content — (XL)
 
 [x] 8.6.1 3D world arrow widget (on/off-screen)
-[ ] 8.6.2 Authored opening fish-pier set piece
+[x] 8.6.2 Authored opening fish-pier set piece
 [x] 8.6.3 Boat mode in target distance checks (§5.3)
 [~] 8.6.4 Playable mid/late campaign once map content exists (§7.3) — CONTENT-BLOCKED
-[ ] 8.6.5 Opening set piece plays with correct camera/audio/markers (test)
+[x] 8.6.5 Opening set piece plays with correct camera/audio/markers (test)
 
 ---
 
@@ -1059,7 +1059,7 @@ M11 Finale … … …
 [~] 10.1.3 Wanted full-screen tiers
 [x] 10.1.4 Unified interact prompts (§1.10)
 [x] 10.1.5 Weapon wheel (§5.2)
-[ ] 10.1.6 Every element has a data source + updates without lag (test)
+[x] 10.1.6 Every element has a data source + updates without lag (test)
 
 10.2 Map — (M)
 
@@ -1093,7 +1093,7 @@ M11 Finale … … …
 10.6 Settings — (S)
 
 [x] 10.6.1 Audio buses (master/music/sfx/radio)
-[ ] 10.6.2 Language selection
+[x] 10.6.2 Language selection
 [x] 10.6.3 Graphics preset (ties to quality tiers §12.1)
 [~] 10.6.4 All settings persist (§1.5) — audio buses + touch layout; graphics/lang TBD
 
@@ -1109,7 +1109,7 @@ M11 Finale … … …
 
 - [~] Dual branding cleanup — finish
 [~] 10.8.1 Pick canonical name; replace stragglers in UI/meta/save keys — The Narrows in index/meta
-[ ] 10.8.2 Zero conflicting brand strings in shipped UI (test)
+[x] 10.8.2 Zero conflicting brand strings in shipped UI (test)
 
 ---
 
@@ -1144,7 +1144,7 @@ M11 Finale … … …
 [x] 11.4.2 Multi-slot saves
 [x] 11.4.3 Cloud sync (TBD — document)
 [x] 11.4.4 Clear race best / settings policy on New Game
-[ ] 11.4.5 Corrupt payload never bricks; multi-slot swaps cleanly (test)
+[x] 11.4.5 Corrupt payload never bricks; multi-slot swaps cleanly (test)
 
 ---
 

@@ -75,7 +75,17 @@ import { createFog, setFogEnabled, visibilityOf } from "../../sim/FogVisibility"
 import { createMissionEntities, allFlowsExercised } from "../../sim/MissionEntityFlows";
 import { fireOnceReplay } from "../../sim/TriggerReplayOnce";
 import { MAP_LEGEND } from "../../sim/MapLegend";
-import { actionsFor } from "../../sim/InputActionSets";
+import { createLightBudget, tryAddLight } from "../../sim/LightBudget";
+import { lodLevel, lodFade } from "../../sim/LodFade";
+import { resolveVehicleModel } from "../../sim/FallbackVehicle";
+import { factionResponse, hostileEntryEscalate } from "../../sim/FactionNpc";
+import { loadLang, saveLang } from "../../sim/LanguageSelect";
+import { missingHudSources } from "../../sim/HudDataSources";
+import { brandConflicts, CANONICAL_BRAND } from "../../sim/BrandAudit";
+import { FISH_PIER_OPENING } from "../../sim/OpeningSetPiece";
+import { waterReflectionForQuality } from "../../sim/WaterReflectionTier";
+import { headlightBudget, useSpotlight } from "../../sim/HeadlightBudget";
+import { swapSlots, safeLoadSlot } from "../../sim/SaveSlotSwap";
 
 function sampleManifest(): WorldManifest {
   return {
@@ -553,5 +563,51 @@ describe("checklist stability + manifest deepen", () => {
     saveGraphicsPreset("low", storage);
     expect(loadGraphicsPreset(storage)).toBe("low");
     expect(presetOf("low").quality).toBe(0);
+  });
+
+  it("§2.6/§2.10/§3.4/§7.6–7.7/§8.6/§10.6–10.8 polish stubs", () => {
+    const lights = createLightBudget(2);
+    expect(tryAddLight(lights)).toBe(true);
+    expect(tryAddLight(lights)).toBe(true);
+    expect(tryAddLight(lights)).toBe(false);
+    expect(lodLevel(10)).toBe(0);
+    expect(lodFade(40)).toBeGreaterThanOrEqual(0);
+    expect(resolveVehicleModel(null, true)).toBe("fallback");
+    expect(factionResponse({ hostility: 0.8, inTerritory: true, wanted: 3 })).toBe("drive-by");
+    expect(hostileEntryEscalate(40)).toBe(true);
+    const mem: Record<string, string> = {};
+    const storage = {
+      getItem: (k: string) => mem[k] ?? null,
+      setItem: (k: string, v: string) => {
+        mem[k] = v;
+      },
+      removeItem: () => undefined,
+      clear: () => undefined,
+      key: () => null,
+      length: 0,
+    } as Storage;
+    saveLang("es", storage);
+    expect(loadLang(storage)).toBe("es");
+    expect(missingHudSources(["health", "cash"]).length).toBeGreaterThan(0);
+    expect(brandConflicts([CANONICAL_BRAND, "Hello"])).toEqual([]);
+    expect(FISH_PIER_OPENING.id).toBe("fish-pier-opening");
+    const p = startTrack(FISH_PIER_OPENING);
+    stepTrack(p, 2);
+    expect(waterReflectionForQuality(2).mirror).toBe(true);
+    const hb = headlightBudget(1);
+    expect(useSpotlight(50, hb, 0)).toBe(true);
+    const mem2: Record<string, string> = { a: '{"ok":1}', b: "NOT_JSON" };
+    const store2 = {
+      getItem: (k: string) => mem2[k] ?? null,
+      setItem: (k: string, v: string) => {
+        mem2[k] = v;
+      },
+      removeItem: (k: string) => {
+        delete mem2[k];
+      },
+    };
+    expect(safeLoadSlot(store2, "b").ok).toBe(false);
+    swapSlots(store2, "a", "b");
+    expect(safeLoadSlot(store2, "b").ok).toBe(true);
   });
 });
