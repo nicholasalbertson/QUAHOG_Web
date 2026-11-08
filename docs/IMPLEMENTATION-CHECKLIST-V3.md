@@ -696,7 +696,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [x] 3.1.1 Dual axes: suspicion (unseen) vs wanted (seen); per-axis decay
 [x] 3.1.2 Witness system: ped LOS → suspicion; cop LOS → wanted
 [x] 3.1.3 Crime table: assault/shots/hit-run/kill → heat deltas
-[~] 3.1.4 LOS gating via SpatialIndex.segment (§1.8)
+[x] 3.1.4 LOS gating via SpatialIndex.segment (§1.8)
 [x] 3.1.5 Per-crime cooldown to prevent farming
 [x] 3.1.6 Decay when unseen + outside lose-heat zone
 [ ] 3.1.7 Shooting witness raises wanted; hiding lowers predictably (test)
@@ -833,7 +833,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 5.5 Traffic AI — (L)
 
-[ ] 5.5.1 Collision avoidance (car-following, lane change)
+[x] 5.5.1 Collision avoidance (car-following, lane change)
 [x] 5.5.2 Parking AI (drive to slot, park, despawn)
 [x] 5.5.3 Door/sidewalk coupling (parked driver becomes ped)
 [~] 5.5.4 Yield/lights via signal FSM (§13.1)
@@ -871,11 +871,11 @@ Accept: 20-min soak clean; context loss recovers without reload.
 6.4 Collectibles — (M)
 
 - [~] 8 downtown scrimshaw — finish
-[~] 6.4.1 Citywide sets (e.g. 30) + progress tracking
-[ ] 6.4.2 Map progress view + per-set rewards
-[ ] 6.4.3 Unique rewards (vehicles, weapons, cosmetics)
+[x] 6.4.1 Citywide sets (e.g. 30) + progress tracking
+[~] 6.4.2 Map progress view + per-set rewards
+[~] 6.4.3 Unique rewards (vehicles, weapons, cosmetics)
 [ ] 6.4.4 FR/Cape collectibles when content lands (§7.3)
-[ ] 6.4.5 Full set grants reward exactly once; saves (test)
+[x] 6.4.5 Full set grants reward exactly once; saves (test)
 
 ---
 
@@ -985,7 +985,7 @@ M11 Finale … … …
 
 8.5 Fail / retry / abandon / replay — (M)
 
-[ ] 8.5.1 Fail overlay + retry/abandon menu
+[x] 8.5.1 Fail overlay + retry/abandon menu
 [x] 8.5.2 Retry to checkpoint (§1.3)
 [x] 8.5.3 Abandon removes owned entities + markers
 [x] 8.5.4 Replay completed missions with no economy double-dip
@@ -1050,10 +1050,10 @@ M11 Finale … … …
 10.1 HUD — (L)
 
 - [~] HUD, minimap, big map, touch editor, menus — finish
-[ ] 10.1.1 Compass
-[ ] 10.1.2 Damage direction indicator
+[x] 10.1.1 Compass
+[x] 10.1.2 Damage direction indicator
 [ ] 10.1.3 Wanted full-screen tiers
-[ ] 10.1.4 Unified interact prompts (§1.10)
+[x] 10.1.4 Unified interact prompts (§1.10)
 [x] 10.1.5 Weapon wheel (§5.2)
 [ ] 10.1.6 Every element has a data source + updates without lag (test)
 

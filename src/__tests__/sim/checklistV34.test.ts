@@ -16,7 +16,6 @@ import {
 import { evalTrigger } from "../../sim/Triggers";
 import { MissionRuntime } from "../../sim/MissionRuntime";
 import { PedGraph } from "../../sim/PedGraph";
-import { HeatAxes } from "../../sim/HeatAxes";
 import { createBoat, damageBoat, sampleWave, stepBoat } from "../../sim/BoatDynamics";
 import {
   beginCutscene,
@@ -45,6 +44,15 @@ import { a11yColor, getA11y, setA11y } from "../../sim/Accessibility";
 import { SHOPS, canPurchase, nearestShop } from "../../sim/ShopCatalog";
 import { createWeaponWheel, openWheel, closeWheel, nudgeWheel } from "../../sim/WeaponWheel";
 import { createParkingAgent, stepParking } from "../../sim/ParkingAI";
+import { stepAvoidance } from "../../sim/TrafficAvoidance";
+import { prompts } from "../../sim/InteractPrompt";
+import { compassReading } from "../../sim/Compass";
+import { damageFromHit, stepDamagePulses } from "../../sim/DamageIndicator";
+import { SpatialIndex } from "../../sim/SpatialIndex";
+import { witnessesWithLos, applyWitnessHeat, type WitnessActor } from "../../sim/WitnessLos";
+import { openFailMenu, chooseFailAction } from "../../sim/MissionFailUi";
+import { COLLECTIBLE_SETS, claimSetReward } from "../../sim/CollectibleSets";
+import { HeatAxes } from "../../sim/HeatAxes";
 import type { Road } from "../../slice";
 
 describe("checklist v3.4 deepen", () => {
@@ -315,5 +323,41 @@ describe("checklist v3.4 signals/wasted/music/a11y", () => {
     const a = createParkingAgent("c1", 0, 0, { id: "s", x: 8, z: 0, yaw: 0 });
     for (let i = 0; i < 400 && a.phase !== "exitPed"; i++) stepParking(a, 0.05);
     expect(a.phase).toBe("exitPed");
+  });
+
+  it("§5.5.1 traffic avoidance slows for leader", () => {
+    const self = { id: "a", x: 0, z: 0, yaw: 0, speed: 12, lane: 0 };
+    const lead = { id: "b", x: 0, z: 10, yaw: 0, speed: 4, lane: 0 };
+    const out = stepAvoidance(self, [lead], 16);
+    expect(out.throttle).toBeLessThan(1);
+  });
+
+  it("§10.1 prompts + compass + damage indicator", () => {
+    prompts.clear();
+    prompts.upsert({ id: "s", kind: "sleep", label: "Sleep", priority: 2, x: 0, z: 0, radius: 5 });
+    expect(prompts.at(1, 1)?.kind).toBe("sleep");
+    const c = compassReading(0, { x: 10, z: 0 }, { x: 0, z: 0 });
+    expect(c.waypointBearing).not.toBeNull();
+    const d = damageFromHit(0, { x: 0, z: 0 }, { x: 5, z: 0 });
+    expect(stepDamagePulses([d], 0.5).length).toBe(1);
+  });
+
+  it("§3.1.4 witness LOS + heat", () => {
+    const idx = new SpatialIndex<WitnessActor>({ sectorSize: 32 });
+    const ped: WitnessActor = { id: "p1", x: 5, z: 0, kind: "ped" };
+    idx.insert(ped, ped.x, ped.z);
+    const hits = witnessesWithLos(idx, { x: 0, z: 0 }, 40);
+    expect(hits.length).toBeGreaterThan(0);
+    const h = new HeatAxes();
+    applyWitnessHeat(hits, h);
+    expect(h.suspicion).toBeGreaterThan(0);
+  });
+
+  it("§8.5 fail menu + §6.4 set reward once", () => {
+    const menu = openFailMenu("wreck");
+    expect(chooseFailAction(menu, "retry").action).toBe("retry");
+    const set = COLLECTIBLE_SETS[0];
+    expect(claimSetReward(set, set.total, false).grant).toBe(true);
+    expect(claimSetReward(set, set.total, true).grant).toBe(false);
   });
 });
