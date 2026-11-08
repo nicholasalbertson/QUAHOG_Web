@@ -24,13 +24,17 @@ import { useInventory } from "../inventory";
 // the police-heat axis climbed and homed in — slow enough to outrun in a car
 // and lose on foot. They showed on the map. Being cornered (right on top)
 // for a 5s grace = busted. Cops could be shot (gun queues cop.dmg).)
-export const POLICE_ENABLED = false;
+// RE-ENABLED 2026-11-08 per Nic ("turn on to test") with the standoff fix:
+// in car mode units stop at STANDOFF_DIST instead of overlapping (the
+// 2026-11-02 bug). NPC cops getting out on foot + ram are NOT implemented.
+export const POLICE_ENABLED = true;
 
 const MAX_COPS = 3;
 const SPEED = 12.5;       // m/s — a car easily outruns this
 const SPAWN_DIST = 120;   // appear a few streets away (visible on the map)
 const GIVEUP_DIST = 170;  // beyond this for GIVEUP_TIME and they lose you
 const GIVEUP_TIME = 6;
+const STANDOFF_DIST = 10; // car mode: stop here, never overlap the car (Nic 2026-11-02 spec)
 const ARREST_DIST = 3.6;  // must be right on top to make the arrest
 const ARREST_GRACE = 5;   // seconds on top before busted
 const COP_HP = 3;
@@ -125,11 +129,14 @@ export function Police() {
         }
       }
 
-      // home toward the player
+      // home toward the player — in car mode stop at STANDOFF_DIST instead
+      // of overlapping (Nic 2026-11-02 spec); on foot, close in to arrest.
       const dx = target.x - u.pos.x, dz = target.z - u.pos.z;
       const d = Math.hypot(dx, dz) || 1;
-      u.pos.x += (dx / d) * SPEED * dt;
-      u.pos.z += (dz / d) * SPEED * dt;
+      if (!(game.mode === "car" && d <= STANDOFF_DIST)) {
+        u.pos.x += (dx / d) * SPEED * dt;
+        u.pos.z += (dz / d) * SPEED * dt;
+      }
       u.yaw = Math.atan2(dx, dz);
       u.car.pos.copy(u.pos);
 

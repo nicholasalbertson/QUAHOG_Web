@@ -25,6 +25,7 @@ import { GisDistrict } from "./world/GisDistrict";
 import { Water } from "./world/Water";
 import { Landmarks } from "./world/Landmarks";
 import { StreetLife } from "./world/StreetLife";
+import { Police } from "./world/Police";
 import { StoryProps } from "./world/StoryProps";
 import { setBuildingFootprints } from "./world/buildingAvoid";
 import { setCameraBuildings, clearCameraBuildings } from "./actors/cameraBuildings";
@@ -492,7 +493,9 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       <HealthPickups />
       <Race />
       <Posters />
-      {/* <Police /> removed 2026-11-02 per Nic (see POLICE_ENABLED in world/Police.tsx) */}
+      {/* Police re-enabled 2026-11-08 per Nic ("turn on to test"), with the
+          car-mode standoff fix in world/Police.tsx. */}
+      <Police />
       <Tracers />
       <Impacts />
       <SkidMarks />
