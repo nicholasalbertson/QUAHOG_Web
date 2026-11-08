@@ -3,13 +3,15 @@ import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import { makeNoiseNormal, makeSidewalkTexture, makeFreewayTexture } from "./textures";
 import { useGame } from "../store";
+import { shared } from "../shared";
 import { winterRoadTexture } from "./districtMaterials";
 import { productionRoadMaps } from "./productionRoadMaps";
 import type { Road } from "../slice";
 import { buildFreewayCorridor, freewayDividers, trimRoadAtFreeway } from "./freeway";
 import { classifyRoadSurface } from "./roadSurface";
 import { trimRoadEndsAtJunctions } from "./placement";
-import { vendorAsphaltTexture, vendorCobbleTexture } from "./vendorTextures";
+import { vendorAsphaltTexture, vendorCobbleNormal, vendorCobbleTexture } from "./vendorTextures";
+import { sim } from "../sim";
 
 const CELL = 1000;       // road chunk size (m)
 const DRAW_DIST = 1500;  // hide road chunks beyond this from the camera
@@ -161,7 +163,8 @@ export function Roads({ roads }: { roads: Road[] }) {
   // tsc failure in both R4 packages). Declared before first use.
   const quality = useGame((s) => s.quality);
   const pbrRoad = useMemo(() => quality > 0 ? productionRoadMaps() : null, [quality]);
-  const ns = useMemo(() => new THREE.Vector2(0.18, 0.18), []);
+  const ns = useMemo(() => new THREE.Vector2(0.72, 0.72), []);
+  const cobbleNor = useMemo(() => vendorCobbleNormal(), []);
   const sidewalkTex = useMemo(() => { const t = makeSidewalkTexture(); t.repeat.set(1, 4); return t; }, []);
 
   // chunk roads into a spatial grid so off-screen/distant cells are culled
@@ -254,22 +257,31 @@ export function Roads({ roads }: { roads: Road[] }) {
     }
   }, [chunks]);
 
-  // distance-cull cells + wet-road sheen (rain) via traversal
+  // distance-cull cells + continuous wet sheen from ClockWeather.wetness
   const root = useRef<THREE.Group>(null);
   const groups = useRef<(THREE.Group | null)[]>([]);
   const camera = useThree((s) => s.camera);
   useFrame(() => {
-    const wet = useGame.getState().weather === "rain" ? 1 : 0;
+    const weather = useGame.getState().weather;
+    sim.clock.syncFromShared(shared.day, shared.hour, weather);
+    const wet = Math.max(
+      weather === "rain" ? 0.85 : weather === "fog" ? 0.35 : 0,
+      sim.clock.wetness ?? 0,
+    );
     const cp = camera.position;
     chunks.forEach((c, i) => {
       const g = groups.current[i];
       if (g) g.visible = Math.hypot(cp.x - c.cx, cp.z - c.cz) < DRAW_DIST;
     });
-    if (wet !== lastWet.current) {
+    if (Math.abs(wet - lastWet.current) > 0.04) {
       lastWet.current = wet;
       root.current?.traverse((o) => {
         const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
-        if (m?.isMeshStandardMaterial) { m.roughness = Math.max(0.24, (m.userData.base ?? 0.9) - wet * 0.30); m.metalness = 0; }
+        if (m?.isMeshStandardMaterial) {
+          m.roughness = Math.max(0.18, (m.userData.base ?? 0.9) - wet * 0.42);
+          m.envMapIntensity = 0.35 + wet * 0.85;
+          m.metalness = 0;
+        }
       });
     }
   });
@@ -296,7 +308,7 @@ export function Roads({ roads }: { roads: Road[] }) {
           )}
           {c.cobble && (
             <mesh geometry={c.cobble} receiveShadow>
-              <meshStandardMaterial map={snowy ? snowRoad : cobbleTex} color={snowy ? "#dce2e5" : "#8a8580"} roughness={0.95} userData={{ base: 0.95 }} />
+              <meshStandardMaterial map={snowy ? snowRoad : cobbleTex} normalMap={snowy ? undefined : cobbleNor} normalScale={ns} color={snowy ? "#dce2e5" : "#8a8580"} roughness={0.95} userData={{ base: 0.95 }} />
             </mesh>
           )}
           {c.path && (

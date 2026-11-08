@@ -110,8 +110,9 @@ export function DayNight() {
       sun.current.position.set(px + sx, Math.max(sy, 1.5), pz + sz);
       sun.current.target.position.set(px, 0, pz);
       sun.current.target.updateMatrixWorld();
-      sun.current.intensity = (0.05 + dayT * 2.5) * (1 - rain * 0.65 - fogW * 0.5 - snow * 0.78);
-      cSun.set("#fff2dc").lerp(warm, dusk * 0.7);
+      sun.current.intensity = (0.05 + dayT * 2.65) * (1 - rain * 0.65 - fogW * 0.5 - snow * 0.78);
+      // Stronger golden-hour push — dusk used to wash out into white.
+      cSun.set("#fff2dc").lerp(warm, dusk * 0.92);
       sun.current.color.copy(cSun);
       // sun-glow sprite rides the sun direction, far out from the player
       if (glow.current) {
@@ -123,11 +124,13 @@ export function DayNight() {
       }
     }
     if (hemi.current) {
-      // Cooler ambient in snow (#20); slightly brighter clear daylight (#12).
-      hemi.current.intensity = (0.16 + dayT * (0.52 + (1 - rain - fogW - snow) * 0.06)) * (1 - rain * 0.25 - snow * 0.3);
+      // Cooler ambient in snow (#20); night hemi drops so windows read hotter.
+      hemi.current.intensity = (0.1 + dayT * (0.55 + (1 - rain - fogW - snow) * 0.06)) * (1 - rain * 0.25 - snow * 0.3);
       if (snow) hemi.current.color.set("#c8d4e0");
       else if (fogW) hemi.current.color.set("#b8c0c8");
+      else if (dayT < 0.15) hemi.current.color.set("#6a7a9a");
       else hemi.current.color.set("#dbe7ff");
+      hemi.current.groundColor.set(dayT < 0.2 ? "#1a1820" : "#3a3428");
     }
 
     // sky/fog/background lerp night→day with a warm dusk push, grey in rain/fog

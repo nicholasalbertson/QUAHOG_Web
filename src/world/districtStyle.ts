@@ -34,8 +34,9 @@ export function dressFootprint(g: THREE.BufferGeometry, b: Building): THREE.Buff
     const c = cap ? roof : wall;
     colors.set([c.r, c.g, c.b], i * 3);
     // Corner of each shared facade cell is plain wall, never a glowing window.
-    uv[i * 2] = cap ? 0.025 : (Math.abs(normal.getX(i)) > Math.abs(normal.getZ(i)) ? pos.getZ(i) : pos.getX(i)) / 3.2;
-    uv[i * 2 + 1] = cap ? 0.025 : pos.getY(i) / 3.2;
+    // Tighter floor UV (2.7 m) densifies windows vs the old 3.2 m storey.
+    uv[i * 2] = cap ? 0.025 : (Math.abs(normal.getX(i)) > Math.abs(normal.getZ(i)) ? pos.getZ(i) : pos.getX(i)) / 2.7;
+    uv[i * 2 + 1] = cap ? 0.025 : pos.getY(i) / 2.7;
   }
   g.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
   g.setAttribute("color", new THREE.BufferAttribute(colors, 3));

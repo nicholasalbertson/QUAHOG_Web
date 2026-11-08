@@ -38,12 +38,18 @@ export function Effects() {
       {/* ambient occlusion — contact darkening where buildings/props meet the
           ground and in recesses; the biggest single "grounding"/realism cue.
           halfRes keeps it cheap enough for the streamed city. */}
-      <N8AO halfRes aoRadius={1.2} distanceFalloff={1.0} intensity={0.7} />
-      <Bloom intensity={quality === 2 ? 0.18 : 0.1} luminanceThreshold={1.1} luminanceSmoothing={0.2} mipmapBlur />
+      <N8AO halfRes aoRadius={1.35} distanceFalloff={1.0} intensity={0.88} />
+      {/* Threshold lowered so night windows + neon actually bloom into the frame. */}
+      <Bloom
+        intensity={quality === 2 ? 0.32 : 0.2}
+        luminanceThreshold={0.82}
+        luminanceSmoothing={0.28}
+        mipmapBlur
+      />
       <HueSaturation ref={hs} hue={0} saturation={0} />
       <BrightnessContrast ref={bc} brightness={0} contrast={0.06} />
       <LUT lut={lut} />
-      <Vignette eskil={false} offset={0.35} darkness={0.24} />
+      <Vignette eskil={false} offset={0.32} darkness={0.28} />
       <SMAA />
     </EffectComposer>
   );

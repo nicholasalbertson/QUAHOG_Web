@@ -26,7 +26,9 @@ export function EnvLight() {
   }, [gl, scene]);
   useFrame(() => {
     const weather = useGame.getState().weather;
-    scene.environmentIntensity = (0.12 + shared.dayT * 0.24) * (weather === "snow" ? 0.7 : 1);
+    // Richer IBL bounce so wet asphalt / facade glass actually reflect the sky.
+    const storm = weather === "rain" || weather === "fog" ? 0.85 : weather === "snow" ? 0.7 : 1;
+    scene.environmentIntensity = (0.22 + shared.dayT * 0.38) * storm;
   });
   return null;
 }
