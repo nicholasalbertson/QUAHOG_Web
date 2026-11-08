@@ -16,8 +16,8 @@ import {
 } from "./tileFault";
 import { installTileLogGuard } from "./tileLog";
 import { guardPluginLifecycle } from "./googleAuth";
-import { IDLE_PAUSE_MS, advanceIdle, tileActivityFor } from "./frameLoop";
-import { followCam, forwardHit, groundY } from "./follow";
+import { IDLE_PAUSE_MS, advanceIdle, shouldDegrade, tileActivityFor } from "./frameLoop";
+import { followCam, forwardHit, groundY, sanitizePosition } from "./follow";
 
 describe("collision budget", () => {
   it("samples ground at 10 Hz and eases between hits", () => {
@@ -278,6 +278,14 @@ describe("frame loop", () => {
     expect(advanceIdle(7_500, 60_000, false)).toBe(8_500);
     expect(advanceIdle(4_000, 10, true)).toBe(0);
   });
+
+  it("§2.1.7 degrades only on a full window of sustained overrun", () => {
+    expect(shouldDegrade([])).toBe(false);
+    expect(shouldDegrade(Array(59).fill(0.05))).toBe(false); // window not full
+    expect(shouldDegrade(Array(60).fill(0.05))).toBe(true); // 50 ms mean
+    expect(shouldDegrade(Array(60).fill(0.016))).toBe(false); // 16 ms = 60 fps
+    expect(shouldDegrade(Array(60).fill(0.033))).toBe(false); // exactly at threshold
+  });
 });
 
 describe("scratch-vector helpers", () => {
@@ -296,5 +304,18 @@ describe("scratch-vector helpers", () => {
     const camera = new THREE.PerspectiveCamera();
     followCam(camera, parent, up, new THREE.Vector3(1, 2, 3), 0.4, 7, 4, 1);
     expect(Number.isFinite(camera.position.x)).toBe(true);
+  });
+
+  it("§2.1.4 resets a non-finite position to spawn and leaves good ones alone", () => {
+    const good = new THREE.Vector3(10, 3, -5);
+    expect(sanitizePosition(good, { x: 0, z: 0 })).toBe(false);
+    expect(good.x).toBe(10);
+    const bad = new THREE.Vector3(NaN, 3, -5);
+    expect(sanitizePosition(bad, { x: 12, z: -7 })).toBe(true);
+    expect(bad.x).toBe(12);
+    expect(bad.y).toBe(3);
+    expect(bad.z).toBe(-7);
+    const inf = new THREE.Vector3(1, Infinity, 2);
+    expect(sanitizePosition(inf, { x: 0, z: 0 })).toBe(true);
   });
 });

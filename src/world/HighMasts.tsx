@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Road } from "../slice";
+import { buildRoadIndex } from "./placement";
 
 // Rt 18 programme (2026-11-02): sparse high-mast lighting for the freeway,
 // replacing the curbside lamp posts the dressing exclusion removed from the
@@ -21,6 +22,10 @@ type Mast = { x: number; z: number; rot: number };
 
 export function buildHighMastPositions(roads: Road[], center: [number, number]): Mast[] {
   const out: Mast[] = [];
+  // Density cut (2026-11-07): a mast at width/2+2.5 from ONE carriageway can
+  // stand on the OPPOSITE carriageway of a divided freeway — 2 of 3 masts
+  // did. Drop anything inside a drivable street.
+  const roadIndex = buildRoadIndex(roads);
   let n = 0;
   for (const r of roads) {
     if (r.highway !== "motorway" || r.points.length < 2) continue;
@@ -37,6 +42,10 @@ export function buildHighMastPositions(roads: Road[], center: [number, number]):
         const x = x1 + ux * d + nx * off * side;
         const z = z1 + uz * d + nz * off * side;
         if (Math.hypot(x - center[0], z - center[1]) > RADIUS) continue;
+        // Advance n on the skip: the side alternates on n, and a dropped
+        // candidate must not lock every later candidate onto the same
+        // (blocked) side — that starved all 3 masts in the NB core.
+        if (roadIndex.inDrivableRoadway(x, z)) { n++; continue; }
         out.push({ x, z, rot: Math.atan2(nx * side, nz * side) });
         n++;
       }

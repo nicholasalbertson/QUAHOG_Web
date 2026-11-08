@@ -1,0 +1,50 @@
+// Pedestrian looks (§2.7.1/2.7.3) — pure, testable. Three distinct builds
+// (silhouettes) + a palette per build. The builds cycle deterministically
+// (i % 3), so two adjacent peds in the spawn list always differ in build
+// and can never be identical — the §2.7.3 "no two adjacent identical" rule
+// holds by construction, not by luck.
+export type PedBuild = "default" | "tall" | "stocky";
+export const PED_BUILDS: PedBuild[] = ["default", "tall", "stocky"];
+
+/** Root-group scale per build (feet stay at local y=0, so the scale is
+ *  about the ground — no floating or sinking). */
+export const PED_BUILD_SCALE: Record<PedBuild, [number, number, number]> = {
+  default: [1, 1, 1],
+  tall: [1, 1.12, 1], // longer legs, higher hips
+  stocky: [1.15, 0.95, 1.15], // wider, shorter
+};
+
+export const PED_SHIRTS = ["#c0563f", "#3f6cc0", "#4a8c52", "#b8a23a", "#7a4a8c"];
+export const PED_PANTS = ["#2c2f3a", "#3a3326", "#23344f", "#4a4a4a"];
+export const PED_SKINS = ["#caa07a", "#e0b48c", "#a87a52", "#8a5a36"];
+
+export interface PedLook {
+  build: PedBuild;
+  shirt: string;
+  pants: string;
+  skin: string;
+}
+
+const pick = <T,>(a: T[], rand: () => number): T => a[Math.floor(rand() * a.length)];
+
+export function assignPedLooks(n: number, rand: () => number = Math.random): PedLook[] {
+  return Array.from({ length: n }, (_, i) => ({
+    build: PED_BUILDS[i % PED_BUILDS.length],
+    shirt: pick(PED_SHIRTS, rand),
+    pants: pick(PED_PANTS, rand),
+    skin: pick(PED_SKINS, rand),
+  }));
+}
+
+/** Two looks are identical only if build + all palette entries match. */
+export function looksIdentical(a: PedLook, b: PedLook): boolean {
+  return a.build === b.build && a.shirt === b.shirt && a.pants === b.pants && a.skin === b.skin;
+}
+
+/** §2.7.3 — no two adjacent looks in the list are identical. */
+export function noAdjacentIdentical(looks: PedLook[]): boolean {
+  for (let i = 1; i < looks.length; i++) {
+    if (looksIdentical(looks[i - 1], looks[i])) return false;
+  }
+  return true;
+}

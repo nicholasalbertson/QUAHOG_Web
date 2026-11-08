@@ -8,6 +8,7 @@ import { sfx } from "../audio/sfx";
 import { clearAllSaves } from "../sim/SaveGame";
 import { getItem } from "../storage";
 import { worldJournal } from "../world/worldJournal";
+import { t, tf, STRINGS } from "../i18n/strings";
 
 // A save exists if EITHER the stats key or the position key is present.
 // (2026-11-07, streamer-stability diagnosis Q3.) The old gate required the
@@ -21,20 +22,11 @@ const hasSave = () => !!getItem("mounthope.save.v1") || !!getItem("mounthope.pos
 
 // Title / start screen (§22). Shown over the loading world until the player
 // presses Play; doubles as the first user gesture that unlocks audio.
-
-const TIPS = [
-  "WASD to move · Shift to sprint · E to grab a car.",
-  "G draws your pistol — click to fire. F throws hands. R reloads.",
-  "Heat climbs when you cause trouble. Lay low at the safehouse.",
-  "Ram a car to stop it, then jack it on foot with E.",
-  "Press M for the map, C for your character, ⚙ to lay out touch controls.",
-  "Buy fronts around the city (B) — they pay out every day.",
-  "FPS soak: open with ?debug&soak=1&perf=1 and drive the NB ring 30 min.",
-];
+// Tips live in the §16.1 string catalog (src/i18n/strings.ts, menu.tips).
 
 export function StartMenu({ sliceName, progress = 0 }: { sliceName: string; progress?: number }) {
   const started = useGame((s) => s.started);
-  const [tip] = useState(() => TIPS[Math.floor(Math.random() * TIPS.length)]);
+  const [tip] = useState(() => STRINGS.menu.tips[Math.floor(Math.random() * STRINGS.menu.tips.length)]);
   const [save, setSave] = useState(hasSave);
   // The menu is always mounted and returns null while playing, so the
   // useState initializer above runs ONCE at app mount. Re-check the gate
@@ -67,27 +59,31 @@ export function StartMenu({ sliceName, progress = 0 }: { sliceName: string; prog
       background: "radial-gradient(ellipse at 50% 40%, rgba(31,54,62,.66), rgba(9,24,31,.96))",
       fontFamily: "'Narrows Sans', system-ui, sans-serif", color: "#e9e8df",
     }}>
-      <div style={{ fontSize: 13, letterSpacing: 8, color: "#d2b782", opacity: 0.9 }}>SOUTHCOAST · 2026</div>
+      <div style={{ fontSize: 13, letterSpacing: 8, color: "#d2b782", opacity: 0.9 }}>{t("menu", "eyebrow")}</div>
       <div style={{ fontFamily: "Georgia, serif", fontSize: "clamp(34px, 7vw, 76px)", fontWeight: 900, letterSpacing: 6, color: "#fff", textShadow: "0 4px 25px rgba(0,0,0,.3)", lineHeight: 1 }}>
-        THE NARROWS
+        {t("menu", "title")}
       </div>
-      <div style={{ fontSize: 14, opacity: 0.7, marginTop: 8 }}>New Bedford · Fall River · the Narrows</div>
+      <div style={{ fontSize: 14, opacity: 0.7, marginTop: 8 }}>{t("menu", "subtitle")}</div>
 
       <div style={{ marginTop: 34, display: "flex", flexWrap: "wrap", justifyContent: "center", maxWidth: "92vw", gap: 14 }}>
         {save && (
-          <button disabled={!loaded} onClick={play} style={btn(loaded, true)}>{loaded ? "CONTINUE" : "LOADING…"}</button>
+          <button disabled={!loaded} onClick={play} style={btn(loaded, true)}>{loaded ? t("common", "continue") : t("common", "loading")}</button>
         )}
         <button disabled={!loaded} onClick={newGame} style={btn(loaded, !save)}>
-          {loaded ? (save ? "✦ NEW GAME" : "NEW GAME") : "LOADING…"}
+          {loaded ? (save ? t("common", "newGameSave") : t("common", "newGame")) : t("common", "loading")}
         </button>
       </div>
+
+      {!save && (
+        <div style={{ marginTop: 18, fontSize: 12, opacity: 0.6 }}>{t("menu", "continueUnavailable")}</div>
+      )}
 
       {!loaded && (
         <div style={{ marginTop: 22, width: 280 }}>
           <div style={{ height: 6, borderRadius: 4, background: "rgba(120,110,150,.25)", overflow: "hidden" }}>
             <div style={{ width: `${pct}%`, height: "100%", background: "#b6c5c3", transition: "width .2s ease" }} />
           </div>
-          <div style={{ marginTop: 6, fontSize: 11, opacity: 0.6, letterSpacing: 1 }}>LOADING NEW BEDFORD · {pct}%</div>
+          <div style={{ marginTop: 6, fontSize: 11, opacity: 0.6, letterSpacing: 1 }}>{t("menu", "loadingDistrict")} · {pct}%</div>
         </div>
       )}
 
@@ -97,12 +93,12 @@ export function StartMenu({ sliceName, progress = 0 }: { sliceName: string; prog
         background: "rgba(20,40,60,.7)", color: "#9fe0ff", fontFamily: "'Narrows Sans', system-ui, sans-serif",
         fontSize: 13, fontWeight: 700, letterSpacing: 1,
       }}>
-        🛰 PHOTOREAL MODE (3D TILES)
+        {t("menu", "photoreal")}
       </a>
 
-      <div style={{ marginTop: 22, fontSize: 12, opacity: 0.6, maxWidth: 420 }}>TIP: {tip}</div>
+      <div style={{ marginTop: 22, fontSize: 12, opacity: 0.6, maxWidth: 420 }}>{tf(t("menu", "tip"), { tip })}</div>
       <div style={{ position: "absolute", bottom: 12, fontSize: 10, opacity: 0.5 }}>
-        Map data © OpenStreetMap contributors, ODbL · Imagery © Esri, Maxar, Earthstar Geographics · An original work
+        {t("menu", "footer")}
       </div>
     </div>
   );

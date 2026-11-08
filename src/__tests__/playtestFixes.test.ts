@@ -81,7 +81,10 @@ describe("computeLampPositions", () => {
 });
 
 describe("buildStreetExtrasLayout", () => {
-  const roads = [{ points: [[0, 0], [400, 0]] as [number, number][], width: 10, highway: "residential", bridge: false }];
+  // Road through the core (not a 400 m stub): at the cut step of 60 m the
+  // stub yields only 4 in-radius samples, so the kind cycle never reaches
+  // a cone (kind 6) — the through-road yields 8 and exercises every kind.
+  const roads = [{ points: [[-400, 0], [400, 0]] as [number, number][], width: 10, highway: "residential", bridge: false }];
   it("produces stop and meter poles near the core", () => {
     const L = buildStreetExtrasLayout(roads as never, [0, 0]);
     expect(L.stops.length + L.meters.length).toBeGreaterThan(0);

@@ -13,11 +13,11 @@ export function mobileBudget(q: Quality, mobile = isMobileDevice()) {
     aerialConcurrency: mobile ? 2 : 6,
     tileConcurrency: mobile ? 2 : 6,
     tileCache: [40, 64, 100][q],
-    // Raised Medium parked/ped counts so Johnny Cake Hill review cams show life
-    // without flipping dressing back on (audit P1).
-    parkedCars: [14, 36, 52][q],
-    pedestrians: [12, 28, 40][q],
-    traffic: [6, 14, 22][q],
+    // Density cut (2026-11-07): traffic localized near player in StreetLife;
+    // Medium parked/ped kept high enough for Johnny Cake Hill review cams.
+    parkedCars: [24, 40, 60][q],
+    pedestrians: [16, 28, 44][q],
+    traffic: [16, 28, 40][q],
     shadows: q > 0,
   };
 }

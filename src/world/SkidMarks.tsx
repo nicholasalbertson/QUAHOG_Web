@@ -13,6 +13,7 @@ const MAX = 400;
 const _m = new THREE.Matrix4();
 const _q = new THREE.Quaternion();
 const _flat = new THREE.Euler(-Math.PI / 2, 0, 0);
+const _eul = new THREE.Euler(0, 0, 0, "YXZ"); // §12.3.2 — scratch (was a per-drop allocation)
 const _pos = new THREE.Vector3();
 const _scl = new THREE.Vector3();
 const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
@@ -51,7 +52,7 @@ export function SkidMarks() {
     const yaw = shared.carYaw;
     // two rear contact patches, offset left/right of the car's centerline
     const rx = Math.cos(yaw), rz = -Math.sin(yaw);
-    _q.setFromEuler(new THREE.Euler(_flat.x, yaw, 0, "YXZ"));
+    _q.setFromEuler(_eul.set(_flat.x, yaw, 0));
     for (const side of [-0.7, 0.7]) {
       _pos.set(p.x + rx * side, 0.07, p.z + rz * side);
       _scl.set(0.35, 1.1, 1);

@@ -8,6 +8,7 @@ import type { Building } from "../slice";
 import { BETHEL_FOOTPRINT, dressFootprint, districtStyle } from "./districtStyle";
 import { districtFacadeMaps } from "./districtMaterials";
 import { productionFacadeMaps } from "./productionFacadeMaps";
+import { windowGlowNight } from "./streetLights";
 import { useGame } from "../store";
 import { ArchitecturalShell } from "./ArchitecturalShell";
 
@@ -122,7 +123,7 @@ export function Buildings({
   const chunkRefs = useRef<(THREE.Mesh | null)[]>([]);
   const camera = useThree((s) => s.camera);
   useFrame(() => {
-    const night = 1 - THREE.MathUtils.smoothstep(shared.dayT, 0, 0.3); // dusk-gated: dark by day
+    const night = windowGlowNight(shared.dayT); // dusk-gated: dark by day
     // Night lit-window bump (audit #17) — still budgeted vs StreamingBuildings.
     Object.values(materials).forEach((m) => { m.emissiveIntensity = night * 0.42; });
     const cp = camera.position;

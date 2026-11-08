@@ -8,6 +8,10 @@ import { useGame } from "../store";
 import { sfx } from "../audio/sfx";
 import { BOAT_SPAWN } from "../economy";
 
+// §12.3.2 — scratch vectors for the per-frame boat math (no allocation).
+const _fwd = new THREE.Vector3();
+const _nfwd = new THREE.Vector3();
+
 // Pilotable harbor boat (§6). Floats on the ground plane that underlies the
 // water (so it rides at ~sea level), exempt from the water barrier. Heavier and
 // looser than a car — momentum, slow turns, a trailing wake. Board with E at the
@@ -35,7 +39,7 @@ export function Boat() {
     const ax = moveAxis();
     let yaw = shared.boatYaw;
     const v = rb.linvel();
-    const fwd = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+    const fwd = _fwd.set(Math.sin(yaw), 0, Math.cos(yaw));
     const vF = v.x * fwd.x + v.z * fwd.z;
 
     // slow, momentum-y steering (only bites with way on)
@@ -46,7 +50,7 @@ export function Boat() {
 
     const target = ax.y > 0 ? MAX_SPEED * ax.y : ax.y < 0 ? -6 * -ax.y : 0;
     const nf = THREE.MathUtils.lerp(vF, target, 1 - Math.exp(-dt * 0.9)); // heavy inertia
-    const nfwd = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+    const nfwd = _nfwd.set(Math.sin(yaw), 0, Math.cos(yaw));
     rb.setLinvel({ x: nfwd.x * nf, y: v.y, z: nfwd.z * nf }, true);
     rb.setRotation({ x: 0, y: Math.sin(yaw / 2), z: 0, w: Math.cos(yaw / 2) }, true);
     shared.boatYaw = yaw;

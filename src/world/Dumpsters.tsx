@@ -2,6 +2,7 @@ import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { sampleRoadEdges } from "./roadSamples";
 import { buildFreewayCorridor } from "./freeway";
+import { buildRoadIndex } from "./placement";
 import type { Road } from "../slice";
 
 // Back-lot clutter: dumpsters + stacked wooden pallets along side streets.
@@ -44,8 +45,9 @@ function fill(mesh: THREE.InstancedMesh | null, ps: P[], y: number, tint?: strin
 export function Dumpsters({ roads, center }: { roads: Road[]; center: [number, number] }) {
   const L = useMemo(() => {
     const samples = sampleRoadEdges(roads, center, {
-      radius: RADIUS, step: 34, sparse: 1, max: 280, highways: DUMPSTER_HIGHWAYS,
+      radius: RADIUS, step: 60, sparse: 1, max: 120, highways: DUMPSTER_HIGHWAYS,
     });
+    const roadIndex = buildRoadIndex(roads);
     const dumps: P[] = [], pallets: P[] = [];
     let n = 0;
     for (const s of samples) {
@@ -53,6 +55,7 @@ export function Dumpsters({ roads, center }: { roads: Road[]; center: [number, n
       const side = (n & 1) ? 1 : -1;
       const o = 6.2;
       const x = s.x + nx * o * side, z = s.z + nz * o * side;
+      if (roadIndex.inDrivableRoadway(x, z)) { n++; continue; }
       const rot = Math.atan2(s.dx, s.dz) + (((n * 0.618) % 1) - 0.5) * 0.3;
       if (n % 2 === 0) dumps.push({ x, z, rot });
       else pallets.push({ x, z, rot });

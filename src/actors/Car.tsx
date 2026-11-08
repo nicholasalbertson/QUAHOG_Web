@@ -194,7 +194,7 @@ export function Car() {
         // happened. Throttled soft thud + jolt, only when arriving with
         // speed; slow creep stays silent. Parked cars are visible to the
         // probe since they gained colliders (E-04).
-        if (Math.abs(nf) > 6 && bumpTimer.current <= 0) { addShake(0.18); sfx.bump(); bumpTimer.current = 0.6; }
+        if (Math.abs(nf) > 6 && bumpTimer.current <= 0) { addShake(0.18); sfx.bump(speedFrac); bumpTimer.current = 0.6; }
         // Probe (2026-11-03 water/wall diagnosis): record WHAT stopped the
         // car — distance, position, yaw, collider handle when known. Never
         // allowed to break driving, so the whole record is guarded.
@@ -307,7 +307,7 @@ export function Car() {
       if (tc.stolen) continue;
       const d = Math.hypot(tc.pos.x - cp.x, tc.pos.z - cp.z);
       if (d < 4.4) {
-        if (tc.stop <= 0 && Math.abs(vForward) > 6) { addShake(0.35); sfx.crash(); shared.carDamage = Math.min(100, shared.carDamage + 11); }
+        if (tc.stop <= 0 && Math.abs(vForward) > 6) { addShake(0.35); sfx.crash(speedFrac); shared.carDamage = Math.min(100, shared.carDamage + 11); }
         tc.stop = Math.max(tc.stop, 1.6);
       } else if (d < 6.6 && Math.abs(vForward) > 24) {
         missed = true; // a clean fast pass — close but no contact
@@ -329,7 +329,7 @@ export function Car() {
             propHitTimes.current.set(i, now);
             shared.carDamage = Math.min(100, shared.carDamage + 3);
             addShake(0.12);
-            sfx.bump();
+            sfx.bump(speedFrac);
           }
         }
       }
@@ -367,6 +367,7 @@ export function Car() {
         );
         pl.setLinvel({ x: 0, y: 0, z: 0 }, true);
       }
+      sfx.door(); // §9.1.2 door pack — getting out
       game.setMode("foot");
     }
   });

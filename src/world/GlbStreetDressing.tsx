@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { PackGLB } from "../actors/PackGLB";
 import type { Road } from "../slice";
 import { buildFreewayCorridor, FREEWAY_TYPES } from "./freeway";
+import { buildRoadIndex } from "./placement";
 import {
   KENNEY,
   PACK011,
@@ -13,15 +14,21 @@ import {
  * Places real pack011 + Kenney CC0 GLBs along sidewalks near the playable core.
  * Caps draw count for mobile; procedural Props still fill density when dressing
  * is on. Visual-only (no colliders) — same contract as PackGLB landmarks.
+ *
+ * Density cut (2026-11-07): CAP 96 → 32, RADIUS 180 → 150. Each spot is a
+ * separate PackGLB scene-graph (its own draw calls + GLB parse), so this
+ * layer cost 96 loads for the same furniture Props already places — and
+ * 10 of the 96 stood inside a drivable street. Now cross-road checked.
  */
 
-const RADIUS = 180;
-const CAP = 96;
+const RADIUS = 150;
+const CAP = 32;
 
 type Spot = { x: number; z: number; rot: number; path: string; scale: number };
 
-function buildSpots(roads: Road[], center: [number, number]): Spot[] {
+export function buildSpots(roads: Road[], center: [number, number]): Spot[] {
   const corridor = buildFreewayCorridor(roads);
+  const roadIndex = buildRoadIndex(roads);
   const out: Spot[] = [];
   let n = 0;
   for (const r of roads) {
@@ -36,13 +43,16 @@ function buildSpots(roads: Road[], center: [number, number]): Spot[] {
       if (segLen < 10) continue;
       const ux = dx / segLen, uz = dz / segLen;
       const nx = -uz, nz = ux;
-      for (let d = 8; d < segLen; d += 28) {
+      for (let d = 8; d < segLen; d += 40) {
         const cx = x1 + ux * d, cz = z1 + uz * d;
         if (Math.hypot(cx - center[0], cz - center[1]) > RADIUS) continue;
         const side = n & 1 ? 1 : -1;
         const px = cx + nx * off * side;
         const pz = cz + nz * off * side;
         if (corridor.contains(px, pz)) continue;
+        // Advance n on the skip so the side/kind cycle can't lock onto the
+        // blocked side (see HighMasts — a bare continue starved it).
+        if (roadIndex.inDrivableRoadway(px, pz)) { n++; continue; }
         const rot = Math.atan2(nx * side, nz * side);
         const kind = n % 8;
         let path: string;

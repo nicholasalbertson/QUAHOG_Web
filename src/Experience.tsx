@@ -69,6 +69,7 @@ import { PortClutter } from "./world/PortClutter";
 import { Embankment } from "./world/Embankment";
 import { Marina } from "./world/Marina";
 import { GlbHarborDressing, GlbStreetDressing } from "./world/GlbStreetDressing";
+import { StreetLights } from "./world/StreetLights";
 import { Gulls } from "./world/Gulls";
 import { CorridorDressing } from "./world/CorridorDressing";
 import { TrafficStopZones } from "./world/TrafficStopZones";
@@ -94,6 +95,7 @@ import { ObjectiveBeacon } from "./world/ObjectiveBeacon";
 import { RenderDiagnostics } from "./world/RenderDiagnostics";
 import { Effects } from "./world/Effects";
 import { SimBootstrap } from "./sim/SimBootstrap";
+import { ContactWiring } from "./sim/ContactWiring";
 import { Player } from "./actors/Player";
 import { Car } from "./actors/Car";
 import { Boat } from "./actors/Boat";
@@ -373,6 +375,11 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
             NB-only. */}
         {isNB && slice && <ParkedCarColliders roads={slice.roads} center={MALL_WORLD} hub="mall" />}
         <TrafficColliders />
+        {/* §1.9.7/§3.3.6: resolves real Rapier contacts between the player
+            car and live traffic / police actors (polls contactPairsWith).
+            Renders nothing; lives inside <Physics> next to the colliders
+            it reads. */}
+        <ContactWiring />
         <FollowCamera />
       </Physics>
 
@@ -409,7 +416,7 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
         <Waterfront polys={slice.water} center={world} />
       )}
       {DRESSING_ENABLED && isNB && slice && slice.water?.length > 0 && (
-        <PortClutter polys={slice.water} center={world} />
+        <PortClutter polys={slice.water} center={world} roads={slice.roads} />
       )}
       <Marina />
       <Gulls />
@@ -419,6 +426,10 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
           Parked cars, crosswalks, utility poles stay on. */}
       {DRESSING_ENABLED && slice && <Props roads={slice.roads} center={world} />}
       {DRESSING_ENABLED && slice && <GlbStreetDressing roads={slice.roads} center={world} />}
+      {/* §7.6.1/7.6.3 — the lighting layer on the same lamp posts: instanced
+          emissive glows + a tiered real point-light pool (low 0 / med 4 / high 8).
+          Gated with the dressing: without the posts, the glows would float. */}
+      {DRESSING_ENABLED && slice && <StreetLights roads={slice.roads} center={world} />}
       {DRESSING_ENABLED && slice && <HighMasts roads={slice.roads} center={world} />}
       {DRESSING_ENABLED && slice && <Awnings roads={slice.roads} center={world} buildings={gisBuildings} />}
       {slice && <Crosswalks roads={slice.roads} center={world} />}

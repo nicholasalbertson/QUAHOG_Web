@@ -10,6 +10,7 @@ import { useRef } from "react";
 import { applyReviewCamera } from "../dev/visualReview";
 
 const _shake = new THREE.Vector3();
+const _fwd = new THREE.Vector3(); // first-person forward (was a per-frame allocation)
 let _photoYaw = 0;
 
 function lerpAngle(a: number, b: number, t: number) {
@@ -63,7 +64,7 @@ export function FollowCamera() {
 
     if (game.view === "first") {
       const eyeH = mode === "car" ? 1.2 : 1.6;
-      const f = new THREE.Vector3(Math.sin(heading), 0, Math.cos(heading));
+      const f = _fwd.set(Math.sin(heading), 0, Math.cos(heading));
       camera.position.set(tp.x + f.x * 0.25, tp.y + eyeH, tp.z + f.z * 0.25);
       if (shakeAmt > 0.001) {
         _shake.set((Math.random() - 0.5), (Math.random() - 0.5), (Math.random() - 0.5)).multiplyScalar(shakeAmt * 0.4);

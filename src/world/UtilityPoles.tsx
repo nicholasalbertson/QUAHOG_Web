@@ -2,9 +2,13 @@ import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Road } from "../slice";
 import { buildFreewayCorridor } from "./freeway";
+import { buildRoadIndex } from "./placement";
 
 // Utility poles + slung wires along the streets near the core (§7). Poles are
 // instanced; wires are one merged catenary line set. Cheap period set-dressing.
+//
+// Density cut (2026-11-07): step 32 m → 48 m (measured 103 poles in the NB
+// core) + the shared cross-road check for poles landing on a crossing street.
 
 const RADIUS = 260;
 const MAX = 360;
@@ -19,6 +23,7 @@ export function computeUtilityPolePositions(roads: Road[], center: [number, numb
   // records, but a pole on a crossing street can still land inside the
   // corridor footprint. Drop those too.
   const corridor = buildFreewayCorridor(roads);
+  const roadIndex = buildRoadIndex(roads);
   for (const r of roads) {
     if (r.bridge || r.points.length < 2) continue;
     if (!["primary", "secondary", "tertiary", "residential", "unclassified"].includes(r.highway)) continue;
@@ -29,10 +34,11 @@ export function computeUtilityPolePositions(roads: Road[], center: [number, numb
       const dx = x2 - x1, dz = z2 - z1, len = Math.hypot(dx, dz);
       if (len < 24) continue;
       const ux = dx / len, uz = dz / len, nx = -uz, nz = ux;
-      for (let d = 10; d < len; d += 32) {
+      for (let d = 10; d < len; d += 48) {
         const x = x1 + ux * d + nx * off, z = z1 + uz * d + nz * off;
         if (Math.hypot(x - center[0], z - center[1]) > RADIUS) continue;
         if (corridor.contains(x, z)) continue;
+        if (roadIndex.inDrivableRoadway(x, z)) continue;
         poles.push({ x, z });
         if (poles.length >= MAX) break;
       }

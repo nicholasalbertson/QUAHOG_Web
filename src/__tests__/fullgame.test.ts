@@ -141,18 +141,37 @@ describe("load-filter contract: Fences and Dumpsters", () => {
 });
 
 describe("signal poles in the damage hook set", () => {
-  it("exports positions for major roads within radius", () => {
-    const spots = computeTrafficLightPositions(
+  it("places lights at real junctions only, on the corner — never on a centerline or mid-block", () => {
+    // A real 4-way junction: both roads split at the crossing so 4 ends meet.
+    const junction = [
+      road("primary", "Main St", [[-100, 10], [0, 10]], 12),
+      road("primary", "Main St", [[0, 10], [100, 10]], 12),
+      road("residential", "Side St", [[0, -100], [0, 10]], 7),
+      road("residential", "Side St", [[0, 10], [0, 100]], 7),
+    ];
+    const spots = computeTrafficLightPositions(junction, [0, 0]);
+    expect(spots).toHaveLength(1);
+    // corner: back past the widest crossing carriageway (6 + 1) and
+    // half-width + 1.5 to the side — off every carriageway
+    expect(spots[0].x).toBe(-7);
+    expect(spots[0].z).toBe(-17.5);
+    // a lone major road (no junction) gets no light — the old code put one
+    // at the arbitrary way-split start point, on the centerline
+    const none = computeTrafficLightPositions(
       [road("primary", "Main St", [[0, 10], [100, 10]], 12)],
       [0, 0],
     );
-    expect(spots.length).toBe(1);
-    expect(spots[0].x).toBe(0);
-    expect(spots[0].z).toBe(-10);
-    const none = computeTrafficLightPositions(
-      [road("residential", "Side St", [[0, 0], [100, 0]], 7)],
+    expect(none).toHaveLength(0);
+    // a residential-only junction gets no light either
+    const resOnly = computeTrafficLightPositions(
+      [
+        road("residential", "A St", [[-100, 10], [0, 10]], 7),
+        road("residential", "A St", [[0, 10], [100, 10]], 7),
+        road("residential", "B St", [[0, -100], [0, 10]], 7),
+        road("residential", "B St", [[0, 10], [0, 100]], 7),
+      ],
       [0, 0],
     );
-    expect(none).toHaveLength(0);
+    expect(resOnly).toHaveLength(0);
   });
 });

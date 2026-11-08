@@ -59,8 +59,40 @@ export function disposeGltfScene(
 // Pack models are authored in metres, forward +Z, origin at ground-contact
 // centre — the same convention as the procedural Vehicle — so they drop
 // into existing layout groups unchanged.
+// §2.10.3 — fallback vehicle: when a pack GLB fails to load, render a
+// simple procedural box car (same convention: forward +Z, origin at
+// ground-contact centre, ~4.5 m long) in a bright fallback orange, so a
+// missing file leaves a visible placeholder instead of an invisible car.
+// The color marks it as a fallback, not a real model.
+function FallbackVehicle() {
+  return (
+    <group>
+      {/* body */}
+      <mesh position={[0, 0.55, 0]} castShadow>
+        <boxGeometry args={[1.9, 0.7, 4.5]} />
+        <meshStandardMaterial color="#ff7f00" roughness={0.6} />
+      </mesh>
+      {/* cabin */}
+      <mesh position={[0, 1.15, -0.3]} castShadow>
+        <boxGeometry args={[1.7, 0.6, 2.2]} />
+        <meshStandardMaterial color="#ff9f40" roughness={0.6} />
+      </mesh>
+      {/* wheels */}
+      {[-0.85, 0.85].map((x) =>
+        [-1.4, 1.4].map((z) => (
+          <mesh key={`${x}:${z}`} position={[x, 0.33, z]} rotation={[0, 0, Math.PI / 2]} castShadow>
+            <cylinderGeometry args={[0.33, 0.33, 0.25, 12]} />
+            <meshStandardMaterial color="#1a1a1a" roughness={0.9} />
+          </mesh>
+        )),
+      )}
+    </group>
+  );
+}
+
 export function PackGLB({ path }: { path: string }) {
   const [scene, setScene] = useState<THREE.Group | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     const loader = new GLTFLoader();
@@ -77,6 +109,8 @@ export function PackGLB({ path }: { path: string }) {
       (err) => {
         reportModel(path, "failed", err instanceof Error ? err.message : String(err));
         console.error("[PackGLB] failed to load", path, err);
+        // §2.10.3 — mark the failure so the fallback vehicle renders.
+        if (alive) setFailed(true);
       },
     );
     return () => {
@@ -112,6 +146,10 @@ export function PackGLB({ path }: { path: string }) {
     };
   }, [cloned, scene]);
 
-  if (!cloned) return null;
+  if (!cloned) {
+    // §2.10.3 — a failed load renders the fallback vehicle, not nothing.
+    // (A load still in flight renders nothing, as before.)
+    return failed ? <FallbackVehicle /> : null;
+  }
   return <primitive object={cloned} />;
 }

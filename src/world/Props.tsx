@@ -4,10 +4,15 @@ import { useFrame } from "@react-three/fiber";
 import { shared } from "../shared";
 import type { Road } from "../slice";
 import { buildFreewayCorridor, FREEWAY_TYPES } from "./freeway";
+import { buildRoadIndex } from "./placement";
 
 // Street furniture + vegetation (§7): lamp posts (glow at night), hydrants,
 // mailboxes, benches, and street trees, laid out along the road edges near the
 // playable core. Everything is instanced so density stays cheap.
+//
+// Density cut (2026-11-07): spacing 22 m → 45 m (measured 499 items in the
+// NB core, 104 of them inside a drivable street). Every placement now also
+// passes the shared cross-road check — nothing in a carriageway, ever.
 
 const RADIUS = 240; // metres from core to dress
 const _m = new THREE.Matrix4();
@@ -38,6 +43,10 @@ function buildLayout(roads: Road[], center: [number, number]): Layout {
   // placement landing inside the corridor footprint (cross-street and
   // footway records included) is dropped too.
   const corridor = buildFreewayCorridor(roads);
+  // Density cut (2026-11-07): the offset point from road A lands on road
+  // B's carriageway wherever streets cross — drop anything inside a
+  // drivable street, not just inside the freeway corridor.
+  const roadIndex = buildRoadIndex(roads);
 
   for (const r of roads) {
     if (FREEWAY_TYPES.has(r.highway)) continue;
@@ -57,7 +66,7 @@ function buildLayout(roads: Road[], center: [number, number]): Layout {
       if (segLen < 8) continue;
       const ux = dx / segLen, uz = dz / segLen;
       const nx = -uz, nz = ux; // left normal
-      const spacing = 22;
+      const spacing = 45; // density cut 2026-11-07 (was 22)
       for (let d = 6; d < segLen; d += spacing) {
         const cx = x1 + ux * d, cz = z1 + uz * d;
         if (Math.hypot(cx - center[0], cz - center[1]) > RADIUS) continue;
@@ -65,6 +74,7 @@ function buildLayout(roads: Road[], center: [number, number]): Layout {
         const px = cx + nx * off * side;
         const pz = cz + nz * off * side;
         if (corridor.contains(px, pz)) continue;
+        if (roadIndex.inDrivableRoadway(px, pz)) continue;
         const rot = Math.atan2(nx * side, nz * side);
         // cycle furniture types so the street feels stocked but not repetitive
         const kind = n % 6;

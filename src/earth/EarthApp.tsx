@@ -1,15 +1,13 @@
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Sky } from "@react-three/drei";
 import {
   TilesRenderer,
-  TilesPlugin,
   GlobeControls,
   TilesAttributionOverlay,
   EastNorthUpFrame,
 } from "3d-tiles-renderer/r3f";
-import { GoogleCloudAuthPlugin } from "3d-tiles-renderer/plugins";
 import { WGS84_ELLIPSOID } from "3d-tiles-renderer/three";
 import { loadSlice, type Slice } from "../slice";
 import { installInput } from "../input";
@@ -17,8 +15,22 @@ import { computeSpawn } from "./follow";
 import { useContext } from "react";
 import { TilesRendererContext } from "3d-tiles-renderer/r3f";
 import { PlayerRig, TileNpcs, type View } from "./PlayWorld";
+import { EarthSimBridge, EarthMissionRunner, loadEarthPos, restoreEarth } from "./EarthSimBridge";
+import { playState } from "./playState";
+import { Minimap } from "../Minimap";
+import { useMission } from "../mission";
+import { useStats } from "../game";
+import { shared } from "../shared";
+import { headingToCompass } from "../world/compass";
 import { Ambient, type Weather } from "./Ambient";
+import { sunPositionForHour, sunDayFactor } from "./dayNight";
+import { shouldShowFallbackGround, FALLBACK_GROUND_SIZE } from "./fallbacks";
+import { sim } from "../sim/SimRuntime";
 import { TilesBVH } from "./bvh";
+import { GoogleTilesAuth } from "./GoogleTilesAuth";
+import { useTileActivity } from "./useTileActivity";
+import { shouldDegrade } from "./frameLoop";
+import { faultCopy, mergeFault, type TileFault } from "./tileFault";
 import { Radio } from "../audio/Radio";
 
 // Mount Hope on Google Photorealistic 3D Tiles. Browser fetches tiles from
@@ -74,8 +86,31 @@ export function EarthApp() {
   const [weather, setWeather] = useState<Weather>("clear");
   const [ready, setReady] = useState(false);
   const [tilesProblem, setTilesProblem] = useState(false);
+  // §2.3: classified tile fault (401/429/5xx) with distinct copy + retry.
+  const [fault, setFault] = useState<TileFault | null>(null);
+  // Bumping this re-mounts the tiles renderer (retry without a page reload).
+  const [tilesKey, setTilesKey] = useState(0);
+  // §2.2: pause the frame loop when the tab is hidden or the player is idle.
+  const activity = useTileActivity(mode === "play");
+  // §2.1.6: WebGL context loss pauses the loop and shows a HUD notice.
+  const [glLost, setGlLost] = useState(false);
+  // §2.1.7: frame-time watchdog drops a quality tier on sustained overrun.
+  const [degraded, setDegraded] = useState(false);
+  // §2.9.1 — day/night: the sun + lights follow the sim clock (which the
+  // EarthSimBridge advances in play mode). Polled at 1 Hz — the sun moves
+  // slowly (a 600 s game day), so 1 Hz is smooth enough and cheap.
+  const [dayNight, setDayNight] = useState({ sunPos: [120, 80, 60] as [number, number, number], day: 1 });
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const hour = sim.clock.hour;
+      setDayNight({ sunPos: sunPositionForHour(hour), day: sunDayFactor(hour) });
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, []);
 
   useEffect(() => installInput(), []);
+  // §2.8.4 — restore the shared mission progress + stats once on boot.
+  useEffect(() => { restoreEarth(); }, []);
   useEffect(() => { loadSlice().then(setSlice).catch((e) => console.error(e)); }, []);
   useEffect(() => { setReady(false); setTilesProblem(false); }, [spotIdx, mode]); // re-gate on teleport
   useEffect(() => {
@@ -89,25 +124,45 @@ export function EarthApp() {
 
   const spot = SPOTS[spotIdx];
   const anchor = spot.nb && slice ? slice.origin : { lat: spot.lat, lon: spot.lon };
-  const spawn = spot.nb && slice ? computeSpawn(slice) : { x: 0, z: 0, heading: 0 };
+  // §2.8.4 — resume a saved position when one exists (same save key as the
+  // stylized build), but only when it is near this spot's default spawn — a
+  // save from a different spot must not teleport the player across the map.
+  // The restore of the mission + stats runs once on mount (below).
+  const savedPos = useMemo(() => loadEarthPos(), []);
+  const defaultSpawn = spot.nb && slice ? computeSpawn(slice) : { x: 0, z: 0, heading: 0 };
+  const spawn = savedPos && Math.hypot(savedPos.x - defaultSpawn.x, savedPos.z - defaultSpawn.z) < 5000
+    ? { x: savedPos.x, z: savedPos.z, heading: savedPos.heading }
+    : defaultSpawn;
   const wx = WX[weather];
 
   return (
     <>
-      <Canvas shadows dpr={[1, 1.5]} camera={{ position: [0, 0, 2e7], near: 0.5, far: 1e8 }}>
-        <ContextGuard />
+      <Canvas
+        shadows
+        dpr={degraded ? [1, 1] : [1, 1.5]}
+        frameloop={activity.loop === "demand" || glLost ? "demand" : "always"}
+        camera={{ position: [0, 0, 2e7], near: 0.5, far: 1e8 }}
+      >
+        <ContextGuard onLost={() => setGlLost(true)} onRestored={() => setGlLost(false)} />
+        <FrameWatchdog degraded={degraded} onDegrade={() => setDegraded(true)} />
         <color attach="background" args={[wx.bg]} />
         {mode === "play" && <fog attach="fog" args={[wx.bg, wx.fog[0], wx.fog[1]]} />}
-        {wx.sky && <Sky sunPosition={[120, 80, 60]} turbidity={weather === "cloudy" ? 8 : 3} rayleigh={1.2} />}
-        <hemisphereLight args={["#dceaff", "#8a8678", 0.9]} />
-        <directionalLight position={[120, 200, 80]} intensity={wx.sun} color={wx.sunColor} castShadow />
+        {/* §2.9.1 — the Sky sun follows the sim clock's hour (rises east,
+            sets west); the sun + hemisphere dim at night (a 5% moonlight
+            floor keeps the world readable, it never goes pitch black). */}
+        {wx.sky && <Sky sunPosition={dayNight.sunPos} turbidity={weather === "cloudy" ? 8 : 3} rayleigh={1.2} />}
+        <hemisphereLight args={["#dceaff", "#8a8678", 0.9 * (0.3 + 0.7 * dayNight.day)]} />
+        <directionalLight position={dayNight.sunPos} intensity={wx.sun * (0.05 + 0.95 * dayNight.day)} color={wx.sunColor} castShadow />
 
         <Suspense fallback={null}>
         {/* errorTarget: the higher it is, the coarser/faster tiles load. Street-
             level (play) cameras need this raised or the deepest LOD never streams
             in and the ground stays blank. */}
-        <TilesRenderer key={apiKey} errorTarget={32}>
-          <TilesPlugin plugin={GoogleCloudAuthPlugin} args={[{ apiToken: apiKey }]} />
+        <TilesRenderer key={`${apiKey}:${tilesKey}`} errorTarget={degraded ? 48 : 32}>
+          {/* §2.1.3/2.1.5/2.3: auth plugin with guarded dispose, memory caps
+              (maxDepth 24, LRU byte/count bounds, job limits), classified tile
+              faults, and a redacting log guard — replaces the bare TilesPlugin. */}
+          <GoogleTilesAuth apiToken={apiKey} onFault={(f) => setFault((cur) => mergeFault(cur, f))} />
           {/* BVH-accelerated collision raycasts + bounded tile memory (prevents
               the street-level hitching and GPU-OOM WebGL context loss). */}
           <TilesBVH />
@@ -122,8 +177,20 @@ export function EarthApp() {
             (slice || !spot.nb) && (
               <EastNorthUpFrame key={spot.name} lat={anchor.lat} lon={anchor.lon} height={0}>
                 <group rotation={[Math.PI / 2, 0, 0]}>
-                  <PlayerRig key={spot.name} spawn={spawn} view={view} onReady={() => setReady(true)} />
+                  <PlayerRig key={spot.name} spawn={spawn} view={view} onReady={() => setReady(true)} roads={slice?.roads ?? null} wet={weather === "rain"} />
                   {spot.nb && slice && <TileNpcs slice={slice} center={PED_CENTER} />}
+                  {/* §2.8 — shared sim bridge + mission runner (same sim layer
+                      as the stylized build; no duplicate sim stack). */}
+                  <EarthSimBridge slice={slice} weather={weather} />
+                  {mode === "play" && <EarthMissionRunner />}
+                  {/* §2.10.1 — fallback ground plane when the tiles fail, so
+                      the player walks on something instead of void. */}
+                  {shouldShowFallbackGround({ fault: !!fault, tilesProblem }) && (
+                    <mesh rotation-x={-Math.PI / 2} position={[0, 0, 0]}>
+                      <planeGeometry args={[FALLBACK_GROUND_SIZE, FALLBACK_GROUND_SIZE]} />
+                      <meshStandardMaterial color="#3a3f4a" roughness={1} />
+                    </mesh>
+                  )}
                   <Ambient weather={weather} />
                 </group>
               </EastNorthUpFrame>
@@ -140,10 +207,19 @@ export function EarthApp() {
         view={view} setView={setView}
         spotIdx={spotIdx} setSpotIdx={setSpotIdx}
         weather={weather}
+        slice={slice}
       />
       <Radio />
-      {mode === "play" && !ready && !tilesProblem && <Loading />}
-      {tilesProblem && <TilesProblem />}
+      {mode === "play" && !ready && !tilesProblem && !fault && <Loading />}
+      {tilesProblem && !fault && <TilesProblem />}
+      {fault && (
+        <TileFaultOverlay
+          fault={fault}
+          onRetry={() => { setFault(null); setTilesProblem(false); setTilesKey((k) => k + 1); }}
+          onDismiss={() => setFault(null)}
+        />
+      )}
+      {glLost && <GlLostNotice />}
     </>
   );
 }
@@ -176,18 +252,82 @@ function TilesProblem() {
   );
 }
 
-// Recover from (rather than hard-crash on) a lost WebGL context.
-function ContextGuard() {
+// §2.1.6: recover from (rather than hard-crash on) a lost WebGL context.
+// The app pauses the frame loop and shows a HUD notice until the context
+// is restored; the player never has to reload.
+function ContextGuard({ onLost, onRestored }: { onLost: () => void; onRestored: () => void }) {
   const gl = useThree((s) => s.gl);
+  const lostRef = useRef(onLost);
+  const restoredRef = useRef(onRestored);
+  lostRef.current = onLost;
+  restoredRef.current = onRestored;
   useEffect(() => {
     const c = gl.domElement;
-    const onLost = (e: Event) => { e.preventDefault(); console.warn("[earth] WebGL context lost — attempting restore"); };
-    const onRestored = () => console.warn("[earth] WebGL context restored");
-    c.addEventListener("webglcontextlost", onLost);
-    c.addEventListener("webglcontextrestored", onRestored);
-    return () => { c.removeEventListener("webglcontextlost", onLost); c.removeEventListener("webglcontextrestored", onRestored); };
+    const onLostEv = (e: Event) => { e.preventDefault(); console.warn("[earth] WebGL context lost — pausing render"); lostRef.current(); };
+    const onRestoredEv = () => { console.warn("[earth] WebGL context restored"); restoredRef.current(); };
+    c.addEventListener("webglcontextlost", onLostEv);
+    c.addEventListener("webglcontextrestored", onRestoredEv);
+    return () => { c.removeEventListener("webglcontextlost", onLostEv); c.removeEventListener("webglcontextrestored", onRestoredEv); };
   }, [gl]);
   return null;
+}
+
+// §2.1.7: frame-time watchdog — on sustained overrun, degrade once (the app
+// lowers dpr + coarsens tiles). Fires at most once per mount.
+function FrameWatchdog({ degraded, onDegrade }: { degraded: boolean; onDegrade: () => void }) {
+  const samples = useRef<number[]>([]);
+  const fired = useRef(false);
+  useFrame((_, dt) => {
+    if (degraded || fired.current) return;
+    samples.current.push(Math.min(dt, 0.25));
+    if (samples.current.length > 300) samples.current.shift();
+    if (shouldDegrade(samples.current)) {
+      fired.current = true;
+      console.warn("[earth] sustained frame overrun — degrading quality tier");
+      onDegrade();
+    }
+  });
+  return null;
+}
+
+// §2.3: distinct copy per fault kind + a retry that re-mounts the tiles
+// renderer without a page reload. The canvas is never blank: movement still
+// runs on the fallback ground (§2.10) while this overlay is up.
+function TileFaultOverlay({ fault, onRetry, onDismiss }: { fault: TileFault; onRetry: () => void; onDismiss: () => void }) {
+  const copy = faultCopy(fault);
+  // §2.3.1 — a 401/403 means the stored key is wrong or revoked: offer to
+  // clear it and re-enter a key (lands on the NoKeyNotice after reload).
+  const rekey = () => {
+    try { localStorage.removeItem(KEY_STORE); } catch { /* private mode */ }
+    location.reload();
+  };
+  return (
+    <div style={{ position: "fixed", left: "50%", bottom: 24, transform: "translateX(-50%)", zIndex: 5, maxWidth: 480, background: "rgba(40,10,10,.92)", border: "1px solid #7a2c2c", borderRadius: 8, padding: "12px 16px", color: "#ffd9d9", font: "12px/1.5 'Courier New', monospace", textAlign: "center" }}>
+      <b>{copy.title}</b>
+      <div style={{ margin: "4px 0 10px", opacity: 0.9 }}>{copy.body}</div>
+      <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
+        <button onClick={onRetry} style={{ cursor: "pointer", border: "1px solid #7a2c2c", background: "#7ad9ff", color: "#04121a", fontWeight: 700, padding: "6px 14px", borderRadius: 6, font: "12px 'Courier New', monospace" }}>
+          RETRY TILES
+        </button>
+        {fault.kind === "unauthorized" && (
+          <button onClick={rekey} style={{ cursor: "pointer", border: "1px solid #7a2c2c", background: "transparent", color: "#ffd9d9", padding: "6px 14px", borderRadius: 6, font: "12px 'Courier New', monospace" }}>
+            RE-ENTER KEY
+          </button>
+        )}
+        <button onClick={onDismiss} style={{ cursor: "pointer", border: "1px solid #7a2c2c", background: "transparent", color: "#ffd9d9", padding: "6px 14px", borderRadius: 6, font: "12px 'Courier New', monospace" }}>
+          KEEP PLAYING (NO TILES)
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function GlLostNotice() {
+  return (
+    <div style={{ position: "fixed", left: "50%", top: 16, transform: "translateX(-50%)", zIndex: 6, background: "rgba(40,30,5,.92)", border: "1px solid #8a6a2c", borderRadius: 8, padding: "8px 14px", color: "#ffe9b0", font: "12px 'Courier New', monospace", textAlign: "center" }}>
+      Graphics paused — restoring… (no reload needed)
+    </div>
+  );
 }
 
 function FlyTo({ lat, lon }: { lat: number; lon: number }) {
@@ -211,8 +351,40 @@ function Hud(props: {
   view: View; setView: (v: View) => void;
   spotIdx: number; setSpotIdx: (i: number) => void;
   weather: Weather;
+  slice: Slice | null;
 }) {
-  const { mode, setMode, view, setView, spotIdx, setSpotIdx, weather } = props;
+  const { mode, setMode, view, setView, spotIdx, setSpotIdx, weather, slice } = props;
+  // §2.5 — HUD parity: the reactive values come from the shared stores
+  // (useMission, useStats); the per-frame values (heading, nav distance,
+  // car distance) are polled at 2 Hz — fast enough for a HUD, cheap enough
+  // to not re-render every frame.
+  const mission = useMission();
+  const cash = useStats((s) => s.cash);
+  const health = useStats((s) => s.health);
+  const police = useStats((s) => s.police);
+  const [live, setLive] = useState({ heading: 0, navDist: 0, navBearing: 0, carDist: Infinity, driving: false });
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      const p = playState.player;
+      setLive({
+        heading: p.heading,
+        navDist: shared.navDist ?? 0,
+        navBearing: shared.navBearing ?? 0,
+        carDist: p.carDist,
+        driving: p.driving,
+      });
+    }, 500);
+    return () => window.clearInterval(id);
+  }, []);
+  const compass = headingToCompass(live.heading);
+  const navKm = live.navDist > 0 ? (live.navDist >= 1000 ? `${(live.navDist / 1000).toFixed(1)} km` : `${Math.round(live.navDist)} m`) : null;
+  const prompt = mode === "play"
+    ? live.driving
+      ? "E — Exit car"
+      : live.carDist < 5.5
+        ? "E — Enter car"
+        : null
+    : null;
   const btn = (active: boolean): React.CSSProperties => ({
     pointerEvents: "auto", cursor: "pointer", border: "1px solid #2c3a5e",
     background: active ? "#7ad9ff" : "rgba(5,7,13,.8)", color: active ? "#04121a" : "#e7e0ff",
@@ -227,6 +399,26 @@ function Hud(props: {
             ? `WASD move · Shift run · E car · weather: ${weather}`
             : "Orbit: drag to look, scroll to zoom."}
         </div>
+        {/* §2.5.3/2.5.4/2.5.6 — health, wanted stars, cash, mission (shared stores). */}
+        <div style={{ display: "flex", gap: 12, marginBottom: 6, fontSize: 11 }}>
+          <span>♥ {Math.round(health)}</span>
+          <span>{"★".repeat(Math.round(police))}{"☆".repeat(5 - Math.round(police))}</span>
+          <span>${Math.round(cash)}</span>
+          {/* §2.5.2 — compass (heading from the earth player pose). */}
+          <span>{compass.cardinal} {compass.bearing}°</span>
+        </div>
+        {mode === "play" && !mission.done && (
+          <div style={{ marginBottom: 6, fontSize: 11, color: "#ffcf4a" }}>
+            <b>{mission.title}</b> — {mission.objective}
+            {navKm && <span> · {navKm}</span>}
+          </div>
+        )}
+        {mode === "play" && mission.done && (
+          <div style={{ marginBottom: 6, fontSize: 11, color: "#7CFC00" }}>Campaign complete — the Narrows is yours.</div>
+        )}
+        {prompt && (
+          <div style={{ marginBottom: 6, fontSize: 11, color: "#7ad9ff" }}>{prompt}</div>
+        )}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
           <button style={btn(mode === "play")} onClick={() => setMode("play")}>PLAY</button>
           <button style={btn(mode === "orbit")} onClick={() => setMode("orbit")}>ORBIT</button>
@@ -245,6 +437,18 @@ function Hud(props: {
           Tiles © Google · Player character model: Franklin
         </div>
       </div>
+      {/* §2.5.1 — minimap (the shared Minimap, fed the earth slice + pose). */}
+      {mode === "play" && slice && (
+        <div style={{ position: "absolute", right: 12, bottom: 12, border: "1px solid #2c3a5e", borderRadius: 8, overflow: "hidden", pointerEvents: "none" }}>
+          <Minimap
+            slice={slice}
+            pose={() => {
+              const p = playState.player;
+              return { x: p.pos.x, z: p.pos.z, heading: p.heading };
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
