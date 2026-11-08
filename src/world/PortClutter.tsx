@@ -1,10 +1,15 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Road } from "../slice";
+import { buildRoadIndex } from "./placement";
 
 // Working-port cargo on the wharf (§ waterfront pass): stacked shipping
 // containers, crates and barrels along the LAND side of the harbour edge near
 // the core. Instanced + capped; containers get per-instance colour.
+//
+// Density cut (2026-11-07): step 20 m → 40 m along the wharf edge, and the
+// shared cross-road check (10 of 52 items sat inside a drivable street
+// where a wharf road runs alongside the water).
 
 const RADIUS = 360;
 const _m = new THREE.Matrix4();
@@ -28,8 +33,9 @@ function inRing(e: number, n: number, ring: [number, number][]): boolean {
 const CONTAINER_COLORS = ["#9c3b2f", "#2f5a7a", "#3a6a45", "#8a8f96", "#b5862b", "#6a4a8c",
   "#7a2f25", "#274a66", "#2f5a38", "#6a6e72", "#9c7424", "#3a4a8c"];
 
-export function PortClutter({ polys, center }: { polys: [number, number][][]; center: [number, number] }) {
+export function PortClutter({ polys, center, roads }: { polys: [number, number][][]; center: [number, number]; roads?: Road[] }) {
   const L = useMemo(() => {
+    const roadIndex = roads ? buildRoadIndex(roads) : null;
     const containers: P[] = [], crates: P[] = [], barrels: P[] = [];
     let n = 0;
     for (const ring of polys) {
@@ -42,7 +48,7 @@ export function PortClutter({ polys, center }: { polys: [number, number][][]; ce
         if (len < 1e-3) continue;
         const ux = dx / len, uz = dz / len;
         const nx = -uz, nz = ux;
-        for (let d = 0; d < len; d += 20) {
+        for (let d = 0; d < len; d += 40) {
           const ex = ax + ux * d, ez = az + uz * d;
           if (Math.hypot(ex - center[0], ez - center[1]) > RADIUS) continue;
           // land side = the side NOT inside the water ring
@@ -53,9 +59,17 @@ export function PortClutter({ polys, center }: { polys: [number, number][][]; ce
           const rot = Math.atan2(ux, uz) + (((n * 0.618) % 1) - 0.5) * 0.3;
           n++;
           const kind = n % 4;
-          if (kind === 0 || kind === 1) containers.push({ x, z, rot });
-          else if (kind === 2) crates.push({ x, z, rot });
-          else barrels.push({ x: x + nx * land * 2, z: z + nz * land * 2, rot });
+          // Check the ACTUAL spot each kind lands on, not the shared base
+          // point: barrels sit 2 m further out than the container line,
+          // and the old shared-point check let 2 barrels into the street.
+          if (kind === 3) {
+            const bx = x + nx * land * 2, bz = z + nz * land * 2;
+            if (!roadIndex?.inDrivableRoadway(bx, bz)) barrels.push({ x: bx, z: bz, rot });
+          } else if (kind === 0 || kind === 1) {
+            if (!roadIndex?.inDrivableRoadway(x, z)) containers.push({ x, z, rot });
+          } else {
+            if (!roadIndex?.inDrivableRoadway(x, z)) crates.push({ x, z, rot });
+          }
           if (containers.length > 300) break;
         }
         if (containers.length > 300) break;
@@ -63,7 +77,7 @@ export function PortClutter({ polys, center }: { polys: [number, number][][]; ce
       if (containers.length > 300) break;
     }
     return { containers, crates, barrels };
-  }, [polys, center]);
+  }, [polys, center, roads]);
 
   const container = useRef<THREE.InstancedMesh>(null);
   const crate = useRef<THREE.InstancedMesh>(null);

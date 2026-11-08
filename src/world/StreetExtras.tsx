@@ -2,11 +2,15 @@ import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { sampleRoadEdges } from "./roadSamples";
 import { buildFreewayCorridor } from "./freeway";
+import { buildRoadIndex } from "./placement";
 import type { Road } from "../slice";
 
 // Extra curbside street detail (§7 streets pass): stop signs, parking meters,
 // trash cans, and the odd traffic cone — instanced and placed along the road
 // edges near the core to complement the lamp/hydrant/tree layer in <Props>.
+//
+// Density cut (2026-11-07): step 22 m → 60 m (measured 252 items in the NB
+// core, 74 inside a drivable street) + the shared cross-road check.
 
 const RADIUS = 240;
 const _m = new THREE.Matrix4();
@@ -36,7 +40,8 @@ function fill(mesh: THREE.InstancedMesh | null, places: Place[], y: number) {
 }
 
 export function buildStreetExtrasLayout(roads: Road[], center: [number, number]) {
-  const samples = sampleRoadEdges(roads, center, { radius: RADIUS, step: 22, sparse: 1, max: 1100 });
+  const samples = sampleRoadEdges(roads, center, { radius: RADIUS, step: 60, sparse: 1, max: 400 });
+  const roadIndex = buildRoadIndex(roads);
   const stops: Place[] = [], meters: Place[] = [], cans: Place[] = [], cones: Place[] = [];
   const booths: Place[] = [], papers: Place[] = [], bollards: Place[] = [];
   let n = 0;
@@ -45,6 +50,7 @@ export function buildStreetExtrasLayout(roads: Road[], center: [number, number])
     const side = (n & 1) ? 1 : -1;
     const off = 5.2;                       // curbside offset from centerline
     const x = s.x + nx * off * side, z = s.z + nz * off * side;
+    if (roadIndex.inDrivableRoadway(x, z)) { n++; continue; }
     const rot = Math.atan2(nx * side, nz * side) + (((n * 0.618) % 1) - 0.5) * 0.25;
     const kind = n % 7;
     if (kind === 0) stops.push({ x, z, rot });

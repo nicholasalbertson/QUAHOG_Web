@@ -1,31 +1,42 @@
 import { useMemo } from "react";
 import { makePoster } from "./textures";
 import { sampleRoadEdges } from "./roadSamples";
+import { buildRoadIndex } from "./placement";
 import type { Road } from "../slice";
 
 // Roadside billboards on arterial frontages — big boards on twin posts carrying
 // the era radio/feast posters (reuses makePoster). A handful, spaced out, facing
 // the road. Cheap: a few textured quads, not instanced.
+//
+// Density cut (2026-11-07): MAX 18 → 10, and the shared cross-road check —
+// 12 of 18 boards sat inside a drivable street (the offset point from one
+// arterial lands on the crossing street).
 
 const RADIUS = 320;
-const MAX = 18;
+const MAX = 10;
 
 export function Billboards({ roads, center }: { roads: Road[]; center: [number, number] }) {
   const posters = useMemo(() => [0, 1, 2, 3].map((v) => makePoster(v)), []);
   const boards = useMemo(() => {
     const samples = sampleRoadEdges(roads, center, {
-      radius: RADIUS, step: 120, sparse: 1, max: MAX, highways: ["primary", "secondary", "tertiary"],
+      radius: RADIUS, step: 120, sparse: 1, max: MAX * 3, highways: ["primary", "secondary", "tertiary"],
     });
-    return samples.map((s, i) => {
+    const roadIndex = buildRoadIndex(roads);
+    const out: { x: number; z: number; rot: number; v: number }[] = [];
+    samples.forEach((s, i) => {
+      if (out.length >= MAX) return;
       const nx = -s.dz, nz = s.dx;
       const side = (i & 1) ? 1 : -1;
       const o = 11;
-      return {
-        x: s.x + nx * o * side, z: s.z + nz * o * side,
+      const x = s.x + nx * o * side, z = s.z + nz * o * side;
+      if (roadIndex.inDrivableRoadway(x, z)) return;
+      out.push({
+        x, z,
         rot: Math.atan2(nx * side, nz * side),
-        v: i % 4,
-      };
+        v: out.length % 4,
+      });
     });
+    return out;
   }, [roads, center]);
 
   return (

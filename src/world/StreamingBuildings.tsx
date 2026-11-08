@@ -9,6 +9,7 @@ import { ArchitecturalDetails } from "./ArchitecturalDetails";
 import { FacadeRelief } from "./FacadeRelief";
 import { ArchitecturalShell } from "./ArchitecturalShell";
 import { productionFacadeMaps } from "./productionFacadeMaps";
+import { windowGlowNight } from "./streetLights";
 import { ensureGisReplacements, withoutReplaced } from "./gisDistrict";
 import { makeFacadeMaps, makeNoiseNormal } from "./textures";
 import { districtStyle, type FacadeKind } from "./districtStyle";
@@ -269,7 +270,7 @@ function Tile({ buildings, colliders, tileKey }: { buildings: Building[]; collid
   }, [quality, procedural, nrm]);
   useEffect(() => () => { Object.values(mats).forEach(m => m.dispose()); }, [mats]);
   useFrame(() => {
-    const night = 1 - THREE.MathUtils.smoothstep(shared.dayT, 0, 0.3);
+    const night = windowGlowNight(shared.dayT);
     Object.values(mats).forEach(m => { m.emissiveIntensity = night * 0.35; });
   });
 

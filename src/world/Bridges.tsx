@@ -19,12 +19,47 @@ const PIER_EVERY = 16;
 
 type Pt = [number, number]; // slice [east, north]
 
-// stitch bridge polylines that share endpoints into longer chains
+// stitch bridge polylines that share endpoints into longer chains.
+// Density cut (2026-11-07, defect 3): the old 2 m threshold left real deck
+// GAPS wherever OSM split a crossing into ways whose ends are 3–15 m apart
+// (3 true along-road gaps within 600 m of the NB core alone — Route 6 / JFK
+// Hwy 12.6 m, Hillman St 6.6/6.7 m). Stitching now reaches 16 m, but ONLY
+// when the gap runs ALONG the road (gap direction aligned with travel) and
+// the two spans' directions continue — a lateral gap between the two
+// directions of a divided bridge must NOT join (that would U-turn the deck
+// across both carriageways).
+const STITCH_DIST = 16;
+
 function stitchSpans(roads: Road[]): { pts: Pt[]; width: number; green: boolean }[] {
   const isGreen = (n: string | null) => !!n && /braga/i.test(n); // the iconic green bridge
   const lines = roads.filter((r) => r.bridge && r.points.length >= 2)
     .map((r) => ({ pts: r.points.slice() as Pt[], width: r.width, green: isGreen(r.name) }));
   const d = (a: Pt, b: Pt) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+  // unit travel direction at an end: headDir = pts[1]-pts[0], tailDir = last - second-last
+  const headDir = (pts: Pt[]): [number, number] => {
+    const dx = pts[1][0] - pts[0][0], dn = pts[1][1] - pts[0][1], l = Math.hypot(dx, dn) || 1;
+    return [dx / l, dn / l];
+  };
+  const tailDir = (pts: Pt[]): [number, number] => {
+    const n = pts.length, dx = pts[n - 1][0] - pts[n - 2][0], dn = pts[n - 1][1] - pts[n - 2][1], l = Math.hypot(dx, dn) || 1;
+    return [dx / l, dn / l];
+  };
+  const dot = (a: [number, number], b: [number, number]) => a[0] * b[0] + a[1] * b[1];
+  // Can `cur` join `l` at the given ends? The gap must run along the road
+  // (not sideways across a divided carriageway) and the directions must continue.
+  const canJoin = (
+    curEnd: Pt, curOut: [number, number], lEnd: Pt, lIn: [number, number],
+  ): boolean => {
+    const gap = d(curEnd, lEnd);
+    if (gap >= STITCH_DIST) return false;
+    // Coincident endpoints still need the direction check (a shared point
+    // between two opposite-direction carriageways is not a continuation).
+    const gx = gap < 1e-6 ? curOut[0] : (lEnd[0] - curEnd[0]) / gap;
+    const gy = gap < 1e-6 ? curOut[1] : (lEnd[1] - curEnd[1]) / gap;
+    if (dot(curOut, [gx, gy]) < 0.5) return false; // gap is lateral, not ahead
+    if (dot(curOut, lIn) < 0.5) return false; // directions don't continue
+    return true;
+  };
   const out: { pts: Pt[]; width: number; green: boolean }[] = [];
   while (lines.length) {
     const cur = lines.shift()!;
@@ -34,10 +69,10 @@ function stitchSpans(roads: Road[]): { pts: Pt[]; width: number; green: boolean 
       for (let i = 0; i < lines.length; i++) {
         const l = lines[i];
         const head = cur.pts[0], tail = cur.pts[cur.pts.length - 1];
-        if (d(tail, l.pts[0]) < 2) { cur.pts.push(...l.pts.slice(1)); }
-        else if (d(tail, l.pts[l.pts.length - 1]) < 2) { cur.pts.push(...l.pts.slice().reverse().slice(1)); }
-        else if (d(head, l.pts[l.pts.length - 1]) < 2) { cur.pts.unshift(...l.pts.slice(0, -1)); }
-        else if (d(head, l.pts[0]) < 2) { cur.pts.unshift(...l.pts.slice().reverse().slice(0, -1)); }
+        if (canJoin(tail, tailDir(cur.pts), l.pts[0], headDir(l.pts))) { cur.pts.push(...l.pts.slice(1)); }
+        else if (canJoin(tail, tailDir(cur.pts), l.pts[l.pts.length - 1], [-tailDir(l.pts)[0], -tailDir(l.pts)[1]])) { cur.pts.push(...l.pts.slice().reverse().slice(1)); }
+        else if (canJoin(l.pts[l.pts.length - 1], tailDir(l.pts), head, headDir(cur.pts))) { cur.pts.unshift(...l.pts.slice(0, -1)); }
+        else if (canJoin(l.pts[0], [-headDir(l.pts)[0], -headDir(l.pts)[1]], head, headDir(cur.pts))) { cur.pts.unshift(...l.pts.slice().reverse().slice(0, -1)); }
         else continue;
         cur.width = Math.max(cur.width, l.width);
         cur.green = cur.green || l.green;
@@ -68,8 +103,11 @@ function buildSpan(pts: Pt[], width: number, crest: number, ramp: number): Built
   let total = 0; const dist = [0];
   for (let i = 1; i < wpt.length; i++) { total += wpt[i].distanceTo(wpt[i - 1]); dist.push(total); }
   if (total < 4) return null;
-  // keep short spans at grade so they don't read as random bumps "jutting out"
-  if (total < MIN_ELEVATED) { crest = 0.4; ramp = total; }
+  // Density cut (2026-11-07, defect 3): short spans used to hump 0.4 m out
+  // of an otherwise flat road — 196 of them map-wide, 10 within 600 m of
+  // the NB core — reading as random bumps blocking the street. A culvert /
+  // tiny overpass stays AT GRADE now (crest 0); only real spans elevate.
+  if (total < MIN_ELEVATED) { crest = 0; ramp = total; }
   for (let i = 0; i < wpt.length; i++) wpt[i].y = rampY(dist[i], total, crest, ramp);
 
   const pos: number[] = [], uv: number[] = [], idx: number[] = [];

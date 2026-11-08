@@ -2,10 +2,15 @@ import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Building, Road } from "../slice";
 import { buildFreewayCorridor } from "./freeway";
+import { buildRoadIndex } from "./placement";
 
 // Storefront awnings (Phase 2 street-level). Striped canvas awnings hung along
 // commercial frontages near the core — instanced, two-tone, angled out over the
 // "sidewalk". Cheap way to make streets read as shops, not blank walls.
+//
+// Density cut (2026-11-07): step 12 m → 20 m, MAX 360 → 200 (the facade
+// filter already keeps only real storefronts — measured 59 kept of 259
+// placed, 0% in a drivable street). The cross-road check is belt-and-braces.
 
 // Playtest fix (2026-11-02, R-04): awnings were placed purely from roads,
 // with no check that a building facade exists behind them — so where a road
@@ -34,7 +39,7 @@ export function filterAwningsToFacades(places: AwningPlace[], buildings: Buildin
 }
 
 const RADIUS = 260;
-const MAX = 360;
+const MAX = 200;
 const COMMERCIAL = new Set(["primary", "secondary", "tertiary", "unclassified", "living_street"]);
 const COLORS = ["#9c2b2b", "#1f5e3a", "#21456e", "#7a4a8c", "#b5862b", "#2a6f6f",
   "#8a3a1f", "#3a5a8c", "#6a2a4a", "#2a6a3a", "#a8902b", "#444a55"];
@@ -48,6 +53,7 @@ const _c = new THREE.Color();
 export function Awnings({ roads, center, buildings }: { roads: Road[]; center: [number, number]; buildings?: Building[] }) {
   const places = useMemo(() => {
     const out: { x: number; z: number; rot: number; c: number }[] = [];
+    const roadIndex = buildRoadIndex(roads);
     let n = 0;
     for (const r of roads) {
       if (r.bridge || !COMMERCIAL.has(r.highway) || r.points.length < 2) continue;
@@ -59,11 +65,14 @@ export function Awnings({ roads, center, buildings }: { roads: Road[]; center: [
         const len = Math.hypot(dx, dz);
         if (len < 10) continue;
         const ux = dx / len, uz = dz / len, nx = -uz, nz = ux;
-        for (let d = 6; d < len; d += 12) {
+        for (let d = 6; d < len; d += 20) {
           const side = (n & 1) ? 1 : -1;
           const x = x1 + ux * d + nx * off * side;
           const z = z1 + uz * d + nz * off * side;
           if (Math.hypot(x - center[0], z - center[1]) > RADIUS) continue;
+          // Advance n on the skip so the side alternation can't lock onto
+          // the blocked side (see HighMasts — a bare continue starved it).
+          if (roadIndex.inDrivableRoadway(x, z)) { n++; continue; }
           out.push({ x, z, rot: Math.atan2(nx * side, nz * side), c: n });
           if (out.length >= MAX) {
             const kept = buildings ? filterAwningsToFacades(out, buildings) : out;

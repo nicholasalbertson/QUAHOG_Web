@@ -8,6 +8,7 @@ import { productionRoadMaps } from "./productionRoadMaps";
 import type { Road } from "../slice";
 import { buildFreewayCorridor, freewayDividers, trimRoadAtFreeway } from "./freeway";
 import { classifyRoadSurface } from "./roadSurface";
+import { trimRoadEndsAtJunctions } from "./placement";
 import { vendorAsphaltTexture, vendorCobbleTexture } from "./vendorTextures";
 
 const CELL = 1000;       // road chunk size (m)
@@ -174,7 +175,13 @@ export function Roads({ roads }: { roads: Road[] }) {
   // the freeway edge (item 6) BEFORE chunking, so through streets stop
   // drawing flat at-grade junctions into the motorway. Freeway records
   // pass through untouched; the trim only splits non-freeway polylines.
-  const trimmed = useMemo(() => roads.flatMap((r) => trimRoadAtFreeway(r, corridor)), [roads, corridor]);
+  // Density cut (2026-11-07, defect 4): ribbon ends are ALSO trimmed 2 m
+  // back at real junctions, so the ribbon + apron + sidewalk end just
+  // BEFORE the crossing street instead of running into it. Dead ends and
+  // mid-street way-splits are never trimmed.
+  const trimmed = useMemo(() => trimRoadEndsAtJunctions(
+    roads.flatMap((r) => trimRoadAtFreeway(r, corridor)), 2,
+  ), [roads, corridor]);
   const chunks = useMemo(() => {
     const land = trimmed.filter((r) => !r.bridge); // bridges handled by <Bridges/>
     const cells = new Map<string, {

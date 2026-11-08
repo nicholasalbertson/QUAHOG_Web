@@ -2,24 +2,36 @@ import { useMemo } from "react";
 import { Text } from "@react-three/drei";
 import type { Road } from "../slice";
 import { FREEWAY_TYPES } from "./freeway";
+import { buildRoadIndex, roadEndDegrees } from "./placement";
 
 // Real street-name signs (§33): green MUTCD-style blades on poles at named-road
 // endpoints near the core. One sign per unique name, capped for performance.
+//
+// Density cut (2026-11-07): signs were placed at EVERY named road's start
+// point — arbitrary OSM way-split points, 67.7% of them inside a drivable
+// street. Now only at REAL junctions (3+ road ends) and never in a roadway.
 
 const RADIUS = 290;
-const MAX_SIGNS = 90;
+const MAX_SIGNS = 40;
 
 interface Sign { x: number; z: number; rot: number; name: string }
 
 function buildSigns(roads: Road[], center: [number, number]): Sign[] {
   const out: Sign[] = [];
   const seen = new Set<string>();
+  const degrees = roadEndDegrees(roads);
+  const roadIndex = buildRoadIndex(roads);
+  const key = (e: number, n: number) => `${Math.round(e / 4)}_${Math.round(n / 4)}`;
   for (const r of roads) {
     if (!r.name || seen.has(r.name) || r.points.length < 2) continue;
     // Rt 18 programme (2026-11-02): a street-name blade on a freeway is
     // wrong — freeways need gantry/exit signage or none. Skip freeway
     // records (the JFK Highway blade goes away with this).
     if (FREEWAY_TYPES.has(r.highway)) continue;
+    // Density cut (2026-11-07): only at real junctions — a road-record
+    // start in mid-block is a way-split point, not a corner.
+    const [sx, sn] = r.points[0];
+    if ((degrees.get(key(sx, sn)) ?? 0) < 3) continue;
     // anchor near the start of the road
     const [ax, an] = r.points[0];
     const [bx, bn] = r.points[1];
@@ -35,6 +47,7 @@ function buildSigns(roads: Road[], center: [number, number]): Sign[] {
     const x = x0 + ux * 3 + uz * off; // right normal = (uz, -ux)
     const z = z0 + uz * 3 - ux * off;
     if (Math.hypot(x - center[0], z - center[1]) > RADIUS) continue;
+    if (roadIndex.inDrivableRoadway(x, z)) continue;
     seen.add(r.name);
     // align the blade's local +X with the road direction
     const rot = Math.atan2(bn - an, bx - ax);

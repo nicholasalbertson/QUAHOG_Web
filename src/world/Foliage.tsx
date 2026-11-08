@@ -2,11 +2,15 @@ import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { sampleRoadEdges } from "./roadSamples";
 import { buildFreewayCorridor } from "./freeway";
+import { buildRoadIndex } from "./placement";
 import type { Road } from "../slice";
 
 // Low greenery (§ streets pass): frontage bushes + curb grass tufts along the
 // road edges near the core, instanced with per-instance green variety. Sits
 // under the <Props> street trees to fill the ground plane with life.
+//
+// Density cut (2026-11-07): step 11 m → 30 m (measured 255 items in the NB
+// core, 75 inside a drivable street) + the shared cross-road check.
 
 const RADIUS = 250;
 const _m = new THREE.Matrix4();
@@ -35,7 +39,8 @@ function place(mesh: THREE.InstancedMesh | null, ps: P[], y: number) {
 
 export function Foliage({ roads, center }: { roads: Road[]; center: [number, number] }) {
   const L = useMemo(() => {
-    const samples = sampleRoadEdges(roads, center, { radius: RADIUS, step: 11, sparse: 1, max: 1800 });
+    const samples = sampleRoadEdges(roads, center, { radius: RADIUS, step: 30, sparse: 1, max: 600 });
+    const roadIndex = buildRoadIndex(roads);
     const bushes: P[] = [], tufts: P[] = [];
     let n = 0;
     for (const s of samples) {
@@ -44,10 +49,12 @@ export function Foliage({ roads, center }: { roads: Road[]; center: [number, num
       const rot = (n * 1.2) % (Math.PI * 2);
       if (n % 3 === 0) {
         const o = 7.4; // building frontage
-        bushes.push({ x: s.x + nx * o * side, z: s.z + nz * o * side, rot, sc: 0.8 + ((n * 0.618) % 1) * 0.7 });
+        const x = s.x + nx * o * side, z = s.z + nz * o * side;
+        if (!roadIndex.inDrivableRoadway(x, z)) bushes.push({ x, z, rot, sc: 0.8 + ((n * 0.618) % 1) * 0.7 });
       } else if (n % 3 === 1) {
         const o = 4.2; // curb edge
-        tufts.push({ x: s.x + nx * o * side, z: s.z + nz * o * side, rot, sc: 0.7 + ((n * 0.382) % 1) * 0.6 });
+        const x = s.x + nx * o * side, z = s.z + nz * o * side;
+        if (!roadIndex.inDrivableRoadway(x, z)) tufts.push({ x, z, rot, sc: 0.7 + ((n * 0.382) % 1) * 0.6 });
       }
       n++;
     }

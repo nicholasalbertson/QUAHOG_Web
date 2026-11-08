@@ -2,12 +2,18 @@ import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { sampleRoadEdges } from "./roadSamples";
 import { buildFreewayCorridor } from "./freeway";
+import { buildRoadIndex } from "./placement";
 import { makeStreetFixtureMaps } from "./roadFixtureMaterials";
 import type { Road } from "../slice";
 
 // Flat road-surface fixtures (§ streets pass): cast-iron manhole covers on the
 // carriageway and rectangular storm grates at the curb. Instanced flat quads,
 // polygon-offset just above the asphalt like the grime/crosswalk decals.
+//
+// Density cut (2026-11-07): grates sat at a FIXED 4.6 m offset, which is ON
+// the lane for any road wider than ~9 m — they now sit at the true curb
+// (width/2 + 0.4) and pass the shared cross-road check. Manholes + patches
+// stay on the lane BY DESIGN (flat road-surface fixtures).
 
 const RADIUS = 240;
 const _m = new THREE.Matrix4();
@@ -34,7 +40,8 @@ export function RoadFixtures({ roads, center }: { roads: Road[]; center: [number
   const art = useMemo(() => makeStreetFixtureMaps(), []);
   useEffect(() => () => Object.values(art).forEach(t => t.dispose()), [art]);
   const L = useMemo(() => {
-    const samples = sampleRoadEdges(roads, center, { radius: RADIUS, step: 22, sparse: 1, max: 1100 });
+    const samples = sampleRoadEdges(roads, center, { radius: RADIUS, step: 28, sparse: 1, max: 1100 });
+    const roadIndex = buildRoadIndex(roads);
     const manholes: P[] = [], grates: P[] = [], patches: P[] = [];
     let n = 0;
     for (const s of samples) {
@@ -43,7 +50,9 @@ export function RoadFixtures({ roads, center }: { roads: Road[]; center: [number
       if (n % 3 === 0) manholes.push({ x: s.x, z: s.z, rot });          // on the lane
       if (n % 5 === 0) {                                                // at the curb
         const side = (n & 2) ? 1 : -1;
-        grates.push({ x: s.x + nx * 4.6 * side, z: s.z + nz * 4.6 * side, rot });
+        const off = s.w / 2 + 0.4; // true curb — the old fixed 4.6 m sat ON the lane of wide roads
+        const x = s.x + nx * off * side, z = s.z + nz * off * side;
+        if (!roadIndex.inDrivableRoadway(x, z)) grates.push({ x, z, rot });
       }
       if (n % 7 === 0) {                                                // repaved patch on the lane
         const off = ((n * 0.618) % 1 - 0.5) * 3;
