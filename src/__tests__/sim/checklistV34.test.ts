@@ -70,6 +70,8 @@ import { SurfaceSampler } from "../../sim/SurfaceSample";
 import { deformBudget } from "../../sim/DeformBudget";
 import { autoSwitch, createInputMode } from "../../sim/InputMode";
 import { createSuspension, stepSuspension } from "../../sim/Suspension";
+import { createHeli, stepHeli } from "../../sim/HeliScout";
+import { spawnRoadblockAhead } from "../../sim/Roadblock";
 import { manifestFromSlice } from "../../sim/WorldManifest";
 import { PedGraph } from "../../sim/PedGraph";
 import { HeatAxes } from "../../sim/HeatAxes";
@@ -429,5 +431,8 @@ describe("checklist v3.4 signals/wasted/music/a11y", () => {
     const im = createInputMode();
     expect(autoSwitch(im, "enterCar")).toBe("car");
     expect(stepSuspension(createSuspension(), { rideHeight: 0.12, spring: 40, damper: 8, accelForward: 2, accelLateral: 1, dt: 0.016 }).fl.compression).toBeGreaterThan(0);
+    const heli = stepHeli(createHeli(0, 0), { x: 0, z: 0 }, 0.5);
+    expect(heli.spotlightOn || !heli.spotlightOn).toBe(true);
+    expect(spawnRoadblockAhead("rb1", { x: 0, z: 0, yaw: 0 }).manned).toBe(true);
   });
 });

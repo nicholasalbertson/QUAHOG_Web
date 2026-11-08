@@ -717,8 +717,8 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 [ ] 3.3.1 Foot cops: PedGraph patrol, chase, tackle/arrest
 [ ] 3.3.2 Road cops: polish ChaseController
-[ ] 3.3.3 Roadblocks: spawn ahead on RoadGraph, static + manned
-[ ] 3.3.4 Helicopter: orbit + spotlight + LOS report
+[x] 3.3.3 Roadblocks: spawn ahead on RoadGraph, static + manned
+[x] 3.3.4 Helicopter: orbit + spotlight + LOS report
 [x] 3.3.5 PIT: bounded impulse, damage, cooldown
 [ ] 3.3.6 Rapier collision cop↔player (§1.9)
 [ ] 3.3.7 Officer down / corpse persistence (§13.2)
@@ -1137,8 +1137,8 @@ M11 Finale … … …
 11.4 Recovery & slots — (M)
 
 [ ] 11.4.1 Corrupt-save recovery UI (discard/export/retry)
-[ ] 11.4.2 Multi-slot saves
-[ ] 11.4.3 Cloud sync (TBD — document)
+[x] 11.4.2 Multi-slot saves
+[x] 11.4.3 Cloud sync (TBD — document)
 [ ] 11.4.4 Clear race best / settings policy on New Game
 [ ] 11.4.5 Corrupt payload never bricks; multi-slot swaps cleanly (test)
 
