@@ -32,8 +32,9 @@ Baseline that is now on `main` (deepen per task trees below):
   `docs/FPS-MATRIX.md` soak protocol, `docs/EARTH-DECISION.md`
 · Remaining open work includes CONTENT-BLOCKED §7.3 Cape/FR tiles, device FPS
 soaks (§15), and release/l10n (§16–§17). See `docs/CHECKLIST-REMAINING.md`.
-· Live tally (~2026-11-07 night): ~576 `[x]` / ~87 `[~]` / ~53 `[ ]` — all bare
+· Live tally (~2026-11-07 night): ~577 `[x]` / ~86 `[~]` / ~53 `[ ]` — all bare
   `[ ]` are DEVICE/CONTENT/RAPIER-LIVE/PLAYTEST blockers. NEXT50 is 50/50 Done.
+  Code-feasible V3 drain complete; remaining `[~]` need content/device/earth/CI-deps.
 
 Pointer checklist: [`IMPLEMENTATION-CHECKLIST.md`](./IMPLEMENTATION-CHECKLIST.md)
 
