@@ -95,6 +95,7 @@ import { MissionRunner } from "./world/MissionRunner";
 import { ObjectiveBeacon } from "./world/ObjectiveBeacon";
 import { RenderDiagnostics } from "./world/RenderDiagnostics";
 import { Effects } from "./world/Effects";
+import { ContactGroundShadows } from "./world/ContactGroundShadows";
 import { SimBootstrap } from "./sim/SimBootstrap";
 import { ContactWiring } from "./sim/ContactWiring";
 import { Player } from "./actors/Player";
@@ -163,6 +164,7 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
   // Physics world + player/car bodies persist across the switch, which is
   // what makes the teleport safe: no body is ever destroyed mid-flight.
   const targetDistrictId = useGame((s) => s.district);
+  const weather = useGame((s) => s.weather);
   const [activeDistrictId, setActiveDistrictId] = useState<DistrictId>(() => useGame.getState().district);
   const district = DISTRICTS[activeDistrictId];
   const targetDistrict = DISTRICTS[targetDistrictId];
@@ -435,7 +437,10 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       {/* §7.6.1/7.6.3 — the lighting layer on the same lamp posts: instanced
           emissive glows + a tiered real point-light pool (low 0 / med 4 / high 8).
           Gated with the dressing: without the posts, the glows would float. */}
-      {DRESSING_ENABLED && slice && <StreetLights roads={slice.roads} center={world} />}
+      {/* Lighting layer stays on even when city dressing is stripped — night
+          without lamp pools reads as an empty void. Glows float without posts
+          but the pool still grounds the street. */}
+      {slice && <StreetLights roads={slice.roads} center={world} />}
       {DRESSING_ENABLED && slice && <HighMasts roads={slice.roads} center={world} />}
       {DRESSING_ENABLED && slice && <Awnings roads={slice.roads} center={world} buildings={gisBuildings} />}
       {slice && <Crosswalks roads={slice.roads} center={world} />}
@@ -505,7 +510,8 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       <SkidMarks />
       <Rain />
       <Snow />
-      <Ambient weather="clear" />
+      <Ambient weather={weather === "rain" ? "rain" : weather === "fog" || weather === "snow" ? "cloudy" : "clear"} />
+      <ContactGroundShadows />
 
       <FxGate />
       <ShadowGate />

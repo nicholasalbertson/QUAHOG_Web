@@ -1,37 +1,33 @@
 import * as THREE from "three";
 import { makeAsphaltTexture, makeNoiseNormal } from "./textures";
+import { vendorAsphaltNormal, vendorAsphaltRoughness, vendorAsphaltTexture } from "./vendorTextures";
 
-/** Shared production asphalt maps derived from the bundled P010 material swatch.
- * Always retain the original procedural material on texture load failure. */
+/** Shared production asphalt maps — Poly Haven CC0 when present, else P010 / procedural. */
 let cached: { color: THREE.Texture; normal: THREE.Texture; roughness: THREE.Texture } | null = null;
 export function productionRoadMaps() {
   if (cached) return cached;
-  const base = makeAsphaltTexture(false);
-  const noise = makeNoiseNormal();
-  const roughnessCanvas = document.createElement("canvas");
-  roughnessCanvas.width = roughnessCanvas.height = 1;
-  const ctx = roughnessCanvas.getContext("2d")!;
-  ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, 1, 1);
-  const road = {
-    color: base.clone(),
-    normal: noise.clone(),
-    roughness: new THREE.CanvasTexture(roughnessCanvas),
-  };
-  const loader = new THREE.TextureLoader();
-  for (const type of ["color", "normal", "roughness"] as const) {
-    const t = road[type];
-    t.wrapS = t.wrapT = THREE.RepeatWrapping;
-    t.repeat.set(1, 1);
-    t.colorSpace = type === "color" ? THREE.SRGBColorSpace : THREE.NoColorSpace;
-    t.anisotropy = 4;
-    t.needsUpdate = true;
-    const filename = type === "color" ? "asphalt-albedo" : `asphalt-${type}`;
-    loader.load(`/quahog-assets/production-roads/${filename}.png`, loaded => {
-      t.image = loaded.image;
-      t.needsUpdate = true;
-      loaded.dispose();
-    }, undefined, error => console.warn(`[QUAHOG road] procedural fallback ${type}:`, error));
+  // Prefer Poly Haven diffuse/normal/rough; keep noise + P010 as immediate fallbacks.
+  const color = vendorAsphaltTexture(false);
+  const normal = vendorAsphaltNormal();
+  // Seed normal with noise until Poly Haven lands (upgrade mutates in place).
+  if (!normal.image || (normal.image as HTMLCanvasElement).width <= 2) {
+    const noise = makeNoiseNormal();
+    normal.image = noise.image;
+    normal.needsUpdate = true;
   }
-  cached = road;
+  const roughness = vendorAsphaltRoughness();
+  // Also try the older production-roads swatch as a secondary color upgrade.
+  const loader = new THREE.TextureLoader();
+  const base = makeAsphaltTexture(false);
+  void base;
+  loader.load("/quahog-assets/production-roads/asphalt-albedo.png", (loaded) => {
+    // Only apply if Poly Haven hasn't already replaced the image with a large map.
+    const img = color.image as HTMLImageElement | HTMLCanvasElement | undefined;
+    if (img && "width" in img && img.width > 64) { loaded.dispose(); return; }
+    color.image = loaded.image;
+    color.needsUpdate = true;
+    loaded.dispose();
+  }, undefined, () => { /* keep vendor/procedural */ });
+  cached = { color, normal, roughness };
   return cached;
 }

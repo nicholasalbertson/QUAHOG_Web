@@ -64,7 +64,7 @@ export function Buildings({
           map: maps.albedo,
           emissiveMap: maps.emissive,
           normalMap: maps.normal,
-          normalScale: new THREE.Vector2(0.34, 0.34),
+          normalScale: new THREE.Vector2(0.62, 0.62),
           roughnessMap: maps.roughness,
           emissive: WINDOW_GLOW,
           emissiveIntensity: 0,
@@ -72,7 +72,7 @@ export function Buildings({
           // the atlas window bays without plastic walls.
           roughness: 0.82,
           metalness: 0.08,
-          envMapIntensity: 0.55,
+          envMapIntensity: 0.9,
         });
       } else {
         const maps = districtFacadeMaps(kind);
@@ -125,7 +125,7 @@ export function Buildings({
   useFrame(() => {
     const night = windowGlowNight(shared.dayT); // dusk-gated: dark by day
     // Night lit-window bump (audit #17) — still budgeted vs StreamingBuildings.
-    Object.values(materials).forEach((m) => { m.emissiveIntensity = night * 0.42; });
+    Object.values(materials).forEach((m) => { m.emissiveIntensity = night * 1.05; });
     const cp = camera.position;
     chunks.forEach((c, i) => {
       const mesh = chunkRefs.current[i];

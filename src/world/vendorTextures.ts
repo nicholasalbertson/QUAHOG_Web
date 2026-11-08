@@ -42,12 +42,61 @@ export function vendorAsphaltTexture(withLanes = false): THREE.Texture {
   return t;
 }
 
+let asphaltNorCache: THREE.Texture | null = null;
+export function vendorAsphaltNormal(): THREE.Texture {
+  if (asphaltNorCache) return asphaltNorCache;
+  const t = prep(new THREE.Texture(), false, 1);
+  // Neutral normal until the Poly Haven map lands.
+  const c = document.createElement("canvas");
+  c.width = c.height = 2;
+  const x = c.getContext("2d")!;
+  x.fillStyle = "#8080ff";
+  x.fillRect(0, 0, 2, 2);
+  t.image = c;
+  t.needsUpdate = true;
+  upgrade(t, POLYHAVEN.asphaltNor, false);
+  asphaltNorCache = t;
+  return t;
+}
+
+let asphaltRoughCache: THREE.Texture | null = null;
+export function vendorAsphaltRoughness(): THREE.Texture {
+  if (asphaltRoughCache) return asphaltRoughCache;
+  const t = prep(new THREE.Texture(), false, 1);
+  const c = document.createElement("canvas");
+  c.width = c.height = 2;
+  const x = c.getContext("2d")!;
+  x.fillStyle = "#c8c8c8";
+  x.fillRect(0, 0, 2, 2);
+  t.image = c;
+  t.needsUpdate = true;
+  upgrade(t, POLYHAVEN.asphaltRough, false);
+  asphaltRoughCache = t;
+  return t;
+}
+
 let cobbleCache: THREE.Texture | null = null;
 export function vendorCobbleTexture(): THREE.Texture {
   if (cobbleCache) return cobbleCache;
   const t = prep(makeCobbleTexture(), true, 2);
   upgrade(t, POLYHAVEN.cobbleDiff, true);
   cobbleCache = t;
+  return t;
+}
+
+let cobbleNorCache: THREE.Texture | null = null;
+export function vendorCobbleNormal(): THREE.Texture {
+  if (cobbleNorCache) return cobbleNorCache;
+  const t = prep(new THREE.Texture(), false, 2);
+  const c = document.createElement("canvas");
+  c.width = c.height = 2;
+  const x = c.getContext("2d")!;
+  x.fillStyle = "#8080ff";
+  x.fillRect(0, 0, 2, 2);
+  t.image = c;
+  t.needsUpdate = true;
+  upgrade(t, POLYHAVEN.cobbleNor, false);
+  cobbleNorCache = t;
   return t;
 }
 

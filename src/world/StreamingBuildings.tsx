@@ -38,7 +38,7 @@ const GREY = ["#7c7e88", "#9aa0a6", "#8f8c86", "#6f7178", "#a7a59c", "#86837c"];
 const ROOF = ["#2c2a28", "#37322c", "#31343a", "#2a2e30", "#3a352f"]; // tar / gravel roofs
 const HERO_COLOR = "#caa24a";
 const HERO = new Set(["Seamen's Bethel", "New Bedford Whaling Museum", "Mariner's Home", "Double Bank Building", "Rodman Candleworks"]);
-const FLOOR = 3.2; // metres per window row
+const FLOOR = 2.7; // metres per window row (denser facade windows)
 
 interface Manifest { tile: number; keys: string[] }
 
@@ -264,12 +264,12 @@ function Tile({ buildings, colliders, tileKey }: { buildings: Building[]; collid
         map: maps?.albedo ?? procedural.albedo,
         emissiveMap: maps?.emissive ?? procedural.emissive,
         normalMap: maps?.normal ?? nrm,
-        normalScale: new THREE.Vector2(0.34, 0.34),
+        normalScale: new THREE.Vector2(0.62, 0.62),
         roughnessMap: maps?.roughness,
         // Match GIS Buildings glass/window read (#1/#2).
         roughness: 0.82,
         metalness: 0.08,
-        envMapIntensity: 0.55,
+        envMapIntensity: 0.9,
         emissive: WINDOW_GLOW,
         emissiveIntensity: 0,
       });
@@ -280,7 +280,7 @@ function Tile({ buildings, colliders, tileKey }: { buildings: Building[]; collid
   useFrame(() => {
     const night = windowGlowNight(shared.dayT);
     // Night glow parity with GIS Buildings (#2/#17).
-    Object.values(mats).forEach(m => { m.emissiveIntensity = night * 0.42; });
+    Object.values(mats).forEach(m => { m.emissiveIntensity = night * 1.05; });
   });
 
   // rooftop clutter (water tanks / AC units) on mid-rise buildings for skyline depth
