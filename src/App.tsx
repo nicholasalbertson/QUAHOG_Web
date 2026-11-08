@@ -69,6 +69,7 @@ import { Radio } from "./audio/Radio";
 import { installInput } from "./input";
 import { useGame, useToasts } from "./store";
 import { requestGuardedSpawn } from "./world/SpawnGuard";
+import { applyReviewStore } from "./dev/visualReview";
 
 // Build 002: quality presets now actually change GPU workload (study technique).
 // Low locks DPR to 1; Medium allows up to 1.25; High up to 1.5.
@@ -106,6 +107,7 @@ export default function App() {
 
   useEffect(() => {
     installInput();
+    applyReviewStore((partial) => useGame.setState(partial as Parameters<typeof useGame.setState>[0]));
   }, []);
 
   return (

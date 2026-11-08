@@ -136,8 +136,12 @@ export const shared = {
   day: 1,
   /** Signed forward speed of the car (m/s), written by Car each frame. */
   carSpeed: 0,
+  /** Front-wheel steer visual (−1..1-ish) for WheelRig yaw cue (#39). */
+  steerVisual: 0,
   /** True while the car is cornering hard at speed (lays skid marks). */
   skid: false,
+  /** True while braking or handbrake (brake-lamp cue #38). */
+  carBraking: false,
   /** Decaying camera-shake impulse; bump it to jolt the chase camera. */
   shake: 0,
   /** Sprint stamina 0..100 (on foot). */
@@ -162,6 +166,12 @@ export const shared = {
   navWrongWay: false,
   /** Current nav polyline in world XZ, or null. */
   navPath: null as { x: number; z: number }[] | null,
+  /** §5.2.8 Recoil bloom 0..1 for spread-aware reticle. */
+  recoilBloom: 0,
+  /** §3.5.4 Full-screen wanted tier flash opacity 0..1. */
+  tierFlashAlpha: 0,
+  /** §3.5.5 Heat chip label for HUD (Clear / Cooling / APB…). */
+  heatChip: "Clear",
 };
 
 /** Drop a cash pickup at a world point (capped so it can't grow unbounded). */

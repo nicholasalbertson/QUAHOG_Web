@@ -123,11 +123,12 @@ export function HarborBanks({
     <group>
       <instancedMesh ref={rockRef} args={[undefined, undefined, Math.max(1, L.rocks.length)]} castShadow receiveShadow>
         <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color="#5a564e" roughness={1} flatShading />
+        {/* Wet riprap sheen toward the waterline (#19). */}
+        <meshStandardMaterial color="#5a564e" roughness={0.72} metalness={0.08} flatShading />
       </instancedMesh>
       <instancedMesh ref={grassRef} args={[undefined, undefined, Math.max(1, L.grass.length)]} receiveShadow>
         <boxGeometry args={[1, 1, 1]} />
-        <meshStandardMaterial color="#5f7344" roughness={1} />
+        <meshStandardMaterial color="#5f7344" roughness={0.95} />
       </instancedMesh>
     </group>
   );

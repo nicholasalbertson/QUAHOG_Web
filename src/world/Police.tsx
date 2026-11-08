@@ -8,6 +8,10 @@ import { useStats } from "../game";
 import { useGame } from "../store";
 import { sfx } from "../audio/sfx";
 import { POLICE_STATION } from "../places";
+import { desiredCops, heatTier } from "../sim/HeatTiers";
+import { escalateHeat } from "../sim/HeatEscalation";
+import { sim } from "../sim";
+import { useInventory } from "../inventory";
 
 // Police pursuit (§14): REMOVED 2026-11-02 per Nic — the pursuit homed
 // straight onto the player with no standoff distance and no colliders, so
@@ -71,8 +75,11 @@ export function Police() {
     const police = stats.police;
     const target = (game.mode === "car" ? shared.car : shared.player)?.translation();
 
-    // chase only at 3+ stars, and fewer units than the star count
-    const desired = police >= 3 ? Math.min(MAX_COPS, Math.floor(police) - 1) : 0;
+    // §3.2 T1–T4: spawn counts from HeatTiers (soft chase; Rapier collision still blocked).
+    // POLICE_ENABLED gates live pursuit until standoff/ram rewrite lands.
+    const tier = heatTier(police);
+    const desired = POLICE_ENABLED ? Math.min(MAX_COPS, desiredCops(police, MAX_COPS)) : 0;
+    void tier; // heli/roadblock/PIT flags consumed by HeliScout/Roadblock/Pit when enabled
     let activeCount = units.current.filter((u) => u.active && u.hp > 0).length;
     sfx.siren(activeCount > 0);
 
@@ -103,7 +110,20 @@ export function Police() {
       if (!u.active || !target) { g.visible = false; return; }
 
       // apply queued gun damage
-      if (u.car.dmg > 0) { u.hp -= u.car.dmg; u.car.dmg = 0; if (u.hp <= 0) { u.deadT = 1.2; stats.addCash(75); stats.heat(-0.4, 0); } }
+      if (u.car.dmg > 0) {
+        u.hp -= u.car.dmg; u.car.dmg = 0;
+        if (u.hp <= 0) {
+          u.deadT = 1.2;
+          stats.addCash(75);
+          // §3.2.7 Officer down escalates wanted — never cools heat.
+          escalateHeat(sim.heat, "officer_down");
+          const bump = Math.max(0, sim.heat.wanted - stats.police);
+          stats.heat(bump || 0.8, 0);
+          // §5.2.4 Ammo drop from downed unit.
+          useInventory.getState().add("pistol", 8);
+          useInventory.getState().save();
+        }
+      }
 
       // home toward the player
       const dx = target.x - u.pos.x, dz = target.z - u.pos.z;

@@ -32,8 +32,8 @@ describe("classifyRoadSurface — real-world cobble only", () => {
     expect(classifyRoadSurface(road({ highway: "pedestrian" }))).toBe("sidewalk");
   });
 
-  it("maps tracks and unpaved to dirt", () => {
-    expect(classifyRoadSurface(road({ highway: "track" }))).toBe("dirt");
-    expect(classifyRoadSurface(road({ highway: "service", surface: "gravel" }))).toBe("dirt");
+  it("maps tracks and unpaved to asphalt (no dirt ribbons)", () => {
+    expect(classifyRoadSurface(road({ highway: "track" }))).toBe("asphalt");
+    expect(classifyRoadSurface(road({ highway: "service", surface: "gravel" }))).toBe("asphalt");
   });
 });

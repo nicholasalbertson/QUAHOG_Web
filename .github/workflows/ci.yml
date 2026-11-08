@@ -1,0 +1,33 @@
+# §0.1 / §13.6 CI stages: install → typecheck → unit → build
+name: ci
+on:
+  push:
+    branches: [main, "FullStackAssets/**"]
+  pull_request:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run check:sim-rng
+      - run: npx vitest run src/__tests__/sim/
+      - run: npm run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+      - name: Retain vitest log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: |
+            **/vitest*.log
+            **/test-results/**
+          retention-days: 30
+          if-no-files-found: ignore

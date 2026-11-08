@@ -37,6 +37,8 @@ export const SAVE_KEYS = {
   radio: "mounthope.radio.v1",
   raceBests: "mounthope.race.v1",
   scrimshaw: "mounthope.scrimshaw.v1",
+  weapons: "mounthope.weapons.v1",
+  waypoint: "mounthope.waypoint.v1",
 } as const;
 
 export type SaveKey = (typeof SAVE_KEYS)[keyof typeof SAVE_KEYS];
@@ -45,16 +47,28 @@ export type SaveKey = (typeof SAVE_KEYS)[keyof typeof SAVE_KEYS];
 export const EVENT_NAMES = {
   "mission.start": true,
   "mission.step": true,
+  "mission.step.changed": true,
   "mission.complete": true,
   "mission.fail": true,
   "mission.retry": true,
   "mission.abandon": true,
+  "mission.trigger": true,
   "sim.loop.overrun": true,
   "sim.traffic.spawn": true,
   "sim.ped.spawn": true,
   "sim.streamer.evict": true,
   "sim.weather.change": true,
+  "sim.weather.lightning": true,
+  "sim.heat.crime": true,
 } as const;
+
+/** §1.3.6 Owned spawn kinds. */
+export const SPAWN_KINDS = ["ped", "vehicle", "boat", "prop", "marker", "sound"] as const;
+export type SpawnKind = (typeof SPAWN_KINDS)[number];
+
+export function isSpawnKind(s: string): s is SpawnKind {
+  return (SPAWN_KINDS as readonly string[]).includes(s);
+}
 
 export type EventName = keyof typeof EVENT_NAMES;
 

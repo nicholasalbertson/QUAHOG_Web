@@ -6,11 +6,13 @@ import { useGame, useToasts } from "../store";
 import { useStats } from "../game";
 import { sfx } from "../audio/sfx";
 import { loadJSON, saveJSON } from "../storage";
+import { COLLECTIBLE_SETS, claimSetReward } from "../sim/CollectibleSets";
 
 // Hidden collectibles (§18): scrimshaw "whaling artifacts" scattered around the
 // core. Walk into one to grab it — small cash bounty + a toast. Persisted.
 
 const KEY = "mounthope.scrimshaw.v1";
+const SET_KEY = "mounthope.scrimshaw.set.v1";
 const REWARD = 120;
 export const SPOTS: [number, number, number][] = [
   [-272, 1.2, 106], [-244, 1.2, 70], [-300, 1.2, 130], [-210, 1.2, 100],
@@ -55,6 +57,20 @@ export function Collectibles() {
         useGame.getState().setScrimshaw(n);
         useToasts.getState().push(`Scrimshaw ${n}/${SPOTS.length} · +$${REWARD}`, "#ffd24a");
         saveJSON(KEY, got.current);
+        // §6.4 Set completion reward (once).
+        const already = loadJSON(SET_KEY, false);
+        const claim = claimSetReward(COLLECTIBLE_SETS[0], n, !!already);
+        if (claim.grant) {
+          saveJSON(SET_KEY, true);
+          if (claim.cash) useStats.getState().addCash(claim.cash);
+          useToasts.getState().push(
+            claim.unlock
+              ? `Set complete · unlocked ${claim.unlock} · +$${claim.cash}`
+              : `Set complete · +$${claim.cash}`,
+            "#7CFC00",
+          );
+          sfx.cash();
+        }
       }
     });
   });

@@ -5,6 +5,7 @@ import { Sky, Stars } from "@react-three/drei";
 import { shared } from "../shared";
 import { useGame } from "../store";
 import { reviewShot } from "../dev/visualReview";
+import { sim } from "../sim";
 
 // Day/night cycle (§4): drives the sun, sky, ambient/hemisphere, fog, and
 // background through a full day on a loop. Exposes shared.dayT / shared.hour so
@@ -71,9 +72,12 @@ export function DayNight() {
     const h = import.meta.env.DEV && reviewShot() ? 10 : (prev + dt * (24 / DAY_LENGTH)) % 24;
     if (h < prev) shared.day += 1; // wrapped 24→0
     shared.hour = h;
+    // Keep ClockWeather aligned so lightingUniforms / season tables stay live.
+    sim.clock.syncFromShared(shared.day, shared.hour, useGame.getState().weather);
+    const L = sim.clock.lightingUniforms();
     const a = ((h - 6) / 12) * Math.PI; // 6am rise → 6pm set
     const elev = Math.sin(a);
-    const dayT = THREE.MathUtils.clamp(elev, 0, 1);
+    const dayT = THREE.MathUtils.clamp(1 - L.nightFactor, 0, 1);
     const dusk = THREE.MathUtils.clamp(1 - Math.abs(elev) * 4, 0, 1); // peaks near horizon
     shared.dayT = dayT;
     if (starGroup.current) starGroup.current.visible = dayT < 0.08 && useGame.getState().weather === "clear";
@@ -82,7 +86,10 @@ export function DayNight() {
     const fogW = weather === "fog" ? 1 : 0;
     const snow = weather === "snow" ? 1 : 0;
 
-    const sx = Math.cos(a) * 150, sy = elev * 170, sz = 60;
+    // Prefer seasonal sun dir from ClockWeather; fall back to legacy elev curve.
+    const sx = L.sunDir[0] * 150 || Math.cos(a) * 150;
+    const sy = Math.max(1.5, L.sunDir[1] * 170);
+    const sz = L.sunDir[2] * 150 || 60;
 
     // Playtest fix (2026-11-02): the drei Sky box is finite and fixed at
     // the world origin — driving ~800 m out, its face edge entered the
@@ -115,7 +122,13 @@ export function DayNight() {
         m.color.copy(cSun);
       }
     }
-    if (hemi.current) hemi.current.intensity = (0.16 + dayT * 0.5) * (1 - rain * 0.25 - snow * 0.3);
+    if (hemi.current) {
+      // Cooler ambient in snow (#20); slightly brighter clear daylight (#12).
+      hemi.current.intensity = (0.16 + dayT * (0.52 + (1 - rain - fogW - snow) * 0.06)) * (1 - rain * 0.25 - snow * 0.3);
+      if (snow) hemi.current.color.set("#c8d4e0");
+      else if (fogW) hemi.current.color.set("#b8c0c8");
+      else hemi.current.color.set("#dbe7ff");
+    }
 
     // sky/fog/background lerp night→day with a warm dusk push, grey in rain/fog
     bg.copy(nightBg).lerp(dayBg, dayT).lerp(warm, dusk * 0.25).lerp(storm, rain * 0.6).lerp(fogGrey, fogW * 0.8).lerp(blizzardGrey, snow * 0.88);
@@ -135,7 +148,10 @@ export function DayNight() {
 
   return (
     <>
-      <group ref={skyGroup} visible={weatherState === "clear"}><Sky sunPosition={sunPos} turbidity={3.8} rayleigh={1.6} mieCoefficient={0.004} /></group>
+      {/* Clear sky only (#11); overcast/rain/fog/snow use flat graded background. */}
+      <group ref={skyGroup} visible={weatherState === "clear"}>
+        <Sky sunPosition={sunPos} turbidity={3.2} rayleigh={1.85} mieCoefficient={0.0035} />
+      </group>
       <group ref={starGroup}><Stars radius={400} depth={60} count={[400, 1000, 1800][quality]} factor={3} fade speed={0.3} /></group>
       <sprite ref={glow} scale={[180, 180, 1]}>
         <spriteMaterial map={glowTex} transparent depthWrite={false} opacity={0.8} blending={THREE.AdditiveBlending} />

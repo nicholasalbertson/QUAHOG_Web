@@ -105,7 +105,8 @@ export function generateArchitecturalDetails(
     const w = Math.min(4.8, f.width - 1.0);
     // Shops and harbor-facing warehouses receive ground-floor glass with
     // an actual projecting canopy. Houses receive smaller entries instead.
-    if (b.height <= 22 && seed % 4 === 0 && w >= 3.1) {
+    // Storefront bay density (#4): every ~3rd eligible frontage (was ~4th).
+    if (b.height <= 22 && seed % 3 === 0 && w >= 3.1) {
       add("storefront", at(0.13, 1.45), [w, 2.65, 0.12]);
       add("awning", at(0.59, 3.04), [w + 0.32, 0.20, 1.05]);
       add("shopSign", at(0.16, 3.42), [w + 0.05, 0.35, 0.12]);

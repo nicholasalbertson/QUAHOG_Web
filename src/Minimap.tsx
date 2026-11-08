@@ -342,11 +342,13 @@ export function Minimap(props?: { slice?: Slice | null; pose?: () => MinimapPose
 
       ctx.restore();
 
-      // player heading arrow (always centered, pointing up: the world
-      // above is rotated heading-up, so no rotation is needed here)
+      // player heading arrow (always centered). When reversing in a car (#46),
+      // flip the tip so the radar still matches travel direction.
+      const reversing = useGame.getState().mode === "car" && shared.carSpeed < -1.5;
       ctx.save();
       ctx.translate(R, R);
-      ctx.fillStyle = "#d7c08c";
+      if (reversing) ctx.rotate(Math.PI);
+      ctx.fillStyle = reversing ? "#c9a06a" : "#d7c08c";
       ctx.beginPath();
       ctx.moveTo(0, -7);
       ctx.lineTo(5, 6);

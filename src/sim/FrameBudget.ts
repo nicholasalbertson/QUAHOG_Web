@@ -11,12 +11,21 @@ export interface FrameBudgetOptions {
   reservedMs?: number;
 }
 
+export interface SystemCost {
+  system: string;
+  ms: number;
+}
+
 export class FrameBudget {
   readonly targetMs: number;
   readonly reservedMs: number;
   private frameStart = 0;
+  private started = false;
   private lastFrameMs = 16.6;
   private emaMs = 16.6;
+  /** §1.11.4 per-system attribution for the current frame. */
+  private costs: SystemCost[] = [];
+  private lastOverruns: SystemCost[] = [];
 
   constructor(opts: FrameBudgetOptions = {}) {
     this.targetMs = opts.targetMs ?? 16.6;
@@ -24,11 +33,61 @@ export class FrameBudget {
   }
 
   beginFrame(nowMs = performance.now()): void {
-    if (this.frameStart > 0) {
+    if (this.started) {
       this.lastFrameMs = nowMs - this.frameStart;
       this.emaMs = this.emaMs * 0.85 + this.lastFrameMs * 0.15;
+      if (this.lastFrameMs > this.targetMs * 1.25) {
+        this.lastOverruns = this.costs.slice().sort((a, b) => b.ms - a.ms);
+      }
     }
     this.frameStart = nowMs;
+    this.started = true;
+    this.costs = [];
+  }
+
+  /** Attribute elapsed ms to a named system (call after work completes). */
+  attribute(system: string, ms: number): void {
+    if (!(ms > 0) || !system) return;
+    const existing = this.costs.find((c) => c.system === system);
+    if (existing) existing.ms += ms;
+    else this.costs.push({ system, ms });
+  }
+
+  /** Time a block and attribute it. */
+  measure<T>(system: string, fn: () => T): T {
+    const t0 = performance.now();
+    try {
+      return fn();
+    } finally {
+      this.attribute(system, performance.now() - t0);
+    }
+  }
+
+  private warnLastMs = Number.NEGATIVE_INFINITY;
+  private warnCount = 0;
+
+  /** §1.1.4 Throttled budget warn (default ≤1/s). */
+  warn(label = "frame", nowMs = performance.now()): boolean {
+    if (nowMs - this.warnLastMs < 1000) return false;
+    this.warnLastMs = nowMs;
+    this.warnCount++;
+    if (typeof console !== "undefined") {
+      console.warn(`[FrameBudget] ${label} overrun ema=${this.emaMs.toFixed(1)}ms`);
+    }
+    return true;
+  }
+
+  get warnings(): number {
+    return this.warnCount;
+  }
+
+  /** Last overrun's top systems (empty when healthy). */
+  get overruns(): readonly SystemCost[] {
+    return this.lastOverruns;
+  }
+
+  get attribution(): readonly SystemCost[] {
+    return this.costs;
   }
 
   /** Measured previous-frame cost (ms). */

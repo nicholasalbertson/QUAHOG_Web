@@ -75,6 +75,8 @@ export function collectLegacySave(): SaveBlobV2 {
   blob.inventory = loadJSON(SAVE_KEYS.inventory, undefined);
   blob.radio = loadJSON(SAVE_KEYS.radio, undefined);
   blob.raceBests = loadJSON(SAVE_KEYS.raceBests, undefined);
+  blob.weapons = loadJSON(SAVE_KEYS.weapons, undefined);
+  blob.waypoint = loadJSON(SAVE_KEYS.waypoint, undefined);
   // Boat / carDamage piggy-back on the position record when present.
   const pos = blob.position as
     | {
@@ -107,6 +109,9 @@ export function saveUnified(partial?: Partial<SaveBlobV2>): SaveBlobV2 {
   if (raw.length > 256 * 1024) {
     console.warn("[SaveGame] blob exceeds 256KB soft budget", raw.length);
   }
+  // Domain mirrors for weapons / waypoint (§11.2.4–5).
+  if (blob.weapons) saveJSON(SAVE_KEYS.weapons, blob.weapons);
+  if (blob.waypoint !== undefined) saveJSON(SAVE_KEYS.waypoint, blob.waypoint);
   // Atomic-ish: write temp then main
   saveJSON(SAVE_KEYS.saveV2 + ".tmp", blob);
   saveJSON(SAVE_KEYS.saveV2, blob);
@@ -135,6 +140,8 @@ export function clearAllSaves(): void {
     SAVE_KEYS.inventory,
     SAVE_KEYS.radio,
     SAVE_KEYS.raceBests,
+    SAVE_KEYS.weapons,
+    SAVE_KEYS.waypoint,
     SAVE_KEYS.saveV2,
     SAVE_KEYS.saveV2 + ".tmp",
   );
@@ -144,12 +151,139 @@ export function clearAllSaves(): void {
 export function validateSave(blob: unknown): string[] {
   const errs: string[] = [];
   if (!blob || typeof blob !== "object") return ["not an object"];
-  const b = blob as SaveBlobV2;
-  if (b.schemaVersion !== 2) errs.push(`unsupported schemaVersion ${String(b.schemaVersion)}`);
+  const b = blob as SaveBlobV2 & { schemaVersion?: number };
+  if (typeof b.schemaVersion !== "number") errs.push("schemaVersion missing");
+  else if (b.schemaVersion > SCHEMA_VERSION) {
+    // §1.5.8 Unknown future version → refuse load.
+    errs.push(`future schemaVersion ${b.schemaVersion} (max ${SCHEMA_VERSION})`);
+  } else if (b.schemaVersion !== 2) {
+    errs.push(`unsupported schemaVersion ${String(b.schemaVersion)}`);
+  }
   if (b.stats) {
     for (const k of ["cash", "health", "police", "faction"] as const) {
       if (typeof b.stats[k] !== "number" || !Number.isFinite(b.stats[k])) errs.push(`stats.${k}`);
     }
+    // §1.5.2 Field-level range validators.
+    if (typeof b.stats.cash === "number" && b.stats.cash < 0) errs.push("stats.cash range");
+    if (typeof b.stats.health === "number" && (b.stats.health < 0 || b.stats.health > 100)) {
+      errs.push("stats.health range");
+    }
+    if (typeof b.stats.police === "number" && (b.stats.police < 0 || b.stats.police > 5)) {
+      errs.push("stats.police range");
+    }
+  }
+  if (b.weapons) {
+    if (typeof b.weapons.armed !== "boolean") errs.push("weapons.armed");
+    if (typeof b.weapons.weapon !== "string") errs.push("weapons.weapon");
+  }
+  if (b.waypoint != null) {
+    if (typeof b.waypoint.x !== "number" || typeof b.waypoint.z !== "number") errs.push("waypoint");
+  }
+  // §1.5.3 Size budget assert.
+  try {
+    if (JSON.stringify(b).length > 256 * 1024) errs.push("size exceeds 256KB budget");
+  } catch {
+    errs.push("not serializable");
   }
   return errs;
 }
+
+/** §1.5.8 Refuse load helper for recovery UI. */
+export function refuseFutureSave(blob: unknown): { ok: false; reason: string } | { ok: true; blob: SaveBlobV2 } {
+  const errs = validateSave(blob);
+  if (errs.length) return { ok: false, reason: errs[0] };
+  return { ok: true, blob: blob as SaveBlobV2 };
+}
+
+/** §1.5.11 Classify corrupt / schema / checksum failures. */
+export type CorruptKind = "parse" | "schema" | "checksum" | "ok";
+
+export function detectCorruptSave(raw: string, checksum?: string): CorruptKind {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return "parse";
+  }
+  if (checksum != null && checksumSave(raw) !== checksum) return "checksum";
+  const errs = validateSave(parsed);
+  if (errs.length) return "schema";
+  return "ok";
+}
+
+/** §1.5.9 Lightweight checksum (not crypto — detects corruption). */
+export function checksumSave(raw: string): string {
+  let h = 2166136261;
+  for (let i = 0; i < raw.length; i++) {
+    h ^= raw.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0).toString(16).padStart(8, "0");
+}
+
+/** §1.5.9 Pack with checksum (compression deferred — size already < 256KB). */
+export function packSave(blob: SaveBlobV2): { payload: string; checksum: string } {
+  const payload = JSON.stringify(blob);
+  return { payload, checksum: checksumSave(payload) };
+}
+
+export function unpackSave(packed: { payload: string; checksum: string }): SaveBlobV2 | null {
+  if (checksumSave(packed.payload) !== packed.checksum) return null;
+  try {
+    const blob = JSON.parse(packed.payload) as SaveBlobV2;
+    if (validateSave(blob).length) return null;
+    return blob;
+  } catch {
+    return null;
+  }
+}
+
+/** §1.5.12 Export/import JSON for debug. */
+export function exportSaveJson(): string {
+  const blob = loadUnified() ?? collectLegacySave();
+  const packed = packSave(blob);
+  return JSON.stringify(packed, null, 2);
+}
+
+export function importSaveJson(raw: string): { ok: boolean; reason?: string } {
+  try {
+    const packed = JSON.parse(raw) as { payload?: string; checksum?: string } | SaveBlobV2;
+    let blob: SaveBlobV2 | null = null;
+    if (packed && typeof packed === "object" && "payload" in packed && packed.payload && packed.checksum) {
+      blob = unpackSave({ payload: packed.payload, checksum: packed.checksum });
+      if (!blob) return { ok: false, reason: "checksum mismatch" };
+    } else {
+      const errs = validateSave(packed);
+      if (errs.length) return { ok: false, reason: errs[0] };
+      blob = packed as SaveBlobV2;
+    }
+    saveUnified(blob);
+    return { ok: true };
+  } catch {
+    return { ok: false, reason: "parse fail" };
+  }
+}
+
+let lastQuicksaveAt = 0;
+const QUICKSAVE_COOLDOWN_MS = 4000;
+
+/** §1.5.14 Quicksave with cooldown. */
+export function quicksave(partial?: Partial<SaveBlobV2>): { ok: boolean; reason?: string } {
+  const now = Date.now();
+  if (now - lastQuicksaveAt < QUICKSAVE_COOLDOWN_MS) {
+    return { ok: false, reason: "cooldown" };
+  }
+  lastQuicksaveAt = now;
+  saveUnified(partial);
+  return { ok: true };
+}
+
+/** §1.5.13 Autosave throttle — blocked during cutscene/chase spike/loading. */
+export function mayAutosave(flags: { cutscene?: boolean; chaseSpike?: boolean; loading?: boolean }): boolean {
+  if (flags.cutscene || flags.chaseSpike || flags.loading) return false;
+  return true;
+}
+
+/** §1.5.16 Cloud sync decision — local-only for browser MVP. */
+export const CLOUD_SYNC_DECISION =
+  "Local-only (localStorage). Cloud sync deferred until account auth exists; no silent remote overwrite.";

@@ -160,6 +160,13 @@ class Sfx {
   }
   screech() { this.ensure(); this.burst(1100, 7, 0.45, 0.14, "bandpass"); this.tone(900, 0.4, 0.05, "sawtooth", 1300); }
 
+  /** Distance-fade harbor ambience (#45). gain01 ≈ 0 far inland → 1 at water. */
+  setAmbienceLevel(gain01: number) {
+    if (!this.ambGain || !this.ctx) return;
+    const g = Math.max(0.008, Math.min(0.07, 0.012 + gain01 * 0.055));
+    this.ambGain.gain.setTargetAtTime(g, this.ctx.currentTime, 0.4);
+  }
+
   // ---- continuous beds (call each frame) ----
   engine(speed01: number, on: boolean) {
     if (!this.ctx) { if (on) this.ensure(); else return; }

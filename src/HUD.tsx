@@ -15,6 +15,9 @@ import { StreetLabelTracker, districtTown } from "./ui/streetLabel";
 import { POLICE_ENABLED } from "./world/Police";
 import { WorldJournalPanel } from "./world/WorldJournalPanel";
 import { SCRIMSHAW_TOTAL } from "./world/Collectibles";
+import { flag } from "./flags";
+import { formatDebugOverlayLine, readDebugOverlay } from "./sim/DebugOverlay";
+import { useInventory } from "./inventory";
 import { t, tf, STRINGS } from "./i18n/strings";
 
 const stars = (n: number) => "★".repeat(Math.round(n)) + "☆".repeat(Math.max(0, 5 - Math.round(n)));
@@ -44,6 +47,10 @@ export function HUD({ sliceName }: { sliceName: string }) {
   const armed = useGame((s) => s.armed);
   const weapon = useGame((s) => s.weapon);
   const melee = useGame((s) => s.melee);
+  const magPistol = useInventory((s) => s.magPistol);
+  const magShotgun = useInventory((s) => s.magShotgun);
+  const reservePistol = useInventory((s) => s.pistol);
+  const reserveShotgun = useInventory((s) => s.shotgun);
   const down = useGame((s) => s.down);
   const nearLabel = useGame((s) => s.nearLabel);
   const photo = useGame((s) => s.photo);
@@ -63,6 +70,9 @@ export function HUD({ sliceName }: { sliceName: string }) {
   const [compass, setCompass] = useState("N");
   const [wrongWay, setWrongWay] = useState(false);
   const [edge, setEdge] = useState<{ side: "left" | "right"; dist: number } | null>(null);
+  const [reticleScale, setReticleScale] = useState(1);
+  const [tierFlash, setTierFlash] = useState(0);
+  const [heatChip, setHeatChip] = useState("Clear");
   // Live street + town label (wayfinding §B.3): street from the nearest
   // named road, town from the active district. Updated from the same
   // 200 ms interval, every 2nd tick (400 ms).
@@ -79,6 +89,9 @@ export function HUD({ sliceName }: { sliceName: string }) {
       setStamina(shared.stamina);
       setMph(Math.round(Math.abs(shared.carSpeed) * 2.237)); // m/s → mph
       setGear(gearForSpeed(shared.carSpeed));
+      setReticleScale(1 + shared.recoilBloom * 1.4);
+      setTierFlash(shared.tierFlashAlpha);
+      setHeatChip(shared.heatChip);
       // compass from the active heading (world north = -z)
       const hd = useGame.getState().mode === "car" ? shared.carYaw : shared.heading;
       const bearing = (Math.atan2(Math.sin(hd), -Math.cos(hd)) * 180 / Math.PI + 360) % 360;
@@ -139,7 +152,8 @@ export function HUD({ sliceName }: { sliceName: string }) {
   if (photo) return <div className="hud" data-compact={touch && !expanded}><div className="hud-photo">{t("hud", "photoMode")}</div></div>;
   return <div className="hud" data-compact={touch && !expanded}>
     {down && <div className="hud-down">{down === "wasted" ? t("hud", "wasted") : t("hud", "busted")}</div>}
-    {armed && !down && <div className="hud-reticle">+</div>}
+    {tierFlash > 0.02 && <div className="hud-tier-flash" style={{ opacity: tierFlash }} aria-hidden />}
+    {armed && !down && <div className="hud-reticle" style={{ transform: `translate(-50%,-50%) scale(${reticleScale})`, opacity: 0.75 + shared.recoilBloom * 0.25 }}>+</div>}
     {hurt > 0 && <div style={{position:"absolute",inset:0,boxShadow:`inset 0 0 ${120+hurt*140}px rgba(140,35,25,${hurt*0.5})`}} />}
     <button className="hud-menu" onClick={() => useGame.getState().togglePause()} aria-label={t("hud", "openMenu")}>☰</button>
     <div className="hud-place"><strong>{(place.street ?? place.town).toUpperCase()}</strong><span>{place.street ? place.town.toUpperCase() : STRINGS.common.southcoast}</span></div>
@@ -148,11 +162,22 @@ export function HUD({ sliceName }: { sliceName: string }) {
       <div className="hud-clock">{hhmm} · {tf(t("hud", "day"), { day })} · {compass}</div>
       <div className="hud-health" role="meter" aria-label={t("hud", "health")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={health}><span style={{width:`${Math.max(0,Math.min(100,health))}%`,background:health<30?"#d79c87":undefined}} /></div>
       {stamina < 99.5 && <div className="hud-stamina" aria-label={tf(t("hud", "stamina"), { n: Math.round(stamina) })}><span style={{width:`${stamina}%`}} /></div>}
-      {POLICE_ENABLED && police > 0 && <div className="hud-heat" aria-label={tf(t("hud", "policeHeat"), { n: police })}>{stars(police)}</div>}
+      {(POLICE_ENABLED || police > 0) && police > 0 && (
+        <div className="hud-heat" aria-label={`${tf(t("hud", "policeHeat"), { n: police })}, ${heatChip}`}>
+          {stars(police)}
+          <span className="hud-heat-chip">{heatChip}</span>
+        </div>
+      )}
       {faction > 0 && <div className="hud-heat faction" aria-label={tf(t("hud", "factionHeat"), { n: faction })}>{stars(faction)}</div>}
       {ownedCount > 0 && <div className="hud-inventory hud-secondary">{tf(t("hud", "fronts"), { owned: ownedCount, total: BUSINESSES.length })}</div>}
       {scrimshaw > 0 && <div className="hud-inventory hud-secondary">{tf(t("hud", "scrimshaw"), { found: scrimshaw, total: SCRIMSHAW_TOTAL })}</div>}
-      {(armed || melee === "bat") && <div className="hud-inventory hud-secondary">{armed ? weapon : "bat"}</div>}
+      {(armed || melee === "bat") && (
+        <div className="hud-inventory hud-secondary">
+          {armed
+            ? `${weapon} ${weapon === "shotgun" ? `${magShotgun}/${reserveShotgun}` : `${magPistol}/${reservePistol}`}`
+            : "bat"}
+        </div>
+      )}
     </div>
     <section className="hud-objective" aria-label={t("hud", "currentObjective")}>
       <h2>{missionDone ? t("hud", "missionComplete") : missionTitle.toUpperCase()}</h2>
@@ -164,8 +189,9 @@ export function HUD({ sliceName }: { sliceName: string }) {
     {wp && <div className="hud-waypoint"><span style={{display:"inline-block",transform:`rotate(${wp.bearing}rad)`}}>▲</span> {t("hud", "waypoint")} · {tf(t("hud", "distance"), { dist: wp.dist })}</div>}
     {edge && !missionDone && <div className={`hud-edge-arrow ${edge.side}`} aria-label={t("hud", "objectiveOffScreen")}>{edge.side === "left" ? `◀ ${tf(t("hud", "distance"), { dist: edge.dist })}` : `${tf(t("hud", "distance"), { dist: edge.dist })} ▶`}</div>}
     {sub && <div className="hud-caption"><b>{sub.name}: </b>{sub.text}</div>}
-    {mode === "foot" && nearCar && <div className="hud-prompt"><span className="desktop-interact">E · </span>{nearLabel || t("hud", "enterVehicle")}<small>{t("hud", "useCarControlTouch")}</small></div>}
-    {near && <div className="hud-prompt" style={{bottom:"34%"}}><span className="desktop-interact">B · </span>{near.name} · ${near.cost.toLocaleString()}<small>{near.blurb} · {tf(t("hud", "perDay"), { amount: near.perDay })}</small><button onClick={() => { import("./input").then(({virtualTap}) => virtualTap("KeyB")); }} disabled={cash < near.cost}>{t("hud", "buyFront")}</button></div>}
+    {/* Interact prompt style unify (#47): shared class + key · verb layout. */}
+    {mode === "foot" && nearCar && <div className="hud-prompt hud-prompt-interact"><span className="desktop-interact">E · </span>{nearLabel || t("hud", "enterVehicle")}<small>{t("hud", "useCarControlTouch")}</small></div>}
+    {near && <div className="hud-prompt hud-prompt-interact" style={{bottom:"34%"}}><span className="desktop-interact">B · </span>{near.name} · ${near.cost.toLocaleString()}<small>{near.blurb} · {tf(t("hud", "perDay"), { amount: near.perDay })}</small><button onClick={() => { import("./input").then(({virtualTap}) => virtualTap("KeyB")); }} disabled={cash < near.cost}>{t("hud", "buyFront")}</button></div>}
     <nav className="hud-actions" aria-label={t("hud", "gamePanels")}>
     {touch && <button className="hud-density" aria-label={expanded ? t("hud", "compactHud") : t("hud", "expandHud")} aria-pressed={expanded} onClick={() => {
       setExpanded(!expanded); saveJSON("mounthope.hud.expanded", !expanded);
@@ -177,6 +203,11 @@ export function HUD({ sliceName }: { sliceName: string }) {
       <WorldJournalPanel />
     </nav>
     {mode === "car" && <div className="hud-speed"><strong>{mph}</strong><small>{t("hud", "speedUnit")}</small><span className="hud-gear">{gear}</span></div>}
+    {/* §0.2 / §1.1.24 flag + loop overlay when ?flag.telemetry=1 */}
+    {flag("telemetry") && (() => {
+      const d = readDebugOverlay();
+      return d ? <div className="hud-debug" style={{ position: "absolute", left: 8, bottom: 28, fontSize: 10, color: "#9ab", whiteSpace: "pre" }}>{formatDebugOverlayLine(d)}</div> : null;
+    })()}
     <div className="hud-credit">{t("hud", "mapCredit")}</div>
     <div className="hud-build">{__BUILD_SHA__} · {__BUILD_DATE__}</div>
   </div>;

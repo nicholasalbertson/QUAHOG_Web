@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HUD harness (§0.1)</title>
+    <style>
+      body { margin: 0; font: 14px/1.4 system-ui; background: #142b35; color: #e9e8df; }
+      main { padding: 24px; max-width: 720px; }
+      .row { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0; }
+      .chip { padding: 8px 12px; background: rgba(0,0,0,.35); border: 1px solid rgba(210,218,213,.26); border-radius: 8px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>HUD harness</h1>
+      <p>Storybook-equivalent static harness for HUD chrome review.</p>
+      <div class="row">
+        <div class="chip" aria-label="Player health">Health 100</div>
+        <div class="chip" aria-label="Wanted level">Wanted ★★</div>
+        <div class="chip" aria-label="Cash on hand">$420</div>
+        <div class="chip" aria-label="Current mission objective">Go to Fish Pier</div>
+      </div>
+    </main>
+  </body>
+</html>

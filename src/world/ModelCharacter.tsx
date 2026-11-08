@@ -111,14 +111,18 @@ function RiggedModel({
 
   useFrame(() => {
     if (isFranklin) {
+      // Franklin gait blend (#31): speed thresholds via sprint flag + moving.
       const isMoving = moving?.() ?? false;
-      const want = sprinting?.() && isMoving ? "Run" : isMoving ? "Walk" : "Idle";
+      const isSprint = sprinting?.() ?? false;
+      const want = !isMoving ? "Idle" : isSprint ? "Run" : "Walk";
       if (current.current?.name === want) return;
       const next = actions[want];
       if (!next) return;
       const prev = current.current?.action;
-      if (prev) prev.fadeOut(0.2);
-      next.reset().fadeIn(0.2).play();
+      // Longer crossfade between Walk↔Run for a softer gait blend.
+      const fade = want === "Idle" || current.current?.name === "Idle" ? 0.2 : 0.35;
+      if (prev) prev.fadeOut(fade);
+      next.reset().fadeIn(fade).play();
       current.current = { name: want, action: next };
       return;
     }

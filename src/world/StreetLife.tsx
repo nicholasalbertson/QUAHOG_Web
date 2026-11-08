@@ -262,8 +262,8 @@ function skinForPlayerTint(tint: string): string {
       best = s;
     }
   }
-  // Keep some variety: 55% use the player's matched skin, else random palette.
-  return Math.random() < 0.55 ? best : pick(PED_SKINS);
+  // #34 Ped skin variety: bias hard toward the player's tint (75%), rest random.
+  return Math.random() < 0.75 ? best : pick(PED_SKINS);
 }
 
 const PED_MIN_SPACING = 3.2;
@@ -701,7 +701,24 @@ function Traffic({ routes, count, center }: { routes: Route[]; count: number; ce
 // ---------------------------------------------------------------------------
 // helpers
 
+/** Seamen's Bethel world xz — bias a fraction of spawns nearby (#23). */
+const BETHEL_XZ: [number, number] = [-272.23, 106.5];
+/** Pier / waterfront pull for wander goals (#29). */
+const HARBOR_XZ: [number, number] = [-180, 40];
+
 function randInBox(center: [number, number] = [0, 0]) {
+  // ~28% of peds spawn near Bethel / Johnny Cake Hill for review-cam life.
+  if (Math.random() < 0.28) {
+    const r = 28 + Math.random() * 36;
+    const a = Math.random() * Math.PI * 2;
+    return new THREE.Vector3(BETHEL_XZ[0] + Math.cos(a) * r, 0, BETHEL_XZ[1] + Math.sin(a) * r);
+  }
+  // ~12% pull toward the waterfront / pier (#29).
+  if (Math.random() < 0.12) {
+    const r = 20 + Math.random() * 50;
+    const a = Math.random() * Math.PI * 2;
+    return new THREE.Vector3(HARBOR_XZ[0] + Math.cos(a) * r, 0, HARBOR_XZ[1] + Math.sin(a) * r);
+  }
   return new THREE.Vector3(
     center[0] + (Math.random() * 2 - 1) * PED_WANDER,
     0,

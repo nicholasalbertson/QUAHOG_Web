@@ -30,6 +30,10 @@ export interface RoadNode {
   z: number;
   /** PedGraph optional kind (sidewalk / crosswalk / door). */
   kind?: PedNodeKind;
+  /** §1.2.5 Crosswalk metadata — linked signal id. */
+  signalId?: string;
+  /** Optional elevation for stairs/ramp edges (§1.2.8). */
+  y?: number;
 }
 
 export interface RoadEdge {
@@ -38,6 +42,8 @@ export interface RoadEdge {
   length: number;
   /** PedGraph optional edge tag. */
   tag?: PedNodeKind;
+  /** §1.2.8 Vertical delta for stairs/ramps. */
+  dy?: number;
 }
 
 export interface NavPath {

@@ -5,6 +5,8 @@
 
 import type { Weather } from "../store";
 import { emitTelemetry } from "../telemetry/schema";
+import { rng } from "./Rng";
+import { nightFactorFor, seasonForDay, sunMoonUniforms } from "./SunriseTables";
 
 export type Surface =
   | "asphalt"
@@ -20,7 +22,8 @@ export type WeatherKind = Weather;
 
 const CYCLE: WeatherKind[] = ["clear", "rain", "snow", "fog"];
 
-const BASE_FRICTION: Record<Surface, number> = {
+/** §1.9.3 Surface friction table (dry baseline; ClockWeather.friction applies weather). */
+export const SURFACE_FRICTION: Record<Surface, number> = {
   asphalt: 1,
   wetAsphalt: 0.72,
   cobble: 0.88,
@@ -31,12 +34,30 @@ const BASE_FRICTION: Record<Surface, number> = {
   water: 0.2,
 };
 
+const BASE_FRICTION = SURFACE_FRICTION;
+
 export interface ClockWeatherSave {
   day: number;
   hour: number;
   weather: WeatherKind;
   wetness: number;
   blend: number;
+  pending?: WeatherKind | null;
+  blendSec?: number;
+  blendAcc?: number;
+}
+
+/** §1.4.6 Default cross-fade seconds per transition edge. */
+export const WEATHER_BLEND_SEC: Record<WeatherKind, number> = {
+  clear: 1.2,
+  rain: 1.6,
+  snow: 2.0,
+  fog: 1.8,
+};
+
+/** §1.4.9 Wind slant for rain / sway consumers. */
+export function windSlant(wind: { x: number; z: number }, scale = 1): { dx: number; dz: number } {
+  return { dx: wind.x * scale, dz: wind.z * scale };
 }
 
 export class ClockWeather {
@@ -52,16 +73,23 @@ export class ClockWeather {
   private blendSec = 0;
   private blendAcc = 0;
   wind = { x: 0, y: 0, z: 0 };
+  /** §1.4.10 Lightning flash remaining (seconds). */
+  lightningFlash = 0;
+  private stormAcc = 0;
 
   /** timeOfDay in 0..1 (midnight→midnight). */
   get time01(): number {
     return ((this.hour % 24) + 24) % 24 / 24;
   }
 
-  /** Night factor 0..1 for lighting. */
+  /** Night factor 0..1 for lighting (§1.4.2 season tables). */
   get nightFactor(): number {
-    const elev = Math.sin(((this.hour - 6) / 12) * Math.PI);
-    return 1 - Math.max(0, Math.min(1, elev));
+    return nightFactorFor(this.hour, seasonForDay(this.day));
+  }
+
+  /** §1.4.3 Sun/moon uniforms for lighting consumers. */
+  lightingUniforms() {
+    return sunMoonUniforms(this.hour, seasonForDay(this.day));
   }
 
   advance(dt: number, dayLengthSec = 600): void {
@@ -91,11 +119,30 @@ export class ClockWeather {
     const w = 0.4 + this.wetness * 1.2 + (this.weather === "fog" ? 0.3 : 0);
     this.wind.x = Math.sin(this.hour) * w;
     this.wind.z = Math.cos(this.hour * 0.7) * w;
+
+    // §1.4.10 Lightning during heavy rain / wetness spikes.
+    if (this.lightningFlash > 0) this.lightningFlash = Math.max(0, this.lightningFlash - dt);
+    if (this.weather === "rain" && this.wetness > 0.55) {
+      this.stormAcc += dt;
+      if (this.stormAcc > 4) {
+        this.stormAcc = 0;
+        if (rng.stream("weather").next() < 0.35) this.flashLightning();
+      }
+    } else {
+      this.stormAcc = 0;
+    }
   }
 
-  setWeather(k: WeatherKind, blendSec = 0.8): void {
+  /** §1.4.10 Emit lightning flash + thunder hook event. */
+  flashLightning(duration = 0.18): void {
+    this.lightningFlash = duration;
+    emitTelemetry("sim.weather.lightning", { wetness: this.wetness });
+  }
+
+  setWeather(k: WeatherKind, blendSec?: number): void {
+    const sec = blendSec ?? WEATHER_BLEND_SEC[k] ?? 0.8;
     if (k === this.weather && !this.pending) return;
-    if (blendSec <= 0) {
+    if (sec <= 0) {
       this.weather = k;
       this.pending = null;
       this.blend = 1;
@@ -103,7 +150,7 @@ export class ClockWeather {
       return;
     }
     this.pending = k;
-    this.blendSec = blendSec;
+    this.blendSec = sec;
     this.blendAcc = 0;
     this.blend = 0;
   }
@@ -113,6 +160,25 @@ export class ClockWeather {
     const next = CYCLE[(i + 1) % CYCLE.length];
     this.setWeather(next, 0.6);
     return next;
+  }
+
+  /** §1.4.15 Deterministic weather pick from weather RNG stream. */
+  rollWeather(blendSec = 0.8): WeatherKind {
+    const next = rng.stream("weather").pick(CYCLE);
+    this.setWeather(next, blendSec);
+    return next;
+  }
+
+  /** §1.4.16 Telemetry snapshot. */
+  telemetrySample(surface: Surface = "asphalt"): Record<string, unknown> {
+    return {
+      weather: this.weather,
+      wetness: this.wetness,
+      friction: this.friction(surface),
+      night: this.nightFactor,
+      wind: { ...this.wind },
+      lightning: this.lightningFlash,
+    };
   }
 
   friction(surface: Surface = "asphalt"): number {
@@ -145,6 +211,9 @@ export class ClockWeather {
       weather: this.weather,
       wetness: this.wetness,
       blend: this.blend,
+      pending: this.pending,
+      blendSec: this.blendSec,
+      blendAcc: this.blendAcc,
     };
   }
 
@@ -154,6 +223,8 @@ export class ClockWeather {
     this.weather = s.weather;
     this.wetness = s.wetness;
     this.blend = s.blend;
-    this.pending = null;
+    this.pending = s.pending ?? null;
+    this.blendSec = s.blendSec ?? 0;
+    this.blendAcc = s.blendAcc ?? 0;
   }
 }

@@ -2,6 +2,8 @@ import { useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { shared } from "../shared";
+import { useGame } from "../store";
+import { roadSurfaceAt } from "./roadSurface";
 
 // Tire skid marks (§13): a ring-buffer of flat dark quads dropped under the car
 // while it corners hard at speed (shared.skid). Cheap, instanced, fades the
@@ -39,6 +41,13 @@ export function SkidMarks() {
     drop.current = 0;
 
     const p = shared.car.translation();
+    // Skid marks asphalt/cobble only (#43) — skip dirt/grass/sidewalk.
+    const slice = useGame.getState().slice;
+    if (slice) {
+      const under = roadSurfaceAt(slice.roads, p.x, p.z);
+      if (!under || under.dist > under.halfWidth + 0.8) return;
+      if (under.kind !== "asphalt" && under.kind !== "cobble") return;
+    }
     if (last.x === 0 && last.y === 0) last.set(p.x, p.z);
     const yaw = shared.carYaw;
     // two rear contact patches, offset left/right of the car's centerline

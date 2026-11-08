@@ -39,8 +39,9 @@ export function setBuildingFootprints(source: string, buildings: Building[]): vo
   boxes = [...sources.values()].flat();
 }
 
-/** Push a circle at (x,z) with radius r out of every registered building box. */
-export function pushOutOfBuildings(x: number, z: number, r = 0.45): [number, number] {
+/** Push a circle at (x,z) with radius r out of every registered building box.
+ * Default radius tightened (#24) so peds keep clearer of facade AABB edges. */
+export function pushOutOfBuildings(x: number, z: number, r = 0.62): [number, number] {
   for (const b of boxes) {
     if (x + r < b.minX || x - r > b.maxX || z + r < b.minZ || z - r > b.maxZ) continue;
     const cx = Math.max(b.minX, Math.min(x, b.maxX));

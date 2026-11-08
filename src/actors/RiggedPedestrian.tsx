@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { usePackGLB } from "./packLoader";
+import { shared } from "../shared";
+
+const _lodWorld = new THREE.Vector3();
 
 // A rigged P005 pedestrian: a shared humanoid joint hierarchy (hips, spine,
 // head, arms, legs) with baked Idle + Walk clips, replacing the single
@@ -150,6 +153,7 @@ export function RiggedPedestrian({
     };
   }, [dressed, animations]);
 
+  const lodAcc = useRef(0);
   useFrame((_, delta) => {
     const mixer = mixerRef.current;
     if (!mixer) return;
@@ -158,6 +162,21 @@ export function RiggedPedestrian({
     // same behaviour ModelCharacter had with CesiumMan.
     if (moving && !moving()) {
       mixer.timeScale = 0;
+      return;
+    }
+    // Ped anim LOD by distance (#35): far peds update less often.
+    const cam = shared.player?.translation();
+    let far = false;
+    if (cam && dressed) {
+      dressed.getWorldPosition(_lodWorld);
+      const d2 = (_lodWorld.x - cam.x) ** 2 + (_lodWorld.z - cam.z) ** 2;
+      far = d2 > 90 * 90;
+    }
+    if (far) {
+      lodAcc.current += delta;
+      if (lodAcc.current < 0.12) return;
+      mixer.update(lodAcc.current);
+      lodAcc.current = 0;
       return;
     }
     mixer.timeScale = 1;

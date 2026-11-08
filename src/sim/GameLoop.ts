@@ -12,7 +12,7 @@
  */
 
 export type LoopPhase = "input" | "step" | "postStep" | "render";
-export type PauseSource = "menu" | "tab" | "cutscene" | "load" | "debug";
+export type PauseSource = "menu" | "tab" | "cutscene" | "load" | "debug" | "idle";
 
 export interface LoopStats {
   stepMs: number;
@@ -29,6 +29,8 @@ export interface GameLoopOptions {
   fixedDt?: number;
   maxFrameDt?: number;
   maxStepsPerFrame?: number;
+  /** §1.1.8 Preallocated subscriber slots per phase (default 32). */
+  subCapacity?: number;
   now?: () => number;
   onOverrun?: () => void;
 }
@@ -43,12 +45,8 @@ export class GameLoop {
   private running = false;
   private pauseStack = new Map<PauseSource, number>();
   private scaleStack = new Map<PauseSource, number>();
-  private subs: Record<LoopPhase, PhaseCb[]> = {
-    input: [],
-    step: [],
-    postStep: [],
-    render: [],
-  };
+  /** §1.1.8 Fixed-capacity slots; null = free. No alloc after warmup. */
+  private subs: Record<LoopPhase, (PhaseCb | null)[]>;
   private now: () => number;
   private onOverrun: () => void;
   private overrunLastEmit = Number.NEGATIVE_INFINITY;
@@ -68,15 +66,41 @@ export class GameLoop {
     this.maxStepsPerFrame = opts.maxStepsPerFrame ?? 5;
     this.now = opts.now ?? (() => performance.now());
     this.onOverrun = opts.onOverrun ?? (() => undefined);
+    const cap = Math.max(8, opts.subCapacity ?? 32);
+    this.subs = {
+      input: Array.from({ length: cap }, () => null),
+      step: Array.from({ length: cap }, () => null),
+      postStep: Array.from({ length: cap }, () => null),
+      render: Array.from({ length: cap }, () => null),
+    };
   }
 
   on(phase: LoopPhase, cb: PhaseCb): () => void {
-    this.subs[phase].push(cb);
+    const list = this.subs[phase];
+    let slot = -1;
+    for (let i = 0; i < list.length; i++) {
+      if (list[i] == null) {
+        slot = i;
+        break;
+      }
+    }
+    if (slot < 0) {
+      // Overflow: grow once (warmup only) — still avoid hot-path splice.
+      list.push(cb);
+      slot = list.length - 1;
+    } else {
+      list[slot] = cb;
+    }
     return () => {
-      const list = this.subs[phase];
-      const i = list.indexOf(cb);
-      if (i >= 0) list.splice(i, 1);
+      if (list[slot] === cb) list[slot] = null;
     };
+  }
+
+  /** Occupied subscriber count (for tests / telemetry). */
+  subscriberCount(phase: LoopPhase): number {
+    let n = 0;
+    for (const cb of this.subs[phase]) if (cb) n++;
+    return n;
   }
 
   start(): void {
@@ -137,12 +161,12 @@ export class GameLoop {
     if (dt > this.maxFrameDt) dt = this.maxFrameDt;
 
     // Input always samples once per frame (even while paused — menus).
-    for (const cb of this.subs.input) cb(dt, this.alpha);
+    this.runPhase("input", dt, this.alpha);
 
     if (this.pauseStack.size > 0) {
       this.stats.stepsThisFrame = 0;
       this.stats.paused = true;
-      for (const cb of this.subs.render) cb(0, this.alpha);
+      this.runPhase("render", 0, this.alpha);
       return;
     }
 
@@ -155,8 +179,8 @@ export class GameLoop {
     let steps = 0;
     const stepT0 = this.now();
     while (this.acc >= this.fixedDt && steps < this.maxStepsPerFrame) {
-      for (const cb of this.subs.step) cb(this.fixedDt, 0);
-      for (const cb of this.subs.postStep) cb(this.fixedDt, 0);
+      this.runPhase("step", this.fixedDt, 0);
+      this.runPhase("postStep", this.fixedDt, 0);
       this.acc -= this.fixedDt;
       steps++;
     }
@@ -174,6 +198,14 @@ export class GameLoop {
     this.stats.stepMs = this.now() - stepT0;
 
     const a = this.acc / this.fixedDt;
-    for (const cb of this.subs.render) cb(dt, a);
+    this.runPhase("render", dt, a);
+  }
+
+  private runPhase(phase: LoopPhase, dt: number, alpha: number): void {
+    const list = this.subs[phase];
+    for (let i = 0; i < list.length; i++) {
+      const cb = list[i];
+      if (cb) cb(dt, alpha);
+    }
   }
 }

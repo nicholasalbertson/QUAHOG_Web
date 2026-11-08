@@ -24,7 +24,7 @@ import { shared } from "../shared";
 import { headingToCompass } from "../world/compass";
 import { Ambient, type Weather } from "./Ambient";
 import { sunPositionForHour, sunDayFactor } from "./dayNight";
-import { shouldShowFallbackGround, FALLBACK_GROUND_SIZE } from "./fallbacks";
+import { shouldShowFallbackGround, FALLBACK_GROUND_SIZE, earthFallbackNotice } from "./fallbacks";
 import { sim } from "../sim/SimRuntime";
 import { TilesBVH } from "./bvh";
 import { GoogleTilesAuth } from "./GoogleTilesAuth";
@@ -211,10 +211,11 @@ export function EarthApp() {
       />
       <Radio />
       {mode === "play" && !ready && !tilesProblem && !fault && <Loading />}
-      {tilesProblem && !fault && <TilesProblem />}
+      {tilesProblem && !fault && <TilesProblem notice={earthFallbackNotice(null, true)} />}
       {fault && (
         <TileFaultOverlay
           fault={fault}
+          notice={earthFallbackNotice(fault, tilesProblem)}
           onRetry={() => { setFault(null); setTilesProblem(false); setTilesKey((k) => k + 1); }}
           onDismiss={() => setFault(null)}
         />
@@ -242,12 +243,13 @@ function TilesDiag({ onMissing, onOk }: { onMissing: () => void; onOk: () => voi
   return null;
 }
 
-function TilesProblem() {
+function TilesProblem({ notice }: { notice: string | null }) {
   return (
     <div style={{ position: "fixed", left: "50%", bottom: 24, transform: "translateX(-50%)", zIndex: 5, maxWidth: 460, background: "rgba(40,10,10,.9)", border: "1px solid #7a2c2c", borderRadius: 8, padding: "10px 14px", color: "#ffd9d9", font: "12px/1.5 'Courier New', monospace", textAlign: "center" }}>
       <b>Photoreal tiles aren't loading.</b> The map data isn't coming back from Google —
       almost always the API key: Map Tiles API not enabled, billing off, or over quota.
       Check the key in Google Cloud, then reload. (Movement still works; you're just on an empty surface.)
+      {notice && <div style={{ marginTop: 8, opacity: 0.95 }}>{notice}</div>}
     </div>
   );
 }
@@ -293,7 +295,7 @@ function FrameWatchdog({ degraded, onDegrade }: { degraded: boolean; onDegrade: 
 // §2.3: distinct copy per fault kind + a retry that re-mounts the tiles
 // renderer without a page reload. The canvas is never blank: movement still
 // runs on the fallback ground (§2.10) while this overlay is up.
-function TileFaultOverlay({ fault, onRetry, onDismiss }: { fault: TileFault; onRetry: () => void; onDismiss: () => void }) {
+function TileFaultOverlay({ fault, notice, onRetry, onDismiss }: { fault: TileFault; notice: string | null; onRetry: () => void; onDismiss: () => void }) {
   const copy = faultCopy(fault);
   // §2.3.1 — a 401/403 means the stored key is wrong or revoked: offer to
   // clear it and re-enter a key (lands on the NoKeyNotice after reload).
@@ -305,6 +307,7 @@ function TileFaultOverlay({ fault, onRetry, onDismiss }: { fault: TileFault; onR
     <div style={{ position: "fixed", left: "50%", bottom: 24, transform: "translateX(-50%)", zIndex: 5, maxWidth: 480, background: "rgba(40,10,10,.92)", border: "1px solid #7a2c2c", borderRadius: 8, padding: "12px 16px", color: "#ffd9d9", font: "12px/1.5 'Courier New', monospace", textAlign: "center" }}>
       <b>{copy.title}</b>
       <div style={{ margin: "4px 0 10px", opacity: 0.9 }}>{copy.body}</div>
+      {notice && <div style={{ margin: "0 0 10px", opacity: 0.95 }}>{notice}</div>}
       <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
         <button onClick={onRetry} style={{ cursor: "pointer", border: "1px solid #7a2c2c", background: "#7ad9ff", color: "#04121a", fontWeight: 700, padding: "6px 14px", borderRadius: 6, font: "12px 'Courier New', monospace" }}>
           RETRY TILES

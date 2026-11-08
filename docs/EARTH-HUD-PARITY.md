@@ -30,9 +30,15 @@ its documented omission.
 | Heat / wanted detail (beyond stars) | Stars only | No heat source in earth (§2.8.2/§3). |
 | Police blips on the minimap | Drawn from `shared.cops` (empty in earth) | No cops in earth (§3.3). The Minimap reads the shared array, so blips appear automatically once cops exist. |
 | HUD location label (street + town) | Not in earth | The stylized label reads the OSM road network from the slice; the earth equivalent needs the same lookup against the earth pose. |
+| Photo mode chrome | Omitted | Until tile budget allows. |
+| Radio scrubber detail | Omitted | Until tile budget allows. |
+| Race splits strip | Omitted | Until tile budget allows. |
 
 ## Shared layer (§2.5.7)
 
 The Minimap is now a shared component (both builds use `src/Minimap.tsx`).
 The HUD shells are still separate (stylized `src/HUD.tsx` vs earth `Hud` in
 `src/earth/EarthApp.tsx`) — a full shared HUD layer is §13.4 work.
+
+Shared sim logic ready for earth mount: `sim/Compass`, `sim/DamageIndicator`,
+`sim/InteractPrompt`, heat tier / WantedRadar, MissionRuntime + ObjectiveNav.

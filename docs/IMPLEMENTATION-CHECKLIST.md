@@ -23,17 +23,17 @@ Status: `[ ]` not started · `[~]` partial · `[x]` done
 ## Priority implementation order (active)
 
 1. [x] Close streamer evict/dispose + quality NPC/shadow caps
-2. [~] **§0 Foundations** — flags, `Rng`, telemetry, registries; `assets:audit` landed (CI wire-up TBD)
-3. [x] **§1.1 GameLoop** — core + heat/economy/traffic/peds/car/boat on fixed step
-4. [~] §1.2 PedGraph baseline (deepen doors/crosswalks later)
+2. [~] **§0 Foundations** — flags, Rng (no Math.random in sim), ReplayRecorder, telemetry schema; CI/tooling TBD
+3. [x] **§1.1 GameLoop** — core + peds/traffic/chase/weather/economy/mission/heat on fixed step (car/boat deepen TBD)
+4. [~] §1.2 PedGraph — doors/crosswalk/orphan/stuck/smoothing; deepen A* cost/occupancy still open
 5. [~] §1.3 MissionRuntime baseline
 6. [~] §1.6 WorldManifest scaffold (from slice); Cape/FR content still open
-7. [~] §1.5 SaveGame v2 + Continue gate + inventory + boat/carDamage domains
+7. [~] §1.5 SaveGame v2 + Continue (stats+pos; mission optional for legacy) + inventory/boat/carDamage/radio/race
 8. [x] §3.2 heat tiers + §5.2 ammo/inventory persistence
 9. [x] §2.11 earth demoted to diagnostic (`docs/EARTH-DECISION.md`)
-10. [~] §1.4 ClockWeather + fog→streamer radius; §9.2 spatial audio stub
-11. [~] §15 AcceptanceHarness stages 0–7 green; §17 release checklist drafted
+10. [~] §1.4 ClockWeather (snow sync + friction + fog stream hint); §9.2 spatial audio listener wired
+11. [~] §15 AcceptanceHarness stages 0–7 + SoakHarness; §17 release checklist drafted
 12. [ ] §7.3 Cape/FR authored tiles — **blocked** (see `CONTENT-CAPE-FR.md`) ← remaining content gate for full campaign
     - also done this pass: boat-aware mission/waypoint targets; police soft-fail chase; SpatialIndex segment/LOS; streamer metrics; tab Canvas pause
 
-See V3 for full contracts, test matrices, and the dependency DAG.
+See V3 (v3.2 status sync) for full contracts, test matrices, and the dependency DAG.

@@ -13,12 +13,10 @@ export function mobileBudget(q: Quality, mobile = isMobileDevice()) {
     aerialConcurrency: mobile ? 2 : 6,
     tileConcurrency: mobile ? 2 : 6,
     tileCache: [40, 64, 100][q],
+    // Density cut (2026-11-07): traffic localized near player in StreetLife;
+    // Medium parked/ped kept high enough for Johnny Cake Hill review cams.
     parkedCars: [24, 40, 60][q],
     pedestrians: [16, 28, 44][q],
-    // Density cut (2026-11-07, defect 2): traffic was 6/12/20 cars spread
-    // over the WHOLE district, so Nic saw ~2 cars driving. Raised ~2.5x
-    // AND localized (StreetLife spawns/respawns near the player) — the cap
-    // alone would still scatter cars across the city.
     traffic: [16, 28, 40][q],
     shadows: q > 0,
   };

@@ -69,7 +69,7 @@ abort on OOM or sustained &lt; 20 FPS. Device measurement still owner/device gat
 | Item | Status | Evidence / blocker |
 |------|--------|--------------------|
 | 12.1.1 Named-device matrix | [x] committed | This file (devices + tiers + targets per §12.1.1). Measurements still pending. |
-| 12.1.2 Thermal budget (20 min within 10% of p50) | needs real device | Harness landed: probe v2 buckets FPS per minute + reports first-5 vs last-5 median drift (`thermal.driftPct`, `within10Pct`). No device has run a 20-min soak yet — needs Nic's iPhone (B) or an Android (A/C). |
+| 12.1.2 Thermal budget (20 min within 10% of p50) | needs real device | Harness landed: probe v2 buckets FPS per minute + reports first-5 vs last-5 median drift (`thermal.driftPct`, `within10Pct`). No device has run a 20-min soak yet — needs Nic's iPhone (B) or an Android (A/C). Matrix measured cells remain `_pending_` until Device A/B/C runs. |
 | 12.1.3 Measured matrix | [~] partial | This file; desktop-reference row only. Device A/B/C still pending. |
 | 12.2.1 JSON eviction → mesh GC on unmount | [x] verified | `StreamingBuildings` renders `<Tile key>` for active tiles only; on eviction React unmounts the tile → geometry disposed (`useEffect` cleanup) + camera buildings unregistered + `markTileUnmounted`. Intermediate part geometries disposed after merge. |
 | 12.2.2 Heap flat across 30-min drive | needs real device | Harness landed: probe v2 samples heap every 5 s + reports a linear slope (MB/min). A flat heap is ~0 slope; a leak is a steady positive slope. The 30-min drive itself needs a real device (SwiftShader cannot drive at a meaningful rate). |

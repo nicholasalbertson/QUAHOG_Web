@@ -6,7 +6,8 @@
     {
       "id": "cesium-man",
       "paths": [
-        "models/CesiumMan.glb"
+        "models/CesiumMan.glb",
+        "models/previews/cesium_man_preview.png"
       ],
       "license": "CC-BY-4.0",
       "status": "cleared",
@@ -65,7 +66,8 @@
     {
       "id": "franklin-player",
       "paths": [
-        "models/franklin_animated.glb"
+        "models/franklin_animated.glb",
+        "models/previews/franklin_preview.png"
       ],
       "license": "Original-Mount-Hope",
       "status": "original",

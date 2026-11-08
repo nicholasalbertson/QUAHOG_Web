@@ -63,12 +63,17 @@ export function buildParkedCars(roads: Road[], center: [number, number]): Parked
       if (len < 14) continue;
       const ux = dx / len, uz = dz / len;
       const nx = -uz, nz = ux;
-      for (let d = 7; d < len; d += 30) {
+      // Tighter curb spacing near the hub so Johnny Cake Hill / Water St
+      // actually show parked life at Medium quality (was 30 m → sparse).
+      // #22: also reject near-duplicates across parallel curb sides (~6.5 m).
+      const MIN_PARK = 6.5;
+      for (let d = 7; d < len; d += 18) {
         const side = (n & 1) ? 1 : -1;
         const x = x1 + ux * d + nx * off * side;
         const z = z1 + uz * d + nz * off * side;
         if (Math.hypot(x - center[0], z - center[1]) > RADIUS) continue;
         if (corridor.contains(x, z)) continue;
+        if (out.some((c) => Math.hypot(c.x - x, c.z - z) < MIN_PARK)) continue;
         out.push({
           x, z,
           rot: Math.atan2(ux, uz) + (((n * 0.6180339887) % 1) - 0.5) * 0.2, // parked-by-hand yaw jitter

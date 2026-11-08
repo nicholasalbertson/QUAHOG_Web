@@ -7,7 +7,7 @@
  *      (Johnny Cake Hill — New Bedford Whaling NHP). No invented downtown cobble.
  *
  * Footways without a cobble surface render as concrete sidewalk, not setts.
- * Unpaved / track → dirt.
+ * Unpaved / track → asphalt (no dirt-road ribbons — 2026-11-07 strip).
  */
 
 import type { Road } from "../slice";
@@ -70,7 +70,8 @@ export function classifyRoadSurface(road: RoadWithSurface): RoadSurfaceKind {
 
   // Explicit OSM surface wins.
   if (COBBLE_SURFACE.has(surf)) return "cobble";
-  if (DIRT_SURFACE.has(surf)) return "dirt";
+  // Dirt/gravel/unpaved: keep as asphalt visually (no brown dirt ribbons).
+  if (DIRT_SURFACE.has(surf)) return "asphalt";
   if (surf === "concrete" || surf === "paved") {
     return SIDEWALK_HIGHWAY.has(road.highway) ? "sidewalk" : "asphalt";
   }
@@ -78,7 +79,7 @@ export function classifyRoadSurface(road: RoadWithSurface): RoadSurfaceKind {
   // Curated real-world setts (no invented downtown cobble).
   if (verifiedCobbleName(road.name)) return "cobble";
 
-  if (road.highway === "track") return "dirt";
+  if (road.highway === "track") return "asphalt";
   if (SIDEWALK_HIGHWAY.has(road.highway)) return "sidewalk";
 
   return "asphalt";
@@ -86,7 +87,6 @@ export function classifyRoadSurface(road: RoadWithSurface): RoadSurfaceKind {
 
 /** Map visual kind → ClockWeather Surface for tire friction. */
 export function frictionSurfaceForRoad(kind: RoadSurfaceKind): Surface {
-  if (kind === "dirt") return "dirt";
   if (kind === "cobble") return "cobble";
   if (kind === "sidewalk") return "asphalt";
   return "asphalt";

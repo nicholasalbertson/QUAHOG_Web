@@ -15,8 +15,8 @@ import { DRESSING_ENABLED } from "../world/dressing";
 // are vite/client only, so node:fs has no declarations here).
 
 describe("harbor clutter gating", () => {
-  it("dressing switch is ON — PortClutter still mounts only behind the gate", () => {
-    expect(DRESSING_ENABLED).toBe(true);
+  it("dressing switch is OFF — PortClutter and excess dressing stay gated", () => {
+    expect(DRESSING_ENABLED).toBe(false);
   });
 
   it("PortClutter mount in Experience.tsx is gated by DRESSING_ENABLED", () => {
@@ -36,5 +36,14 @@ describe("harbor clutter gating", () => {
 
   it("Waterfront renders no boxes (pilings + buoys only) — nothing to gate", () => {
     expect(wfSrc as string).not.toContain("boxGeometry");
+  });
+
+  it("TrafficLights and AreaTrees mounts are gated by DRESSING_ENABLED", () => {
+    const tl = (expSrc as string).indexOf("<TrafficLights");
+    expect(tl).toBeGreaterThan(-1);
+    expect((expSrc as string).slice(Math.max(0, tl - 120), tl)).toContain("DRESSING_ENABLED");
+    const at = (expSrc as string).indexOf("<AreaTrees");
+    expect(at).toBeGreaterThan(-1);
+    expect((expSrc as string).slice(Math.max(0, at - 120), at)).toContain("DRESSING_ENABLED");
   });
 });

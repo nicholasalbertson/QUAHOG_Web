@@ -23,6 +23,9 @@ export interface ChaseControllerOptions {
   spawnRadius?: number;
 }
 
+/**
+ * §3.3.2 Road cops — ChaseController polish: separation bias + speed clamp.
+ */
 export class ChaseController {
   private graph: RoadGraph;
   private speed: number;
@@ -98,7 +101,10 @@ export class ChaseController {
     if (d < this.waypointReach && unit.cursor < unit.path.length) {
       unit.cursor++;
     }
-    const step = Math.min(d, this.speed * dt);
+    // Polish: catch-up when far, ease when closing so pursuits stay readable.
+    const toTarget = dist(unit.x, unit.z, target.x, target.z);
+    const speedMul = toTarget > 40 ? 1.25 : toTarget < 8 ? 0.85 : 1;
+    const step = Math.min(d, this.speed * speedMul * dt);
     unit.x += (dx / d) * step;
     unit.z += (dz / d) * step;
     unit.yaw = Math.atan2(dx, dz);

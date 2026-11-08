@@ -20,6 +20,7 @@ import { Tier1Models } from "./world/Tier1Models";
 import { NbTier1Models } from "./world/NbTier1Models";
 import { DowntownTier1Models } from "./world/DowntownTier1Models";
 import { withoutTier1 } from "./world/tier1Models";
+import { NB_TIER1_MODELS } from "./world/nbTier1Models";
 import { GisDistrict } from "./world/GisDistrict";
 import { Water } from "./world/Water";
 import { Landmarks } from "./world/Landmarks";
@@ -70,6 +71,9 @@ import { Marina } from "./world/Marina";
 import { GlbHarborDressing, GlbStreetDressing } from "./world/GlbStreetDressing";
 import { StreetLights } from "./world/StreetLights";
 import { Gulls } from "./world/Gulls";
+import { CorridorDressing } from "./world/CorridorDressing";
+import { TrafficStopZones } from "./world/TrafficStopZones";
+import { CobbleCurbPads } from "./world/CobbleCurbPads";
 import { SkidMarks } from "./world/SkidMarks";
 import { Rain } from "./world/Rain";
 import { Snow } from "./world/Snow";
@@ -85,6 +89,7 @@ import { Ambient } from "./earth/Ambient";
 import { DayNight } from "./world/DayNight";
 import { EnvLight } from "./world/EnvLight";
 import { GameSystems } from "./world/GameSystems";
+import { ShopInteract } from "./world/ShopInteract";
 import { MissionRunner } from "./world/MissionRunner";
 import { ObjectiveBeacon } from "./world/ObjectiveBeacon";
 import { RenderDiagnostics } from "./world/RenderDiagnostics";
@@ -118,7 +123,14 @@ function ShadowGate() {
 }
 
 // Landmarks rendered as hand-detailed models (so the generic beam/label is skipped).
-const MODELED = new Set(["Seamen's Bethel"]);
+// Include NB tier1 display names so "Double Bank Building" etc. don't float
+// over an already-mounted hero GLB (visual audit P1).
+const MODELED = new Set<string>([
+  "Seamen's Bethel",
+  "Mariner's Home",
+  "Mariners' Home",
+  ...NB_TIER1_MODELS.map((m) => m.name),
+]);
 // Fall River integration (2026-11-03): the playable core is no longer a
 // single hardcoded point — it comes from the active district registry
 // (districts.ts). newBedford keeps CORE exactly ([-266, -100]); fallRiver
@@ -296,6 +308,7 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       <EnvLight />
       <CinematicExposure />
       <GameSystems />
+      <ShopInteract />
       <SimBootstrap />
       <MissionRunner />
       <ObjectiveBeacon />
@@ -381,8 +394,8 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       {slice && <FlatAreas polys={slice.parks} color="#4f6e3a" y={0.036} />}
       {slice && <Rail paths={slice.rail} />}
       {slice && <Piers paths={slice.pier} />}
-      {slice && <AreaTrees areas={slice.wood} step={9} cap={800} />}
-      {slice && <AreaTrees areas={slice.parks} step={16} cap={300} />}
+      {DRESSING_ENABLED && slice && <AreaTrees areas={slice.wood} step={9} cap={800} />}
+      {DRESSING_ENABLED && slice && <AreaTrees areas={slice.parks} step={16} cap={300} />}
       {slice && <Steeples points={slice.church} />}
       {slice && slice.water?.length > 0 && <Water polys={slice.water} holes={slice.islands ?? []} />}
       {/* Corridor gap water (rivers/canals between districts) — no islands. */}
@@ -408,13 +421,10 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       <Marina />
       <Gulls />
       <CullByDistance center={center} radius={820}>
-      {/* Minimalist directive (2026-11-03): the dressing layer is gated by
-          the single DRESSING_ENABLED switch (world/dressing.ts, default
-          OFF). Each mount below renders nothing while off; the code stays
-          so one flip restores it. Parked cars, crosswalks, utility poles,
-          traffic signals and the overlay are NOT dressing and stay on. */}
+      {/* Minimalist directive: dressing OFF by default. Trees, awnings, signs,
+          stop lights, foliage, GLB street/harbor accents all follow the switch.
+          Parked cars, crosswalks, utility poles stay on. */}
       {DRESSING_ENABLED && slice && <Props roads={slice.roads} center={world} />}
-      {/* Real pack011 + Kenney GLBs on sidewalks (capped); Props keep density. */}
       {DRESSING_ENABLED && slice && <GlbStreetDressing roads={slice.roads} center={world} />}
       {/* §7.6.1/7.6.3 — the lighting layer on the same lamp posts: instanced
           emissive glows + a tiered real point-light pool (low 0 / med 4 / high 8).
@@ -427,7 +437,12 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       {slice && <Decals roads={slice.roads} center={world} />}
       {slice && <Graffiti roads={slice.roads} buildings={slice.buildings} center={world} />}
       {DRESSING_ENABLED && slice && <StreetSigns roads={slice.roads} center={world} />}
-      {slice && <TrafficLights roads={slice.roads} center={world} />}
+      {DRESSING_ENABLED && slice && <TrafficLights roads={slice.roads} center={world} />}
+      {/* Silent stop-lines so traffic still halts at red when dressing is off (#26). */}
+      {!DRESSING_ENABLED && slice && <TrafficStopZones roads={slice.roads} center={world} />}
+      {/* Allowlisted Water St + Johnny Cake Hill furniture only (#18/#21). */}
+      {isNB && slice && <CorridorDressing roads={slice.roads} center={world} />}
+      {isNB && slice && <CobbleCurbPads roads={slice.roads} center={world} />}
       {slice && <ParkedCars roads={slice.roads} center={world} />}
       {DRESSING_ENABLED && slice && <StreetExtras roads={slice.roads} center={world} />}
       {DRESSING_ENABLED && slice && <RoadFixtures roads={slice.roads} center={world} />}
@@ -436,7 +451,7 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       {DRESSING_ENABLED && slice && <Billboards roads={slice.roads} center={world} />}
       {DRESSING_ENABLED && slice && <Dumpsters roads={slice.roads} center={world} />}
       </CullByDistance>
-      {isNB && (
+      {DRESSING_ENABLED && isNB && (
         <GlbHarborDressing
           points={[
             { x: -180, z: 40, yaw: 0.4, kind: "boat" },

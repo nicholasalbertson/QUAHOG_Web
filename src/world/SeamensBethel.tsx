@@ -15,7 +15,8 @@ import { useGame } from "../store";
 // Built procedurally from primitives; front facade faces +x (the approach).
 
 const WHITE = "#f7f5ec";
-const TRIM = "#f3f0e8";
+// Cooler, higher-contrast trim vs clapboard (#9) — readable at Bethel cams.
+const TRIM = "#e8e4d6";
 const ROOF = "#2e2e33";
 const STONE = "#8c8a84";
 const DOOR = "#3a281a";
@@ -242,5 +243,7 @@ function BethelTrim() {
     const merged = mergeGeometries(parts, false)!; parts.forEach((p) => p.dispose()); return merged;
   }, []);
   useEffect(() => () => geometry.dispose(), [geometry]);
-  return <mesh geometry={geometry} receiveShadow><meshStandardMaterial color={TRIM} roughness={0.86} /></mesh>;
+  return <mesh geometry={geometry} receiveShadow castShadow>
+    <meshStandardMaterial color={TRIM} roughness={0.78} metalness={0.04} />
+  </mesh>;
 }

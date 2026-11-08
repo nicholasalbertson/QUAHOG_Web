@@ -13,8 +13,13 @@
  */
 import type { Road } from "../slice";
 import type { Surface } from "../sim/ClockWeather";
-import { classifyRoadSurface } from "./roadSurface";
+import { classifyRoadSurface, type RoadWithSurface } from "./roadSurface";
 import { isBlockedWater } from "./waterZones";
+
+/** OSM tags that should footstep as dirt even when visual ribbons stay asphalt. */
+const FOOTSTEP_DIRT = new Set([
+  "dirt", "gravel", "fine_gravel", "ground", "earth", "compacted", "unpaved", "mud", "sand",
+]);
 
 const CELL = 128;
 /** On-road if within half the road width + this margin (m). */
@@ -117,6 +122,9 @@ export function surfaceAt(east: number, north: number, wet: boolean, roads: read
   if (!hit) return "grass";
   const halfWidth = (hit.road.width ?? 6) / 2;
   if (hit.dist > halfWidth + ON_ROAD_MARGIN_M) return "grass";
+  // Footsteps keep OSM dirt/gravel timbre even though visual ribbons map dirt→asphalt.
+  const osm = ((hit.road as RoadWithSurface).surface ?? "").trim().toLowerCase();
+  if (FOOTSTEP_DIRT.has(osm)) return "dirt";
   const kind = classifyRoadSurface(hit.road);
   switch (kind) {
     case "cobble":

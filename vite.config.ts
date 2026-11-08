@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { execSync } from "node:child_process";
+import path from "node:path";
 
 // Build stamp: prefer Vercel's injected commit SHA; fall back to local git so a
 // dev build is still identifiable. Surfaced in-game (HUD corner) so it's obvious
@@ -18,6 +19,13 @@ function commitSha(): string {
 export default defineConfig({
   plugins: [react()],
   base: "./",
+  resolve: {
+    alias: {
+      "@sim": path.resolve(__dirname, "src/sim"),
+      "@ui": path.resolve(__dirname, "src/ui"),
+      "@content": path.resolve(__dirname, "src/content"),
+    },
+  },
   define: {
     __BUILD_SHA__: JSON.stringify(commitSha()),
     __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)),

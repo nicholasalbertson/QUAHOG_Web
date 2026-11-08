@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { useStats } from "../game";
 import { MISSIONS, useMission } from "../mission";
@@ -12,12 +13,11 @@ import { sfx } from "../audio/sfx";
 import { radio } from "../audio/radioEngine";
 import { loadJSON, saveJSON } from "../storage";
 import { SAVE_KEYS } from "../registries";
-import { catchUpWorldClock, weatherBusinessMultiplier } from "./worldContinuity";
+import { catchUpWorldClock } from "./worldContinuity";
 import type { WorldEventKind } from "./worldContinuity";
 import { worldJournal } from "./worldJournal";
 import { requestGuardedSpawn } from "./SpawnGuard";
 
-const DAY_SECONDS = 600; // matches DayNight's cycle length
 const POS_KEY = "mounthope.pos.v1";
 
 export function saveMissionProgress() {
@@ -153,7 +153,22 @@ export function GameSystems() {
       for (const id of Object.keys(next.owned)) {
         if (!previous.owned[id]) {
           const b = BUSINESSES.find((item) => item.id === id);
-          if (b) remember("business", `${b.name} changed hands. Your neighborhood income increased.`);
+          if (b) {
+            remember("business", `${b.name} changed hands. Your neighborhood income increased.`);
+            // §4.3.2 Ownership → mission availability toast
+            if (b.unlockMission) {
+              useToasts.getState().push(`Unlocked job: ${b.unlockMission}`, "#ffd24a");
+              remember("mission", `Front unlock: ${b.unlockMission}`);
+            }
+          }
+        }
+      }
+      for (const id of Object.keys(previous.owned)) {
+        if (!next.owned[id]) {
+          const b = BUSINESSES.find((item) => item.id === id);
+          if (b?.unlockMission) {
+            useToasts.getState().push(`Job locked: ${b.unlockMission}`, "#ff6a6a");
+          }
         }
       }
     });
@@ -176,6 +191,7 @@ export function GameSystems() {
     previousDay.current = shared.day;
     prevStars.current = Math.floor(useStats.getState().police);
     sfx.startAmbience();
+    // Harbor ambience distance fade continues in the frame loop (#45).
     // restore settings (§26)
     {
       const s = loadJSON<Record<string, unknown>>("mounthope.settings.v1", {});
@@ -211,8 +227,8 @@ export function GameSystems() {
       previousDay.current = shared.day;
       prevStars.current = Math.floor(useStats.getState().police);
     }
-    // global hotkeys
-    if (consumeTap("KeyR")) { useGame.getState().toggleWeather(); sfx.ui(); }
+    // global hotkeys — KeyR reloads when armed (Player), weather when holstered
+    if (consumeTap("KeyR") && !useGame.getState().armed) { useGame.getState().toggleWeather(); sfx.ui(); }
     if (consumeTap("KeyP") || consumeTap("Escape")) { useGame.getState().togglePause(); sfx.ui(); }
     if (consumeTap("KeyC")) { useGame.getState().toggleChar(); sfx.ui(); }
     if (consumeTap("KeyM")) { useGame.getState().toggleMap(); sfx.ui(); }
@@ -229,6 +245,16 @@ export function GameSystems() {
       previousDay.current = shared.day;
     }
     if (shared.alarm.t > 0) shared.alarm.t = Math.max(0, shared.alarm.t - dt);
+    // Harbor ambience distance fade (#45): louder near waterfront, soft inland.
+    {
+      const body = useGame.getState().mode === "car" ? shared.car : shared.player;
+      const t = body?.translation();
+      if (t) {
+        const d = Math.hypot(t.x - (-180), t.z - 40);
+        const near = THREE.MathUtils.clamp(1 - d / 420, 0, 1);
+        sfx.setAmbienceLevel(near);
+      }
+    }
     // tire screech on hard cornering (§13/§20), with a cooldown so it doesn't spam
     skidCool.current = Math.max(0, skidCool.current - dt);
     if (shared.skid && skidCool.current <= 0) { sfx.screech(); skidCool.current = 0.55; }
@@ -242,9 +268,7 @@ export function GameSystems() {
       }
     }
     const st = useStats.getState();
-    // passive business revenue (§15 RevenueManager)
-    const income = useEconomy.getState().incomePerSec(DAY_SECONDS);
-    if (income > 0) st.addCash(income * dt * weatherBusinessMultiplier(useGame.getState().weather));
+    // Passive income ticks on GameLoop fixed-step (§1.1.21 via SimBootstrap).
     // occasional margin-leak / boom event on an owned front (§15 RevenueManager)
     revAcc.current += dt;
     if (revAcc.current > nextRev.current) {

@@ -29,8 +29,9 @@ export function Marina() {
     YACHTS.forEach((y, i) => {
       const g = refs.current[i];
       if (!g) return;
-      g.position.set(y.x, 0.35 + Math.sin(t * 1.1 + i) * 0.12, y.z);
-      g.rotation.set(Math.sin(t * 0.9 + i) * 0.04, y.rot, Math.sin(t * 1.2 + i) * 0.05);
+      // Slightly stronger bob/roll so marina reads alive vs static pier (audit #28).
+      g.position.set(y.x, 0.35 + Math.sin(t * 1.15 + i) * 0.18, y.z);
+      g.rotation.set(Math.sin(t * 0.95 + i) * 0.06, y.rot, Math.sin(t * 1.25 + i) * 0.07);
     });
   });
   return (

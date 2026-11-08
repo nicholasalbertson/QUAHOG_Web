@@ -36,10 +36,10 @@ export interface WorldManifest {
   spawns: SpawnDef[];
   doors: { id: string; x: number; z: number; building?: string }[];
   signals: { id: string; x: number; z: number }[];
-  raceTracks: { id: string; name: string }[];
+  raceTracks: { id: string; name: string; checkpoints?: number }[];
   collectibles: { id: string; kind: string; x: number; z: number }[];
   fronts: { id: string; name: string; x: number; z: number; cost: number }[];
-  territories: { id: string; faction: string }[];
+  territories: { id: string; faction: string; points?: [number, number][] }[];
 }
 
 export interface ManifestValidation {
@@ -72,13 +72,66 @@ export function manifestFromSlice(slice: Slice): WorldManifest {
     })),
     spawns: [
       { id: "player-start", kind: "player", x: 0, z: 0 },
+      ...slice.landmarks.slice(0, 8).map((l, i) => ({
+        id: `ped-spawn-${i}`,
+        kind: "ped" as const,
+        x: l.pos[0],
+        z: -l.pos[1],
+      })),
     ],
-    doors: [],
-    signals: [],
-    raceTracks: [],
-    collectibles: [],
-    fronts: [],
-    territories: [],
+    // §1.2.6 / §1.6 door stubs from building footprints (south edge midpoints).
+    doors: slice.buildings.slice(0, 120).map((b, i) => {
+      let best = 0, bestN = Infinity;
+      for (let k = 0; k < b.footprint.length; k++) {
+        if (b.footprint[k][1] < bestN) { bestN = b.footprint[k][1]; best = k; }
+      }
+      const j = (best + 1) % b.footprint.length;
+      const x = (b.footprint[best][0] + b.footprint[j][0]) / 2;
+      const z = -((b.footprint[best][1] + b.footprint[j][1]) / 2);
+      return { id: `door-${i}`, x, z, building: b.name };
+    }),
+    signals: slice.roads
+      .filter((r) => ["primary", "secondary", "tertiary"].includes(r.highway) && r.points.length >= 2)
+      .slice(0, 24)
+      .map((r, i) => ({ id: `sig-${i}`, x: r.points[0][0], z: -r.points[0][1] })),
+    raceTracks: [
+      { id: "harbor-loop", name: "Harbor Loop", checkpoints: 3 },
+      { id: "rt6-dash", name: "Route 6 Dash", checkpoints: 3 },
+      { id: "island-wake", name: "Island Wake", checkpoints: 3 },
+    ],
+    collectibles: [
+      // Scrimshaw spots mirrored from Collectibles.tsx (core set).
+      { id: "scrim-0", kind: "scrimshaw", x: -272, z: 106 },
+      { id: "scrim-1", kind: "scrimshaw", x: -244, z: 70 },
+      { id: "scrim-2", kind: "scrimshaw", x: -300, z: 130 },
+      { id: "scrim-3", kind: "scrimshaw", x: -210, z: 100 },
+      { id: "scrim-4", kind: "scrimshaw", x: -330, z: 80 },
+      { id: "scrim-5", kind: "scrimshaw", x: -256, z: 150 },
+      { id: "scrim-6", kind: "scrimshaw", x: -225, z: 60 },
+      { id: "scrim-7", kind: "scrimshaw", x: -290, z: 175 },
+    ],
+    fronts: [
+      { id: "anvil", name: "The Anvil Garage", x: -320, z: 60, cost: 500 },
+      { id: "quohog", name: "Quohog Republic", x: -240, z: 122, cost: 800 },
+      { id: "linq", name: "Linguiça Linq", x: -300, z: 92, cost: 650 },
+      { id: "marealta", name: "Maré Alta Records", x: -262, z: 60, cost: 700 },
+      { id: "whalingcab", name: "Whaling City Cab", x: -220, z: 176, cost: 900 },
+      { id: "longisland", name: "Off the Hook", x: 6092, z: 4485, cost: 1800 },
+      { id: "dartmall", name: "Dartmouth Mall", x: -3921, z: 398, cost: 2500 },
+    ],
+    territories: [
+      {
+        id: "wharf",
+        faction: "wharf",
+        // Approximate dock polygon for §3.4 wiring.
+        points: [
+          [-280, 80],
+          [-200, 80],
+          [-200, 160],
+          [-280, 160],
+        ],
+      },
+    ],
   };
 }
 

@@ -14,6 +14,10 @@ import { pickEnterTarget, ENTER_HEAT, ENTER_LABEL, type EnterCandidates } from "
 import { TRAFFIC_PACK_MODEL } from "../world/StreetLife";
 import { markParkedTaken } from "../world/ParkedCars";
 import { recallSavedCar } from "./recallCar";
+import { useInventory } from "../inventory";
+import { createReload, startReload, stepReload, interruptReload } from "../sim/ReloadFsm";
+import { fireRecoil, stepRecoil, createRecoil } from "../sim/RecoilBloom";
+import { sim } from "../sim";
 import { surfaceAt } from "../world/surfaceSample";
 
 const BARKS = ["Hey! Watch it!", "You crazy?!", "Somebody call the cops!", "Get outta here!", "What's your problem?!", "Easy, pal!"];
@@ -25,7 +29,9 @@ const ENTER_RADIUS = 4.5;
 // the target heading (shortest arc) so walk and run both turn smoothly.
 // NB slice improvements (2026-11-03, T11): rate 12/s (was 10) — slightly
 // snappier now that acceleration is smoothed, so it never feels "drunk".
-const TURN_RATE = 12;
+// Player turn ease (#32): slightly softer than 12 so stick turns don't whip.
+const TURN_RATE = 9.5;
+const BREATH_AMP = 0.012;
 
 // Reused every frame in the movement hot path (see ROADMAP §3). The discrete
 // melee/gun blocks below allocate only on a key/click tap, so they're left as-is.
@@ -45,6 +51,8 @@ export function Player() {
   // published for ModelCharacter's sprinting() prop — previously computed
   // in useFrame and never passed down.
   const sprintRef = useRef(false);
+  const reload = useRef(createReload());
+  const recoil = useRef(createRecoil());
   // NB slice improvements (2026-11-03, T10): smoothed on-foot velocity —
   // the character used to snap instantly to full speed and to zero.
   const footVel = useRef({ x: 0, z: 0 });
@@ -110,7 +118,16 @@ export function Player() {
       footVel.current.z = THREE.MathUtils.lerp(footVel.current.z, 0, ramp);
       rb.setLinvel({ x: footVel.current.x, y: v.y, z: footVel.current.z }, true);
     }
-    if (mesh.current) mesh.current.rotation.y = shared.heading;
+    if (mesh.current) {
+      mesh.current.rotation.y = shared.heading;
+      // Procedural idle breath (#33) — subtle vertical bob when standing.
+      if (!moving) {
+        const breath = Math.sin(performance.now() * 0.0022) * BREATH_AMP;
+        mesh.current.position.y = breath;
+      } else {
+        mesh.current.position.y = 0;
+      }
+    }
 
     // footsteps + foot dust while moving (§20/§23, §9.1.1 per-surface)
     if (moving) {
@@ -175,7 +192,8 @@ export function Player() {
               tj.pack ?? `/packs/pack006/${TRAFFIC_PACK_MODEL[tj.type] ?? "economy_sedan"}.glb`,
             );
             if (car) {
-              car.setTranslation({ x: tj.pos.x, y: 1.4, z: tj.pos.z }, true);
+              // Enter y-snap polish (#36): settle just above ground contact.
+              car.setTranslation({ x: tj.pos.x, y: 1.15, z: tj.pos.z }, true);
               car.setLinvel({ x: 0, y: 0, z: 0 }, true);
               car.setRotation({ x: 0, y: Math.sin(tj.yaw / 2), z: 0, w: Math.cos(tj.yaw / 2) }, true);
             }
@@ -196,7 +214,7 @@ export function Player() {
               pk.packYOff ?? 0,
             );
             if (car) {
-              car.setTranslation({ x: pk.x, y: 1.4, z: pk.z }, true);
+              car.setTranslation({ x: pk.x, y: 1.15, z: pk.z }, true);
               car.setLinvel({ x: 0, y: 0, z: 0 }, true);
               car.setRotation({ x: 0, y: Math.sin(pk.rot / 2), z: 0, w: Math.cos(pk.rot / 2) }, true);
             }
@@ -246,13 +264,35 @@ export function Player() {
       sfx.punch();
     }
 
+    // §5.2 Reload when armed (KeyR); weather stays on KeyR when holstered.
+    stepRecoil(recoil.current, dt);
+    shared.recoilBloom = recoil.current.bloom;
+    sim.recoil.bloom = recoil.current.bloom;
+    if (armed && !game.mapOpen && !game.charOpen && consumeTap("KeyR")) {
+      if (startReload(reload.current, game.weapon === "shotgun" ? "shotgun" : "pistol")) {
+        useToasts.getState().push("Reloading…", "#c0cecd");
+      }
+    }
+    if (stepReload(reload.current, dt)) {
+      useInventory.getState().reload(game.weapon === "shotgun" ? "shotgun" : "pistol");
+      useToasts.getState().push("Reloaded", "#7CFC00");
+      sfx.ui();
+    }
+    if (!armed && reload.current.phase !== "idle") interruptReload(reload.current);
+
     // gunplay: fire when armed (left-click / Space) along the aim yaw
-    if (armed && !game.mapOpen && !game.charOpen && (consumeTap("Mouse0") || consumeTap("Space"))) {
+    if (armed && !game.mapOpen && !game.charOpen && reload.current.phase === "idle" && (consumeTap("Mouse0") || consumeTap("Space"))) {
+      const weapon = game.weapon === "shotgun" ? "shotgun" : "pistol";
+      if (!useInventory.getState().spend(weapon)) {
+        useToasts.getState().push("Empty — R to reload", "#ff6a6a");
+        sfx.ui();
+      } else {
+      fireRecoil(recoil.current, weapon === "shotgun" ? 0.28 : 0.16);
       const p = rb.translation();
       const aim = shared.camYaw;
       const fx = Math.sin(aim), fz = Math.cos(aim);
       const from = new THREE.Vector3(p.x + fx * 0.6, p.y + 0.4, p.z + fz * 0.6);
-      const shotgun = game.weapon === "shotgun";
+      const shotgun = weapon === "shotgun";
       const RANGE = shotgun ? 26 : 60;
       const CONE = shotgun ? 4.5 : 1.6; // perpendicular half-width tolerance
 
@@ -308,6 +348,7 @@ export function Player() {
         sfx.gun();
       }
       raiseAlarm(p.x, p.z, 6); // gunfire scatters the crowd
+      }
     }
   });
 
