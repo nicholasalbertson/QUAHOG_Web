@@ -34,6 +34,34 @@ export function lintManifest(m: WorldManifest): ManifestLintIssue[] {
   for (const f of m.fronts) {
     if (!(f.cost >= 0)) issues.push({ path: `fronts:${f.id}`, message: "cost must be ≥ 0" });
   }
+
+  // §1.6.7 Referential integrity — every marker/collectible/front resolves in a zone.
+  const zones = m.zones ?? [];
+  const inAnyZone = (x: number, z: number) =>
+    zones.length === 0 ||
+    zones.some((z0) => x >= z0.bounds.minX && x <= z0.bounds.maxX && z >= z0.bounds.minZ && z <= z0.bounds.maxZ);
+
+  for (const mk of m.markers) {
+    if (!Number.isFinite(mk.x) || !Number.isFinite(mk.z)) {
+      issues.push({ path: `markers:${mk.id}`, message: "non-finite position" });
+    } else if (!inAnyZone(mk.x, mk.z)) {
+      issues.push({ path: `markers:${mk.id}`, message: "outside all zones" });
+    }
+  }
+  for (const c of m.collectibles) {
+    if (!Number.isFinite(c.x) || !Number.isFinite(c.z)) {
+      issues.push({ path: `collectibles:${c.id}`, message: "non-finite position" });
+    } else if (!inAnyZone(c.x, c.z)) {
+      issues.push({ path: `collectibles:${c.id}`, message: "outside all zones" });
+    }
+  }
+  for (const f of m.fronts) {
+    if (!Number.isFinite(f.x) || !Number.isFinite(f.z)) {
+      issues.push({ path: `fronts:${f.id}`, message: "non-finite position" });
+    } else if (!inAnyZone(f.x, f.z)) {
+      issues.push({ path: `fronts:${f.id}`, message: "outside all zones" });
+    }
+  }
   return issues;
 }
 

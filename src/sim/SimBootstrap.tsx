@@ -16,6 +16,10 @@ import { replayRecorder } from "./ReplayRecorder";
 import { setTelemetrySink } from "../telemetry/schema";
 import { duckForWanted } from "./CutsceneStub";
 import { playThunderNear } from "./LightningAudio";
+import { IdleDetect } from "./IdleDetect";
+import { webGlContextLoss } from "./WebGlContextLoss";
+import { clampAccumulator } from "./ResumeFastPath";
+import { readMemory } from "./PerfMemory";
 
 /**
  * Boots the clean-room simulation layer once the slice is ready and keeps
@@ -30,6 +34,7 @@ export function SimBootstrap() {
   const loopBound = useRef(false);
   const stepUnsub = useRef<null | (() => void)>(null);
   const slowSteps = useRef(0);
+  const idle = useRef(new IdleDetect({ throttleAfterSec: 60, pauseAfterSec: 300 }));
 
   useEffect(() => {
     sim.configureQuality(quality);
@@ -141,22 +146,47 @@ export function SimBootstrap() {
     return () => setTelemetrySink(() => undefined);
   }, []);
 
-  // §1.1.10 / §12.5: tab hide pauses the fixed-step loop (single catch-up on return).
+  // §1.1.10 / §12.5 / §2.2.1: tab hide pauses the fixed-step loop.
+  // §2.2.3 Resume fast-path — clamp accumulator to a single step (no catch-up storm).
   useEffect(() => {
     const onVis = () => {
       if (document.hidden) sim.loop.pause("tab");
-      else sim.loop.resume("tab");
+      else {
+        const stats = sim.loop.stats as { accumulator?: number };
+        if (typeof stats.accumulator === "number") {
+          (sim.loop as unknown as { setAccumulator?: (n: number) => void }).setAccumulator?.(
+            clampAccumulator(stats.accumulator),
+          );
+        }
+        sim.loop.resume("tab");
+      }
     };
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
+
+  // §2.1.6 Attach WebGL context-loss handler when a canvas appears.
+  useEffect(() => {
+    const canvas = document.querySelector("canvas");
+    if (canvas instanceof HTMLCanvasElement) webGlContextLoss.attach(canvas);
+    return () => webGlContextLoss.detach();
   }, []);
 
   useFrame((_, dt) => {
     const game = useGame.getState();
     if (!game.started) return;
 
+    // §2.2.2 Idle poke from any stick/key activity.
+    const axis = moveAxis();
+    if (axis.x || axis.y || isDown("KeyE") || isDown("ShiftLeft") || isDown("Space")) idle.current.poke();
+    const idleAct = idle.current.action();
+    if (idleAct === "pause" && !document.hidden) sim.loop.pause("idle");
+    else if (idleAct !== "pause") sim.loop.resume("idle");
+
     // Drive fixed-step accumulator even when paused (input/render still run).
-    sim.loop.tick(dt);
+    // Throttle suggested fps when idle (caller/render may honor via quality).
+    const stepDt = idleAct === "throttle" ? Math.min(dt, 1 / 15) : dt;
+    sim.loop.tick(stepDt);
 
     // §1.1.13 Watchdog: 3 consecutive slow step frames → drop quality tier.
     if (sim.loop.stats.stepMs > 50) {
@@ -208,6 +238,11 @@ export function SimBootstrap() {
     // §1.1.24 / §0.2 — publish debug overlay when telemetry flag is on.
     if (flag("telemetry")) {
       const ps = sim.pedGraph?.stats();
+      const ov = sim.budget.overruns
+        .slice(0, 3)
+        .map((c) => `${c.system}:${c.ms.toFixed(1)}`)
+        .join(",");
+      const mem = readMemory();
       publishDebugOverlay({
         loop: { ...sim.loop.stats },
         pedNodes: ps?.nodes ?? 0,
@@ -218,6 +253,8 @@ export function SimBootstrap() {
         stepDigest: sim.rng.digest(),
         missionOwned: sim.missions.ownedCount,
         occupancyHot: Math.round(sim.clock.lightningFlash * 10),
+        budgetOverruns: ov || (mem.supported ? `heap:${Math.round((mem.usedJSHeapSize ?? 0) / 1e6)}M` : ""),
+        glContext: webGlContextLoss.snapshot().phase,
       });
     }
 

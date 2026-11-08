@@ -271,3 +271,95 @@ export type { DebugOverlayState } from "./DebugOverlay";
 export { OccupancyGrid } from "./OccupancyGrid";
 export { evalTrigger, rearm } from "./Triggers";
 export type { Trigger } from "./Triggers";
+export { triggerDebugRows } from "./TriggerDebug";
+export type { TriggerDebugRow } from "./TriggerDebug";
+export { sanitizeNumber, sanitizeVec3, isFinitePose } from "./NanGuard";
+export { driveShared } from "./SharedDriver";
+export type { SharedDriverAgent } from "./SharedDriver";
+export { RaycastThrottle } from "./RaycastThrottle";
+export type { RaycastRequest } from "./RaycastThrottle";
+export { borrow2, borrow3, next2, next3, set2, set3 } from "./VecPool";
+export { DepthGuard, walkLimited } from "./MaxDepth";
+export { FetchCircuit } from "./FetchRetry";
+export type { CircuitState, FetchRetryOpts } from "./FetchRetry";
+export { WebGlContextLoss, webGlContextLoss } from "./WebGlContextLoss";
+export type { ContextLossPhase, ContextLossState } from "./WebGlContextLoss";
+export { IdleDetect } from "./IdleDetect";
+export type { IdleAction } from "./IdleDetect";
+export { authOverlayFor } from "./AuthOverlayCopy";
+export type { AuthErrorCode, AuthOverlay } from "./AuthOverlayCopy";
+export { readMemory, requestHeapSnapshotLabel } from "./PerfMemory";
+export type { MemorySnapshot } from "./PerfMemory";
+export { migrateManifest, MANIFEST_CURRENT_VERSION } from "./ManifestMigrate";
+export type { ManifestMigrationResult } from "./ManifestMigrate";
+export { clampAccumulator, DEFAULT_RESUME } from "./ResumeFastPath";
+export type { ResumePolicy } from "./ResumeFastPath";
+export { graphsFromManifest } from "./ManifestGraphs";
+export type { ManifestGraphs, ManifestSpatialItem } from "./ManifestGraphs";
+export { hotReloadManifest } from "./ManifestHotReload";
+export type { HotReloadPreserve, HotReloadResult } from "./ManifestHotReload";
+export { tilesFromManifest } from "./StreamerTiles";
+export type { StreamTile } from "./StreamerTiles";
+export { actionsFor, actionReachable, assertNoDeadZones } from "./InputActionSets";
+export type { SimAction } from "./InputActionSets";
+export {
+  DEFAULT_TOUCH_LAYOUT,
+  loadTouchLayout,
+  saveTouchLayout,
+  resetTouchLayout,
+  moveWidget,
+  resizeWidget,
+  safeAreaInsets,
+} from "./TouchLayout";
+export type { TouchWidgetLayout } from "./TouchLayout";
+export { LEGACY_V1_FIXTURES, migrateLegacyFixture } from "./SaveMigrationFixtures";
+export { atomicWrite, atomicRecover } from "./AtomicSave";
+export type { AtomicStore } from "./AtomicSave";
+export { createFootCop, assignPatrol, beginChase, stepFootCop } from "./FootCops";
+export type { FootCop, FootCopPhase } from "./FootCops";
+export { shootWithWitnesses, hideDecay } from "./HeatWitnessFlow";
+export { raceHudModel } from "./RaceHud";
+export type { RaceHudModel } from "./RaceHud";
+export {
+  defaultBuses,
+  loadBuses,
+  saveBuses,
+  setBus,
+  effectiveGain,
+} from "./AudioBuses";
+export type { AudioBusId, AudioBusState } from "./AudioBuses";
+export {
+  createTutorial,
+  tutorialCopy,
+  advanceTutorial,
+  skipTutorial,
+  replayTutorial,
+} from "./TutorialFlow";
+export type { TutorialState, TutorialStepId } from "./TutorialFlow";
+export { MapFog } from "./MapFog";
+export { blipsFromManifest, BLIP_ICONS } from "./MapBlips";
+export type { MapBlip, BlipKind } from "./MapBlips";
+export { createWeaponSwitch, requestSwitch, stepWeaponSwitch } from "./WeaponSwitch";
+export type { WeaponSlot, WeaponSwitchState } from "./WeaponSwitch";
+export { ownershipSignage } from "./OwnershipSignage";
+export type { OwnedFront } from "./OwnershipSignage";
+export { responseForWanted, responseReady } from "./TierResponse";
+export type { TierResponse } from "./TierResponse";
+export { createLoco, stepLoco } from "./LocomotionBlend";
+export type { LocoPhase, LocoState } from "./LocomotionBlend";
+export { BOAT_CATALOG, boatById } from "./BoatCatalog";
+export type { BoatDef } from "./BoatCatalog";
+export {
+  createCoverState,
+  nearestCover,
+  enterCover,
+  exitCover,
+  setLean,
+} from "./CoverSystem";
+export type { CoverSide, CoverSpot, CoverState } from "./CoverSystem";
+export { SAFEHOUSES, unlockedSafehouses, canUnlock } from "./SafehouseUnlocks";
+export type { SafehouseDef } from "./SafehouseUnlocks";
+export { FALLBACK_GROUND, FALLBACK_SKY, fallbackNotice } from "./FallbackGround";
+export type { FallbackGround, FallbackSky } from "./FallbackGround";
+export { ownershipRows } from "./OwnershipUi";
+export type { OwnershipRow } from "./OwnershipUi";

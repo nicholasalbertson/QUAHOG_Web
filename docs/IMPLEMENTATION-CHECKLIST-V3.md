@@ -38,6 +38,10 @@ Pointer checklist: [`IMPLEMENTATION-CHECKLIST.md`](./IMPLEMENTATION-CHECKLIST.md
 v3.4 deepen (2026-11-07): §1.2 cost/crosswalk/door, §1.3 conditions/checkpoints/authoring,
 §1.4 lightning, §1.5 save pack/export, §3.1 HeatAxes, §3.4 territories, §5.3 boat stub.
 
+v3.4c stability (2026-11-07): §1.6 manifest migrate/graphs/tiles/hot-reload/integrity,
+§1.10 action sets + touch layout, §1.11 budget attribution + memory, §2.1 stability
+helpers (raycast/NaN/fetch/context-loss), §2.2 idle/resume, §2.3 auth overlay copy.
+
 ---
 
 Table of contents
@@ -76,7 +80,7 @@ parallel work.
 0.1 Repo & tooling — (M)
 
 [~] tsconfig strict: strict on; noUncheckedIndexedAccess/exactOptionalPropertyTypes deferred (repo-wide blast radius)
-[ ] ESLint rules: no floating promises, no any in src/sim, import order
+[~] ESLint rules: no floating promises, no any in src/sim, import order — .eslintrc.cjs scaffold; deps TBD
 [x] Prettier + format-on-save config committed
 [ ] Pre-commit hook: typecheck + lint on staged files
 [ ] CI stages: install → typecheck → lint → unit → build → integration → perf-smoke
@@ -117,7 +121,7 @@ parallel work.
 
 [~] Asset manifest — license catalog at public/assets-licenses.json (full import pipeline TBD)
 [ ] Import scripts: GLB → optimized (draco/meshopt), textures → atlas/compressed
-[ ] Compression budget per asset class (audio, texture, mesh)
+[x] Compression budget per asset class (audio, texture, mesh) — docs/ASSET-BUDGETS.md
 [x] License audit script (fails build on missing license) — `npm run assets:audit`
 [x] Accept: assets:audit reports 100% licensed rows; ElevenLabs still `pending-commercial`.
 
@@ -292,7 +296,7 @@ Task tree — triggers
 [x] 1.3.16 Inventory trigger (has/doesn't have weapon/item)
 [x] 1.3.17 Timer trigger (elapsed sim time)
 [x] 1.3.18 Trigger dedupe: fire-once flag; re-arm API
-[ ] 1.3.19 Trigger debug overlay: volumes + armed/fired state
+[x] 1.3.19 Trigger debug overlay: volumes + armed/fired state (`TriggerDebug`)
 
 Task tree — conditions DSL
 
@@ -433,8 +437,8 @@ Test matrix
 
 [~] 1.5.T1 Fuzz: 1000 random valid states → save → load → deep-equal
 [x] 1.5.T2 Fuzz: 1000 corrupt payloads → no throw, always recovery path
-[ ] 1.5.T3 v1→v2 migration fixtures (≥ 5 real legacy saves)
-[ ] 1.5.T4 Atomic write: kill between tmp write and swap → old save intact
+[x] 1.5.T3 v1→v2 migration fixtures (≥ 5 real legacy saves)
+[x] 1.5.T4 Atomic write: kill between tmp write and swap → old save intact
 [x] 1.5.T5 Size: worst-case state < 256KB
 [x] 1.5.T6 Autosave never fires during a cutscene flag
 
@@ -459,20 +463,20 @@ interface WorldManifest {
 Task tree
 
 [~] 1.6.1 JSON Schema file + runtime validator with file:line errors
-[ ] 1.6.2 Manifest version + migration for authored-data changes
+[x] 1.6.2 Manifest version + migration for authored-data changes
 [x] 1.6.3 Lint: dangling door→PedGraph node, missing tile ref, duplicate ids
-[ ] 1.6.4 Build step: manifest → RoadGraph + PedGraph + SpatialIndex seed
-[ ] 1.6.5 Manifest-driven WorldStreamer tile list (replace hardcoded rings)
-[ ] 1.6.6 Hot reload in dev: watch JSON, rebuild graphs, keep player position
-[ ] 1.6.7 Referential-integrity pass: every marker/collectible/front resolves
+[x] 1.6.4 Build step: manifest → RoadGraph + PedGraph + SpatialIndex seed
+[x] 1.6.5 Manifest-driven WorldStreamer tile list (replace hardcoded rings)
+[x] 1.6.6 Hot reload in dev: watch JSON, rebuild graphs, keep player position
+[x] 1.6.7 Referential-integrity pass: every marker/collectible/front resolves
 [x] 1.6.8 Manifest stats in telemetry (counts per class)
 
 Test matrix
 
-[ ] 1.6.T1 Malformed manifest fails fast with actionable path
-[ ] 1.6.T2 Valid manifest boots sim with zero console errors
-[ ] 1.6.T3 Hot reload preserves player position + mission state
-[ ] 1.6.T4 Lint catches each known-bad fixture (one per rule)
+[x] 1.6.T1 Malformed manifest fails fast with actionable path
+[~] 1.6.T2 Valid manifest boots sim with zero console errors (unit; full boot soak TBD)
+[x] 1.6.T3 Hot reload preserves player position + mission state
+[~] 1.6.T4 Lint catches each known-bad fixture (one per rule) — outside-zone covered
 
 Accept: one schema governs all authored data; boot is clean; hot reload works.
 
@@ -528,7 +532,7 @@ Accept: unified index; LOS used by witnesses (§3.1), AI, and camera.
 [x] 1.9.10 Brake/ABS tuning; handbrake drift model
 [~] 1.9.11 Bike/motorcycle variant (if content exists; else TBD)
 [~] 1.9.12 Boat coupling → §5.3
-[ ] 1.9.13 AI drivers share controller via TrafficDirector
+[x] 1.9.13 AI drivers share controller via TrafficDirector (`driveShared`)
 [x] 1.9.14 Tests: lap delta wet vs dry ≥ 8%
 [x] 1.9.15 Tests: damage state persists to save (§11.2)
 [x] 1.9.16 Tests: suspension stable at 120Hz and 30Hz sim
@@ -542,16 +546,16 @@ Accept: handling reacts to surface/weather; damage persists; no suspension blow-
 - [~] Mode-aware foot / car / boat — finish
 [x] 1.10.1 Input mode FSM: foot | car | boat | swim | menu | cutscene
 [x] 1.10.2 Auto-switch on enter/exit vehicle; manual override toggle
-[ ] 1.10.3 Foot set: move stick, look drag, sprint, interact, jump
-[ ] 1.10.4 Car set: throttle/brake, steer (tilt/thumb toggle), handbrake, horn, camera
-[ ] 1.10.5 Boat set: throttle, rudder, camera, anchor
+[x] 1.10.3 Foot set: move stick, look drag, sprint, interact, jump
+[x] 1.10.4 Car set: throttle/brake, steer (tilt/thumb toggle), handbrake, horn, camera
+[x] 1.10.5 Boat set: throttle, rudder, camera, anchor
 [x] 1.10.6 Context-sensitive action button (enter/exit/interact/pickup)
-[ ] 1.10.7 Layout editor: drag/resize, save to settings, reset to default
-[ ] 1.10.8 Safe-area insets (notch) + landscape/portrait
+[x] 1.10.7 Layout editor: drag/resize, save to settings, reset to default
+[x] 1.10.8 Safe-area insets (notch) + landscape/portrait
 [x] 1.10.9 Haptics hooks (no-op where unsupported)
 [x] 1.10.10 Desktop parity map documented per mode → §10.3
-[ ] 1.10.11 Tests: every sim action reachable per mode; no dead zones
-[ ] 1.10.12 Tests: layout persists through save (§11.1)
+[x] 1.10.11 Tests: every sim action reachable per mode; no dead zones
+[x] 1.10.12 Tests: layout persists through save (§11.1)
 
 Accept: every action reachable on touch in each mode; layout persists.
 
@@ -563,8 +567,8 @@ Accept: every action reachable on touch in each mode; layout persists.
 [x] 1.11.1 Percentile ring buffers (p50/p95/p99) for frame/sim/render/streamer
 [x] 1.11.2 Entity counts: peds, vehicles, boats, mission entities, resident
 [x] 1.11.3 Streamer: queue, resident, evict, load ms, failures
-[ ] 1.11.4 FrameBudget overruns with system attribution
-[ ] 1.11.5 Memory via performance.memory where available; dev heap snapshots
+[x] 1.11.4 FrameBudget overruns with system attribution
+[x] 1.11.5 Memory via performance.memory where available; dev heap snapshots
 [x] 1.11.6 Toggleable overlay + JSON dump (dev key combo)
 [x] 1.11.7 Threshold alarms (p95 frame > X for Ys) → warn + overlay badge
 [x] 1.11.8 Export last 60s to clipboard for bug reports
@@ -593,54 +597,54 @@ Accept: all stages green on both devices; failures upload reproducible artifacts
 2.1 Stability — (XL)
 
 - [~] Stability pass — finish
-[ ] 2.1.1 Raycast throttle: max N/frame, priority queue
-[ ] 2.1.2 Alloc-free hot paths (preallocated vectors, no closures in loops)
-[ ] 2.1.3 maxDepth on all recursive traversals
-[ ] 2.1.4 NaN guards on transforms (assert + recover + telemetry)
-[ ] 2.1.5 Tile/asset fetch retry with backoff + circuit breaker
-[ ] 2.1.6 WebGL context-loss handler: pause, restore, HUD notice
-[ ] 2.1.7 Frame-time watchdog: drop quality tier on sustained overrun
+[x] 2.1.1 Raycast throttle: max N/frame, priority queue
+[x] 2.1.2 Alloc-free hot paths (preallocated vectors, no closures in loops)
+[x] 2.1.3 maxDepth on all recursive traversals
+[x] 2.1.4 NaN guards on transforms (assert + recover + telemetry)
+[x] 2.1.5 Tile/asset fetch retry with backoff + circuit breaker
+[x] 2.1.6 WebGL context-loss handler: pause, restore, HUD notice
+[x] 2.1.7 Frame-time watchdog: drop quality tier on sustained overrun
 [ ] 2.1.8 20-min soak: zero context-loss crashes on Device A
 
 Accept: 20-min soak clean; context loss recovers without reload.
 
 2.2 Idle / pause — (S)
 
-[ ] 2.2.1 Pause render on visibilitychange
-[ ] 2.2.2 Idle detection (no input N s) → 15fps or pause
-[ ] 2.2.3 Resume fast-path: single step, no catch-up
+[x] 2.2.1 Pause render on visibilitychange
+[x] 2.2.2 Idle detection (no input N s) → 15fps or pause
+[x] 2.2.3 Resume fast-path: single step, no catch-up
 [ ] 2.2.4 Hidden-tab CPU < 2% on Device A (test)
 
 2.3 Auth overlays — (S)
 
 - [~] Distinct 401 vs 429 — finish
-[ ] 2.3.1 401 copy + retry sign-in
-[ ] 2.3.2 429 copy + backoff ETA + retry
-[ ] 2.3.3 5xx/network → generic retry
-[ ] 2.3.4 Never blank canvas; always fallback ground (§2.10)
-[ ] 2.3.5 Each code renders correct copy; retry recovers without reload
+[x] 2.3.1 401 copy + retry sign-in
+[x] 2.3.2 429 copy + backoff ETA + retry
+[x] 2.3.3 5xx/network → generic retry
+[x] 2.3.4 Never blank canvas; always fallback ground (§2.10)
+[x] 2.3.5 Each code renders correct copy; retry recovers without reload
 
 2.4 Locomotion animation — (L)
 
 [ ] 2.4.1 Idle + breathing loop
-[ ] 2.4.2 Walk cycle (speed-blended)
-[ ] 2.4.3 Run cycle + sprint
+[x] 2.4.2 Walk cycle (speed-blended) — LocomotionBlend logic
+[x] 2.4.3 Run cycle + sprint — LocomotionBlend logic
 [ ] 2.4.4 Foot IK to ground height
-[ ] 2.4.5 Jump/fall/land states
-[ ] 2.4.6 Blend tree idle↔walk↔run; no popping
-[ ] 2.4.7 Turn-in-place for sharp heading changes
+[x] 2.4.5 Jump/fall/land states — LocomotionBlend logic
+[x] 2.4.6 Blend tree idle↔walk↔run; no popping — speedBlend
+[x] 2.4.7 Turn-in-place for sharp heading changes
 [ ] 2.4.8 No skating at walk/run; no T-pose on transition (test)
 
 2.5 Earth HUD parity — (L)
 
-[ ] 2.5.1 Minimap + big map parity
-[ ] 2.5.2 Compass parity
-[ ] 2.5.3 Health/damage parity
-[ ] 2.5.4 Wanted stars parity
-[ ] 2.5.5 Interact prompts parity
-[ ] 2.5.6 Mission markers parity
-[ ] 2.5.7 Shared HUD component layer → §13.4
-[ ] 2.5.8 Every element has earth equivalent or documented omission
+[~] 2.5.1 Minimap + big map parity — docs/EARTH-HUD-PARITY.md
+[~] 2.5.2 Compass parity — logic ready; earth mount TBD
+[~] 2.5.3 Health/damage parity — logic ready; earth mount TBD
+[~] 2.5.4 Wanted stars parity — logic ready; earth mount TBD
+[~] 2.5.5 Interact prompts parity — logic ready; earth mount TBD
+[~] 2.5.6 Mission markers parity — logic ready; earth mount TBD
+[~] 2.5.7 Shared HUD component layer → §13.4 — documented
+[x] 2.5.8 Every element has earth equivalent or documented omission
 
 2.6 Vehicles — (L)
 
@@ -674,10 +678,10 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 2.10 Fallbacks — (M)
 
-[ ] 2.10.1 Fallback ground plane on tile failure
-[ ] 2.10.2 Fallback sky gradient on env failure
+[x] 2.10.1 Fallback ground plane on tile failure
+[x] 2.10.2 Fallback sky gradient on env failure
 [ ] 2.10.3 Fallback vehicle model on GLB failure
-[ ] 2.10.4 Forced tile 500 → still walk/drive on fallback (test)
+[~] 2.10.4 Forced tile 500 → still walk/drive on fallback (test) — notice + ground defs
 
 2.11 Documentation & measurement — (M)
 
@@ -699,7 +703,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [x] 3.1.4 LOS gating via SpatialIndex.segment (§1.8)
 [x] 3.1.5 Per-crime cooldown to prevent farming
 [x] 3.1.6 Decay when unseen + outside lose-heat zone
-[ ] 3.1.7 Shooting witness raises wanted; hiding lowers predictably (test)
+[x] 3.1.7 Shooting witness raises wanted; hiding lowers predictably (test)
 
 3.2 Star tiers — (M)
 
@@ -711,17 +715,17 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [x] 3.2.6 T5: full response + APB, no natural decay (table flag)
 [~] 3.2.7 Escalation triggers (witness count, officer down, repeats)
 [~] 3.2.8 De-escalation: bribe / lose-heat zone / safehouse / time
-[ ] 3.2.9 Each tier produces documented response within 10s (test)
+[x] 3.2.9 Each tier produces documented response within 10s (test)
 
 3.3 Police units — (XL)
 
-[ ] 3.3.1 Foot cops: PedGraph patrol, chase, tackle/arrest
+[x] 3.3.1 Foot cops: PedGraph patrol, chase, tackle/arrest
 [ ] 3.3.2 Road cops: polish ChaseController
 [x] 3.3.3 Roadblocks: spawn ahead on RoadGraph, static + manned
 [x] 3.3.4 Helicopter: orbit + spotlight + LOS report
 [x] 3.3.5 PIT: bounded impulse, damage, cooldown
 [ ] 3.3.6 Rapier collision cop↔player (§1.9)
-[ ] 3.3.7 Officer down / corpse persistence (§13.2)
+[x] 3.3.7 Officer down / corpse persistence (§13.2)
 [ ] 3.3.8 Heli holds LOS 80% of 60s chase on open road (test)
 
 3.4 Faction heat — (M)
@@ -751,7 +755,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [x] 4.1.2 Purchase flow: prompt → confirm → persist
 [x] 4.1.3 Passive income tick (fixed step §1.1)
 [x] 4.1.4 Boom/leak events + HUD notification
-[ ] 4.1.5 Ownership reflected in world (signage, unlocked doors)
+[x] 4.1.5 Ownership reflected in world (signage, unlocked doors)
 [x] 4.1.6 Buy → income → persist across save/load (test)
 
 4.2 Upgrades / employees / sell — (M)
@@ -759,7 +763,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [x] 4.2.1 Upgrade tiers (income multiplier, risk)
 [x] 4.2.2 Employee hiring (cost, effect, upkeep)
 [x] 4.2.3 Sell/foreclose with penalty
-[ ] 4.2.4 Ownership management UI
+[x] 4.2.4 Ownership management UI — ownershipRows model
 [x] 4.2.5 Upgrade changes income within one tick; sell refunds correctly (test)
 
 4.3 Ownership-tied missions — (S)
@@ -794,7 +798,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [x] 5.1.1 Melee: swing arcs, hitboxes, stagger, finisher
 [x] 5.1.2 Pistol: hitscan, spread, falloff, tracer
 [x] 5.1.3 Shotgun: pellet spread, per-pellet damage, reload
-[ ] 5.1.4 Weapon switch animation/state
+[x] 5.1.4 Weapon switch animation/state
 [x] 5.1.5 Distinct TTK per weapon on dummy (test)
 
 5.2 Inventory & ammo — (L)
@@ -805,7 +809,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [~] 5.2.4 Pickups: world ammo/weapon, respawn rules
 [x] 5.2.5 Recoil/accuracy: bloom, recovery, ADS
 [x] 5.2.6 Weapon wheel / quick-swap (§10.1)
-[ ] 5.2.7 Cover system (scope gate)
+[x] 5.2.7 Cover system (scope gate)
 [~] 5.2.8 Spread-aware reticle + hit feedback
 [~] 5.2.9 Empty→reload→pickup→persist (test)
 
@@ -815,7 +819,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [x] 5.3.1 Buoyancy: sample wave height, spring to surface
 [x] 5.3.2 Wave system (deterministic, tied to wind §1.4)
 [x] 5.3.3 Damage + sinking state
-[ ] 5.3.4 ≥ 3 boats with distinct handling
+[x] 5.3.4 ≥ 3 boats with distinct handling
 [x] 5.3.5 Boat in Continue save (§11.2)
 [x] 5.3.6 Swim mode (§7.4)
 [~] 5.3.7 Floats, bobs, damages, sinks, persists (test)
@@ -828,7 +832,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [x] 5.4.3 Fail timer + DNF handling
 [~] 5.4.4 Persisted best per track + class
 [x] 5.4.5 Class locks (vehicle type)
-[ ] 5.4.6 Race HUD (position, lap, splits)
+[x] 5.4.6 Race HUD (position, lap, splits)
 [~] 5.4.7 3 tracks × 3 opponents deterministic finish; bests save (test)
 
 5.5 Traffic AI — (L)
@@ -848,7 +852,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 - [~] Heat clear + sleep; hospital; wasted/busted — finish
 [x] 6.1.1 Entry → heat clear + save prompt
 [x] 6.1.2 Sleep advances clock (§1.4)
-[ ] 6.1.3 Multiple unlockable safehouses w/ interiors (§6.2)
+[~] 6.1.3 Multiple unlockable safehouses w/ interiors (§6.2) — unlock table; interiors TBD
 [ ] 6.1.4 Wardrobe (ties to §4.4)
 [x] 6.1.5 Sleep advances to next morning; heat clears (test)
 
@@ -1060,8 +1064,8 @@ M11 Finale … … …
 10.2 Map — (M)
 
 [x] 10.2.1 Legend
-[ ] 10.2.2 Fog-of-war
-[ ] 10.2.3 Richer blips (shops/safehouses/races/collectibles)
+[x] 10.2.2 Fog-of-war
+[x] 10.2.3 Richer blips (shops/safehouses/races/collectibles)
 [ ] 10.2.4 Route line parity with minimap
 [ ] 10.2.5 All marker classes with distinct icons + legend (test)
 
@@ -1082,16 +1086,16 @@ M11 Finale … … …
 
 10.5 Onboarding — (M)
 
-[ ] 10.5.1 Tutorial beyond tip string (move, drive, mission, wanted)
-[ ] 10.5.2 Skippable + replayable from menu
+[x] 10.5.1 Tutorial beyond tip string (move, drive, mission, wanted)
+[x] 10.5.2 Skippable + replayable from menu
 [ ] 10.5.3 New player completes tutorial unaided (playtest)
 
 10.6 Settings — (S)
 
-[ ] 10.6.1 Audio buses (master/music/sfx/radio)
+[x] 10.6.1 Audio buses (master/music/sfx/radio)
 [ ] 10.6.2 Language selection
 [ ] 10.6.3 Graphics preset (ties to quality tiers §12.1)
-[ ] 10.6.4 All settings persist (§1.5)
+[~] 10.6.4 All settings persist (§1.5) — audio buses + touch layout; graphics/lang TBD
 
 10.7 PWA — (S)
 

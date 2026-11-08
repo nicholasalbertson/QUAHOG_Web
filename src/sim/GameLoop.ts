@@ -12,7 +12,7 @@
  */
 
 export type LoopPhase = "input" | "step" | "postStep" | "render";
-export type PauseSource = "menu" | "tab" | "cutscene" | "load" | "debug";
+export type PauseSource = "menu" | "tab" | "cutscene" | "load" | "debug" | "idle";
 
 export interface LoopStats {
   stepMs: number;
