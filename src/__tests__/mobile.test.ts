@@ -11,7 +11,13 @@ describe("mobile resource policy", () => {
     expect(b.dpr).toBeLessThanOrEqual(1);
     expect((2*b.aerialRadius+1)**2).toBeLessThanOrEqual(9);
     expect(b.tileConcurrency).toBeLessThanOrEqual(2);
-    expect(b.parkedCars+b.traffic).toBeLessThan(30);
+    // Density cut (2026-11-07): traffic was 6 cars district-wide and Nic
+    // saw ~2 driving — raised to 16 (quality 0) and localized near the
+    // player. Parked 24 + traffic 16 = 40 at quality 0; the bound below
+    // guards the NEW contract, not the old one.
+    expect(b.parkedCars).toBe(24);
+    expect(b.traffic).toBe(16);
+    expect(b.parkedCars+b.traffic).toBeLessThan(45);
     expect(b.shadows).toBe(false);
     expect(mobileBudget(2,true).dpr).toBeLessThan(mobileBudget(2,false).dpr);
   });

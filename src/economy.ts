@@ -22,6 +22,13 @@ export const BUSINESSES: Business[] = [
   // out on Sconticut Neck toward Long Island — 56 Goulart Memorial Drive
   { id: "longisland", name: "Off the Hook Bar and Grill", blurb: "Long Island waterfront bar & marina", pos: [6092, 0, 4485], cost: 1800, perDay: 600 },
   { id: "dartmall", name: "Dartmouth Mall", blurb: "Route 6 retail hub", pos: [-3921, 0, 398], cost: 2500, perDay: 850 },
+  // Fall River (§7.2.1 — 3 fronts): street-level positions on the nearest
+  // walkable road to each landmark (slice-fallriver.json; world = [east, -north]).
+  // City Hall's nearest road is the I-195 motorway, so that front sits on the
+  // footway 25.6 m south of City Hall instead.
+  { id: "covechandler", name: "Cove Chandler", blurb: "Battleship Cove marine supply", pos: [-20229.08, 0, -7691.39], cost: 700, perDay: 280 },
+  { id: "narrowscafe", name: "Narrows Arts Café", blurb: "arts-district café", pos: [-20176.7, 0, -7425.1], cost: 650, perDay: 260 },
+  { id: "cityhalldiner", name: "City Hall Diner", blurb: "all-night diner", pos: [-19479.73, 0, -7191.27], cost: 600, perDay: 240 },
 ];
 
 // Where the pilotable boat is moored (just off the Long Island marina).

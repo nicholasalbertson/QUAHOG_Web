@@ -6,6 +6,7 @@ import { shared } from "../shared";
 import { useGame, useToasts } from "../store";
 import { useStats } from "../game";
 import { useMission } from "../mission";
+import { stepComplete } from "../sim/missionComplete";
 import { sfx } from "../audio/sfx";
 import { isBlizzardMission } from "../weather/snowstorm";
 
@@ -36,15 +37,17 @@ export function MissionRunner() {
     const mode = useGame.getState().mode;
     const body = mode === "car" ? shared.car : shared.player;
 
+    // §2.8.1 — the completion rule is shared with the earth runner
+    // (src/sim/missionComplete.ts). No body yet = cannot complete.
     let complete = true;
-    if (cur.needCar && mode !== "car") complete = false;
-    if (cur.noHeat && useStats.getState().police >= 1) complete = false; // shake the cops first
-    if (cur.target && body) {
+    if (cur.target && !body) complete = false;
+    else if (body) {
       const p = body.translation();
-      const d = Math.hypot(p.x - cur.target[0], p.z - cur.target[2]);
-      if (d > (cur.radius ?? 10)) complete = false;
-    } else if (cur.target && !body) {
-      complete = false;
+      complete = stepComplete(cur, {
+        pos: { x: p.x, z: p.z },
+        driving: mode === "car",
+        police: useStats.getState().police,
+      });
     }
 
     if (complete) {

@@ -20,12 +20,12 @@ import { requestGuardedSpawn } from "./SpawnGuard";
 const DAY_SECONDS = 600; // matches DayNight's cycle length
 const POS_KEY = "mounthope.pos.v1";
 
-function saveMissionProgress() {
+export function saveMissionProgress() {
   const m = useMission.getState();
   saveJSON(SAVE_KEYS.mission, { mi: m.mi, step: m.step, done: m.done });
 }
 
-function restoreMissionProgress() {
+export function restoreMissionProgress() {
   const saved = loadJSON<{ mi?: number; step?: number; done?: boolean } | null>(SAVE_KEYS.mission, null);
   if (!saved || typeof saved.mi !== "number" || typeof saved.step !== "number") return;
   const mi = Math.max(0, Math.min(saved.mi, MISSIONS.length - 1));

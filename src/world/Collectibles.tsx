@@ -12,9 +12,16 @@ import { loadJSON, saveJSON } from "../storage";
 
 const KEY = "mounthope.scrimshaw.v1";
 const REWARD = 120;
-const SPOTS: [number, number, number][] = [
+export const SPOTS: [number, number, number][] = [
   [-272, 1.2, 106], [-244, 1.2, 70], [-300, 1.2, 130], [-210, 1.2, 100],
   [-330, 1.2, 80], [-256, 1.2, 150], [-225, 1.2, 60], [-290, 1.2, 175],
+  // Fall River (§7.2.1 — 3 scrimshaw): on the nearest walkable road to each
+  // landmark (slice-fallriver.json; world = [east, -north]). Old saves hold an
+  // 8-entry array; loadJSON returns it as-is and the new indices read as
+  // uncollected (undefined = falsy), so no migration is needed.
+  [-19980.2, 1.2, -7757.4], // Heritage State Park
+  [-20295.0, 1.2, -7361.8], // Portas Da Cidade
+  [-19446.0, 1.2, -8025.0], // Children's Museum of Greater Fall River
 ];
 export const SCRIMSHAW_TOTAL = SPOTS.length;
 

@@ -12,7 +12,11 @@ export interface Body {
 }
 
 export const playState = {
-  player: { pos: new THREE.Vector3(), driving: false },
+  // §2.8 — the earth PlayerRig writes the full pose here every frame, so the
+  // shared sim (EarthSimBridge) can drive nav/missions/persistence from it
+  // without a Rapier body. heading is the movement heading (radians),
+  // speed is m/s (0 when idle).
+  player: { pos: new THREE.Vector3(), driving: false, heading: 0, speed: 0, carDist: Infinity },
   peds: [] as Body[],
   cars: [] as Body[],
   bump: 0, // set when the player's car hits an NPC car (PlayerRig reads + clears)

@@ -15,8 +15,18 @@ import { StreetLabelTracker, districtTown } from "./ui/streetLabel";
 import { POLICE_ENABLED } from "./world/Police";
 import { WorldJournalPanel } from "./world/WorldJournalPanel";
 import { SCRIMSHAW_TOTAL } from "./world/Collectibles";
+import { t, tf, STRINGS } from "./i18n/strings";
 
 const stars = (n: number) => "★".repeat(Math.round(n)) + "☆".repeat(Math.max(0, 5 - Math.round(n)));
+
+// Compass points from the §16.1 catalog. Hoisted to module scope (not inside
+// the interval callback) because that callback declares a local `t` (the
+// body translation) which shadows the imported i18n `t()` — calling t()
+// there is a type error (TS2448/TS2349).
+const COMPASS_DIRS = [
+  t("hud", "compassN"), t("hud", "compassNE"), t("hud", "compassE"), t("hud", "compassSE"),
+  t("hud", "compassS"), t("hud", "compassSW"), t("hud", "compassW"), t("hud", "compassNW"),
+];
 
 export function HUD({ sliceName }: { sliceName: string }) {
   const touch = useCoarsePointer();
@@ -72,7 +82,7 @@ export function HUD({ sliceName }: { sliceName: string }) {
       // compass from the active heading (world north = -z)
       const hd = useGame.getState().mode === "car" ? shared.carYaw : shared.heading;
       const bearing = (Math.atan2(Math.sin(hd), -Math.cos(hd)) * 180 / Math.PI + 360) % 360;
-      setCompass(["N", "NE", "E", "SE", "S", "SW", "W", "NW"][Math.round(bearing / 45) % 8]);
+      setCompass(COMPASS_DIRS[Math.round(bearing / 45) % 8]);
       const body = useGame.getState().mode === "car" ? shared.car : shared.player;
       const t = body?.translation();
       // distance + bearing to the active objective
@@ -126,48 +136,48 @@ export function HUD({ sliceName }: { sliceName: string }) {
 
   const hurt = Math.max(0, (40 - health) / 40); // 0 healthy → 1 near-death
 
-  if (photo) return <div className="hud" data-compact={touch && !expanded}><div className="hud-photo">Photo mode · O to return</div></div>;
+  if (photo) return <div className="hud" data-compact={touch && !expanded}><div className="hud-photo">{t("hud", "photoMode")}</div></div>;
   return <div className="hud" data-compact={touch && !expanded}>
-    {down && <div className="hud-down">{down === "wasted" ? "WASTED" : "BUSTED"}</div>}
+    {down && <div className="hud-down">{down === "wasted" ? t("hud", "wasted") : t("hud", "busted")}</div>}
     {armed && !down && <div className="hud-reticle">+</div>}
     {hurt > 0 && <div style={{position:"absolute",inset:0,boxShadow:`inset 0 0 ${120+hurt*140}px rgba(140,35,25,${hurt*0.5})`}} />}
-    <button className="hud-menu" onClick={() => useGame.getState().togglePause()} aria-label="Open game menu">☰</button>
-    <div className="hud-place"><strong>{(place.street ?? place.town).toUpperCase()}</strong><span>{place.street ? place.town.toUpperCase() : "SOUTHCOAST"}</span></div>
+    <button className="hud-menu" onClick={() => useGame.getState().togglePause()} aria-label={t("hud", "openMenu")}>☰</button>
+    <div className="hud-place"><strong>{(place.street ?? place.town).toUpperCase()}</strong><span>{place.street ? place.town.toUpperCase() : STRINGS.common.southcoast}</span></div>
     <div className="hud-status">
       <div className="hud-cash">${Math.floor(cash).toLocaleString()}</div>
-      <div className="hud-clock">{hhmm} · Day {day} · {compass}</div>
-      <div className="hud-health" role="meter" aria-label="Health" aria-valuemin={0} aria-valuemax={100} aria-valuenow={health}><span style={{width:`${Math.max(0,Math.min(100,health))}%`,background:health<30?"#d79c87":undefined}} /></div>
-      {stamina < 99.5 && <div className="hud-stamina" aria-label={`Stamina ${Math.round(stamina)} percent`}><span style={{width:`${stamina}%`}} /></div>}
-      {POLICE_ENABLED && police > 0 && <div className="hud-heat" aria-label={`Police heat ${police}`}>{stars(police)}</div>}
-      {faction > 0 && <div className="hud-heat faction" aria-label={`Faction heat ${faction}`}>{stars(faction)}</div>}
-      {ownedCount > 0 && <div className="hud-inventory hud-secondary">{ownedCount}/{BUSINESSES.length} fronts</div>}
-      {scrimshaw > 0 && <div className="hud-inventory hud-secondary">{scrimshaw}/{SCRIMSHAW_TOTAL} scrimshaw</div>}
+      <div className="hud-clock">{hhmm} · {tf(t("hud", "day"), { day })} · {compass}</div>
+      <div className="hud-health" role="meter" aria-label={t("hud", "health")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={health}><span style={{width:`${Math.max(0,Math.min(100,health))}%`,background:health<30?"#d79c87":undefined}} /></div>
+      {stamina < 99.5 && <div className="hud-stamina" aria-label={tf(t("hud", "stamina"), { n: Math.round(stamina) })}><span style={{width:`${stamina}%`}} /></div>}
+      {POLICE_ENABLED && police > 0 && <div className="hud-heat" aria-label={tf(t("hud", "policeHeat"), { n: police })}>{stars(police)}</div>}
+      {faction > 0 && <div className="hud-heat faction" aria-label={tf(t("hud", "factionHeat"), { n: faction })}>{stars(faction)}</div>}
+      {ownedCount > 0 && <div className="hud-inventory hud-secondary">{tf(t("hud", "fronts"), { owned: ownedCount, total: BUSINESSES.length })}</div>}
+      {scrimshaw > 0 && <div className="hud-inventory hud-secondary">{tf(t("hud", "scrimshaw"), { found: scrimshaw, total: SCRIMSHAW_TOTAL })}</div>}
       {(armed || melee === "bat") && <div className="hud-inventory hud-secondary">{armed ? weapon : "bat"}</div>}
     </div>
-    <section className="hud-objective" aria-label="Current objective">
-      <h2>{missionDone ? "MISSION COMPLETE" : missionTitle.toUpperCase()}</h2>
-      <p>{!missionDone && dist != null && <span className="hud-direction" style={{transform:`rotate(${bearing}rad)`}}>▲</span>}{objective}{!missionDone && dist != null && <span className="hud-distance"> · {dist} m</span>}</p>
-      {blizzardActive && <span className="hud-storm">Blizzard of ’26 · 52-inch drifts</span>}
-      {wrongWay && !missionDone && <span className="hud-wrongway">⚠ WRONG WAY — the objective is behind you</span>}
+    <section className="hud-objective" aria-label={t("hud", "currentObjective")}>
+      <h2>{missionDone ? t("hud", "missionComplete") : missionTitle.toUpperCase()}</h2>
+      <p>{!missionDone && dist != null && <span className="hud-direction" style={{transform:`rotate(${bearing}rad)`}}>▲</span>}{objective}{!missionDone && dist != null && <span className="hud-distance"> · {tf(t("hud", "distance"), { dist })}</span>}</p>
+      {blizzardActive && <span className="hud-storm">{t("hud", "blizzard")}</span>}
+      {wrongWay && !missionDone && <span className="hud-wrongway">{t("hud", "wrongWay")}</span>}
     </section>
-    <details className="hud-help"><summary>Keyboard controls</summary><p><kbd>WASD</kbd> move · <kbd>Shift</kbd> sprint<br/><kbd>E</kbd> enter/exit · <kbd>Space</kbd> brake<br/><kbd>F</kbd> melee · <kbd>G</kbd> draw · click fire<br/><kbd>V</kbd> view · <kbd>H</kbd> horn<br/><kbd>M</kbd> map · <kbd>C</kbd> character<br/><kbd>R</kbd> weather · <kbd>[ ]</kbd> radio<br/><kbd>1–4</kbd> weapons · <kbd>O</kbd> photo</p></details>
-    {wp && <div className="hud-waypoint"><span style={{display:"inline-block",transform:`rotate(${wp.bearing}rad)`}}>▲</span> Waypoint · {wp.dist} m</div>}
-    {edge && !missionDone && <div className={`hud-edge-arrow ${edge.side}`} aria-label="Objective off-screen">{edge.side === "left" ? `◀ ${edge.dist} m` : `${edge.dist} m ▶`}</div>}
+    <details className="hud-help"><summary>{t("hud", "keyboardControls")}</summary><p><kbd>WASD</kbd> {t("hud", "helpMove")} · <kbd>Shift</kbd> {t("hud", "helpSprint")}<br/><kbd>E</kbd> {t("hud", "helpEnterExit")} · <kbd>Space</kbd> {t("hud", "helpBrake")}<br/><kbd>F</kbd> {t("hud", "helpMelee")} · <kbd>G</kbd> {t("hud", "helpDraw")} · {t("hud", "helpClickFire")}<br/><kbd>V</kbd> {t("hud", "helpView")} · <kbd>H</kbd> {t("hud", "helpHorn")}<br/><kbd>M</kbd> {t("hud", "helpMap")} · <kbd>C</kbd> {t("hud", "helpCharacter")}<br/><kbd>R</kbd> {t("hud", "helpWeather")} · <kbd>[ ]</kbd> {t("hud", "helpRadio")}<br/><kbd>1–4</kbd> {t("hud", "helpWeapons")} · <kbd>O</kbd> {t("hud", "helpPhoto")}</p></details>
+    {wp && <div className="hud-waypoint"><span style={{display:"inline-block",transform:`rotate(${wp.bearing}rad)`}}>▲</span> {t("hud", "waypoint")} · {tf(t("hud", "distance"), { dist: wp.dist })}</div>}
+    {edge && !missionDone && <div className={`hud-edge-arrow ${edge.side}`} aria-label={t("hud", "objectiveOffScreen")}>{edge.side === "left" ? `◀ ${tf(t("hud", "distance"), { dist: edge.dist })}` : `${tf(t("hud", "distance"), { dist: edge.dist })} ▶`}</div>}
     {sub && <div className="hud-caption"><b>{sub.name}: </b>{sub.text}</div>}
-    {mode === "foot" && nearCar && <div className="hud-prompt"><span className="desktop-interact">E · </span>{nearLabel || "Enter vehicle"}<small>Use the CAR control on touch</small></div>}
-    {near && <div className="hud-prompt" style={{bottom:"34%"}}><span className="desktop-interact">B · </span>{near.name} · ${near.cost.toLocaleString()}<small>{near.blurb} · +${near.perDay}/day</small><button onClick={() => { import("./input").then(({virtualTap}) => virtualTap("KeyB")); }} disabled={cash < near.cost}>Buy front</button></div>}
-    <nav className="hud-actions" aria-label="Game panels">
-    {touch && <button className="hud-density" aria-label={expanded ? "Use compact HUD" : "Expand HUD"} aria-pressed={expanded} onClick={() => {
+    {mode === "foot" && nearCar && <div className="hud-prompt"><span className="desktop-interact">E · </span>{nearLabel || t("hud", "enterVehicle")}<small>{t("hud", "useCarControlTouch")}</small></div>}
+    {near && <div className="hud-prompt" style={{bottom:"34%"}}><span className="desktop-interact">B · </span>{near.name} · ${near.cost.toLocaleString()}<small>{near.blurb} · {tf(t("hud", "perDay"), { amount: near.perDay })}</small><button onClick={() => { import("./input").then(({virtualTap}) => virtualTap("KeyB")); }} disabled={cash < near.cost}>{t("hud", "buyFront")}</button></div>}
+    <nav className="hud-actions" aria-label={t("hud", "gamePanels")}>
+    {touch && <button className="hud-density" aria-label={expanded ? t("hud", "compactHud") : t("hud", "expandHud")} aria-pressed={expanded} onClick={() => {
       setExpanded(!expanded); saveJSON("mounthope.hud.expanded", !expanded);
-    }}>{expanded ? "Less" : "More"}</button>}
+    }}>{expanded ? t("hud", "less") : t("hud", "more")}</button>}
 
-      <button onClick={() => useGame.getState().toggleMap()}>Map</button>
-      <button onClick={() => useGame.getState().toggleChar()}>Player</button>
-      <button onClick={() => useGame.getState().toggleRadio()}>Radio</button>
+      <button onClick={() => useGame.getState().toggleMap()}>{t("hud", "map")}</button>
+      <button onClick={() => useGame.getState().toggleChar()}>{t("hud", "player")}</button>
+      <button onClick={() => useGame.getState().toggleRadio()}>{t("hud", "radio")}</button>
       <WorldJournalPanel />
     </nav>
-    {mode === "car" && <div className="hud-speed"><strong>{mph}</strong><small>MPH</small><span className="hud-gear">{gear}</span></div>}
-    <div className="hud-credit">Map © OpenStreetMap · ODbL</div>
+    {mode === "car" && <div className="hud-speed"><strong>{mph}</strong><small>{t("hud", "speedUnit")}</small><span className="hud-gear">{gear}</span></div>}
+    <div className="hud-credit">{t("hud", "mapCredit")}</div>
     <div className="hud-build">{__BUILD_SHA__} · {__BUILD_DATE__}</div>
   </div>;
 }

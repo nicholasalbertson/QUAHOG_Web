@@ -1,3 +1,5 @@
+import type { Surface } from "../sim/ClockWeather";
+
 // Procedural sound effects + ambience (§20/§13). Pure Web Audio synthesis — no
 // files, no copyright. One AudioContext, resumed on the first user gesture.
 // One-shots (gun, punch, crash, horn, cash) and continuous beds (engine, siren,
@@ -98,13 +100,64 @@ class Sfx {
   gun() { this.ensure(); this.burst(1400, 1.2, 0.16, 0.7); this.tone(120, 0.12, 0.3, "square", 50); }
   shotgun() { this.ensure(); this.burst(700, 0.6, 0.3, 0.85, "lowpass"); this.tone(80, 0.22, 0.45, "square", 40); }
   punch() { this.ensure(); this.tone(150, 0.12, 0.35, "sine", 60); this.burst(500, 0.7, 0.06, 0.15); }
-  crash() { this.ensure(); this.burst(800, 0.5, 0.35, 0.5, "lowpass"); this.tone(90, 0.25, 0.3, "square", 40); }
-  bump() { this.ensure(); this.burst(300, 0.5, 0.15, 0.25, "lowpass"); this.tone(70, 0.15, 0.2, "sine", 45); } // soft contact thud (wall-probe stops, playtest 2026-11-02 A-07)
+  /** Impact, scaled by relative-speed intensity 0..1 (§1.9.7 threshold curve). */
+  crash(intensity = 1) {
+    this.ensure();
+    const k = Math.max(0, Math.min(1, intensity));
+    this.burst(800, 0.5, 0.2 + 0.15 * k, 0.2 + 0.3 * k, "lowpass");
+    this.tone(90, 0.15 + 0.1 * k, 0.12 + 0.18 * k, "square", 40);
+  }
+  bump(intensity = 1) {
+    this.ensure();
+    const k = Math.max(0, Math.min(1, intensity));
+    this.burst(300, 0.5, 0.1 + 0.05 * k, 0.1 + 0.15 * k, "lowpass");
+    this.tone(70, 0.1 + 0.05 * k, 0.08 + 0.12 * k, "sine", 45);
+  } // soft contact thud (wall-probe stops, playtest 2026-11-02 A-07)
   horn() { this.ensure(); this.tone(360, 0.45, 0.25, "square"); this.tone(440, 0.45, 0.18, "square"); }
   cash() { this.ensure(); this.tone(880, 0.08, 0.25, "square"); setTimeout(() => this.tone(1320, 0.12, 0.25, "square"), 70); }
   ui() { this.ensure(); this.tone(600, 0.05, 0.15, "square"); }
+  /** Car door: latch click + thunk (§9.1.2 door pack, procedural). */
+  door() { this.ensure(); this.tone(120, 0.08, 0.25, "sine", 70); this.burst(300, 0.7, 0.06, 0.2, "lowpass"); }
   bust() { this.ensure(); this.tone(300, 0.5, 0.3, "sawtooth", 120); }
-  step() { this.ensure(); this.burst(240, 0.5, 0.07, 0.05, "lowpass"); }
+  /**
+   * Footstep, timbre by surface (§9.1.1). Distinct procedural voice per
+   * Surface so asphalt / grass / wood / water read differently without
+   * any audio files. Default is the legacy single-step sound.
+   */
+  step(surface: Surface = "asphalt") {
+    this.ensure();
+    switch (surface) {
+      case "grass":
+        this.burst(1200, 0.6, 0.08, 0.06, "bandpass"); // soft leaf rustle
+        break;
+      case "dirt":
+        this.burst(350, 0.4, 0.09, 0.12, "lowpass"); // earthy crunch
+        break;
+      case "sand":
+        this.burst(800, 0.5, 0.1, 0.07, "bandpass"); // soft hiss
+        break;
+      case "cobble":
+        this.burst(500, 2, 0.05, 0.14, "bandpass"); // hard stone click
+        this.tone(220, 0.04, 0.08, "square");
+        break;
+      case "planks":
+        this.tone(180, 0.07, 0.18, "triangle"); // hollow wood knock
+        this.burst(400, 1, 0.05, 0.1, "bandpass");
+        break;
+      case "water":
+        this.burst(700, 0.5, 0.14, 0.16, "bandpass"); // splash
+        this.tone(300, 0.1, 0.08, "sine", 150);
+        break;
+      case "wetAsphalt":
+        this.burst(180, 0.5, 0.06, 0.1, "lowpass"); // wet thud + squelch
+        this.burst(900, 0.8, 0.09, 0.05, "bandpass");
+        break;
+      case "asphalt":
+      default:
+        this.burst(240, 0.5, 0.07, 0.05, "lowpass"); // legacy hard thud
+        break;
+    }
+  }
   screech() { this.ensure(); this.burst(1100, 7, 0.45, 0.14, "bandpass"); this.tone(900, 0.4, 0.05, "sawtooth", 1300); }
 
   // ---- continuous beds (call each frame) ----

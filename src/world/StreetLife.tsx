@@ -93,6 +93,29 @@ export function trafficWheelR(packPath: string): number {
   return TRAFFIC_PACK_WHEEL_R[base] ?? 0.33;
 }
 
+// §1.9.7 (Rapier contact wiring, sim/ContactWiring.tsx): the live traffic
+// car nearest a world XZ point, for resolving a real Rapier contact back to
+// the StreetLife actor that owns the collider. The kinematic bodies in
+// TrafficColliders follow shared.traffic 1:1, so the nearest car within the
+// collider's match radius is the one the contact belongs to. Stolen cars
+// are hidden (their collider is parked underground) and never match.
+/** Nearest live traffic car within `radius` m of (x, z), or null. */
+export function trafficCarAt(x: number, z: number, radius: number): TrafficCar | null {
+  let best: TrafficCar | null = null;
+  let bestD2 = radius * radius;
+  for (const tc of shared.traffic) {
+    if (tc.stolen) continue;
+    const dx = tc.pos.x - x;
+    const dz = tc.pos.z - z;
+    const d2 = dx * dx + dz * dz;
+    if (d2 <= bestD2) {
+      best = tc;
+      bestD2 = d2;
+    }
+  }
+  return best;
+}
+
 // Mount job (2026-11-03): rigged P005 pedestrian variants. Uniformed bodies
 // wear their baked uniforms (no garment); civilians cycle torso garments.
 export const PED_BODIES: { body: string; uniform: boolean }[] = [
@@ -193,7 +216,7 @@ export function StreetLife({
   return (
     <group>
       <Pedestrians key={`p-${budget.pedestrians}`} center={center} count={budget.pedestrians} />
-      <Traffic key={`t-${budget.traffic}`} routes={routes} count={budget.traffic} />
+      <Traffic key={`t-${budget.traffic}`} routes={routes} count={budget.traffic} center={center} />
     </group>
   );
 }
@@ -478,7 +501,7 @@ function Pedestrians({ center, count }: { center: [number, number]; count: numbe
         p.pos.addScaledVector(away, PED_SPEED * 2.2 * step); // run
         p.heading = Math.atan2(away.x, away.z);
       } else {
-        const to = new THREE.Vector3().subVectors(p.goal, p.pos);
+        const to = _dir.subVectors(p.goal, p.pos);
         to.y = 0;
         if (to.length() < 0.6) {
           p.goal = randInBox(center);
@@ -525,11 +548,29 @@ function Pedestrians({ center, count }: { center: [number, number]; count: numbe
 // Traffic — cars drive along real road polylines and turn onto a connected road
 // at each end (falling back to a U-turn when nothing connects).
 
-function Traffic({ routes, count }: { routes: Route[]; count: number }) {
+function Traffic({ routes, count, center }: { routes: Route[]; count: number; center: [number, number] }) {
   const refs = useRef<(THREE.Group | null)[]>([]);
+  // Density cut (2026-11-07, defect 2): traffic used to spawn on random
+  // routes across the WHOLE district, so with 6–12 cars city-wide the
+  // player saw ~2. Cars now spawn near the district core (the player
+  // spawns there) and jump to a nearby route when they drift >700 m from
+  // the player — far beyond view distance, so the jump is invisible.
+  const mids = useMemo(() => routes.map((r) => {
+    const p = r.pts[Math.floor(r.pts.length / 2)];
+    return { x: p.x, z: p.z };
+  }), [routes]);
+  const nearRoute = (x: number, z: number, radius: number): number => {
+    let pick = -1, n = 0;
+    for (let i = 0; i < routes.length; i++) {
+      if (Math.hypot(mids[i].x - x, mids[i].z - z) > radius) continue;
+      n++;
+      if (Math.random() < 1 / n) pick = i; // reservoir sample: uniform over nearby routes
+    }
+    return pick >= 0 ? pick : Math.floor(Math.random() * routes.length);
+  };
   const state = useRef(
     Array.from({ length: count }, () => {
-      const ri = Math.floor(Math.random() * routes.length);
+      const ri = nearRoute(center[0], center[1], 400);
       const color = pick(CAR_COLORS);
       const vtype = pick(VEHICLE_TYPES);
       return {
@@ -586,6 +627,15 @@ function Traffic({ routes, count }: { routes: Route[]; count: number }) {
       const pb = (shared.car && shared.car.isEnabled?.() === false ? shared.player : shared.car) ?? shared.player;
       const pt = pb?.translation();
       if (pt && Math.hypot(pt.x - c.pos.x, pt.z - c.pos.z) < 7) { c.braking = true; c.speed = 0; g.position.copy(c.pos); g.rotation.y = c.heading; return; }
+
+      // density cut (2026-11-07): a car that drifted far from the player is
+      // useless traffic — move it to a nearby route (invisible beyond view distance)
+      if (pt && Math.hypot(pt.x - c.pos.x, pt.z - c.pos.z) > 700) {
+        c.route = nearRoute(pt.x, pt.z, 400);
+        c.dist = Math.random() * routes[c.route].total;
+        c.forward = Math.random() < 0.5;
+        c.pos.copy(sampleAlong(routes[c.route], c.dist).point);
+      }
 
       // obey red signals: stop if a red stop-line is just ahead and aligned with
       // our travel direction (§14). Cross-street cars (≈90°) ignore it.

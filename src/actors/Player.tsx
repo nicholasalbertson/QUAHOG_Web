@@ -14,6 +14,7 @@ import { pickEnterTarget, ENTER_HEAT, ENTER_LABEL, type EnterCandidates } from "
 import { TRAFFIC_PACK_MODEL } from "../world/StreetLife";
 import { markParkedTaken } from "../world/ParkedCars";
 import { recallSavedCar } from "./recallCar";
+import { surfaceAt } from "../world/surfaceSample";
 
 const BARKS = ["Hey! Watch it!", "You crazy?!", "Somebody call the cops!", "Get outta here!", "What's your problem?!", "Easy, pal!"];
 
@@ -111,13 +112,15 @@ export function Player() {
     }
     if (mesh.current) mesh.current.rotation.y = shared.heading;
 
-    // footsteps + foot dust while moving (§20/§23)
+    // footsteps + foot dust while moving (§20/§23, §9.1.1 per-surface)
     if (moving) {
       stride.current -= dt;
       if (stride.current <= 0) {
-        sfx.step();
+        const p = rb.translation();
+        const wet = useGame.getState().weather === "rain";
+        sfx.step(surfaceAt(p.x, -p.z, wet, useGame.getState().slice?.roads ?? null));
         stride.current = wantSprint ? 0.38 : 0.55;
-        if (wantSprint) { const p = rb.translation(); addImpact(new THREE.Vector3(p.x, 0.15, p.z), "#8c7d63"); }
+        if (wantSprint) { addImpact(new THREE.Vector3(p.x, 0.15, p.z), "#8c7d63"); }
       }
     } else stride.current = 0;
 
@@ -205,6 +208,7 @@ export function Player() {
           if (hNow || hLater) useStats.getState().heat(hNow, hLater);
           rb.setEnabled(false);
           game.setNearCar(false);
+          sfx.door(); // §9.1.2 door pack
           game.setMode("car");
         }
       }

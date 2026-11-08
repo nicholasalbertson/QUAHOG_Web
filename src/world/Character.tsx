@@ -1,6 +1,8 @@
 import { useRef } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
+import { stepGait, type GaitState } from "./locomotion";
+import { PED_BUILD_SCALE, type PedBuild } from "./pedLooks";
 
 // A simple low-poly humanoid (head, torso, swinging arms + legs) built from
 // primitives. Feet rest at local y=0; faces +z. Shared by the player and
@@ -12,6 +14,15 @@ export interface CharacterProps {
   pants?: string;
   hair?: string;
   moving?: () => boolean;
+  /** §2.4 — locomotion speed: 0 idle, 1 walk, 2 run/sprint. When given, it
+   *  drives the gait (phase rate + swing amplitude); `moving` is the legacy
+   *  boolean fallback (walk when true). */
+  speed?: () => number;
+  /** §2.4.5 — airborne (jumping/falling): the pose tucks (legs up, arms up). */
+  airborne?: () => boolean;
+  /** §2.7.1 — build (silhouette): "default" | "tall" | "stocky". Scales the
+   *  root group about the ground so the feet stay planted. */
+  build?: PedBuild;
 }
 
 export function Character({
@@ -20,30 +31,33 @@ export function Character({
   pants = "#2c2f3a",
   hair = "#2a2018",
   moving = () => true,
+  speed,
+  airborne,
+  build = "default",
 }: CharacterProps) {
   const legL = useRef<THREE.Group>(null);
   const legR = useRef<THREE.Group>(null);
   const armL = useRef<THREE.Group>(null);
   const armR = useRef<THREE.Group>(null);
   const bob = useRef<THREE.Group>(null);
-  const phase = useRef(Math.random() * Math.PI * 2);
-  const gait = useRef(0);
+  const torso = useRef<THREE.Group>(null);
+  // §2.4 — gait state lives in the pure locomotion module (unit-tested);
+  // the component just applies the pose each frame.
+  const gaitState = useRef<GaitState>({ phase: Math.random() * Math.PI * 2, gait: 0, breath: Math.random() * Math.PI * 2, air: 0 });
 
   useFrame((_, dt) => {
-    const step = Math.min(dt, 0.05);
-    const want = moving() ? 1 : 0;
-    gait.current += (want - gait.current) * Math.min(1, step * 8);
-    phase.current += step * 9 * gait.current;
-    const s = Math.sin(phase.current) * 0.6 * gait.current;
-    if (legL.current) legL.current.rotation.x = s;
-    if (legR.current) legR.current.rotation.x = -s;
-    if (armL.current) armL.current.rotation.x = -s * 0.8;
-    if (armR.current) armR.current.rotation.x = s * 0.8;
-    if (bob.current) bob.current.position.y = Math.abs(Math.sin(phase.current)) * 0.05 * gait.current;
+    const spd = speed ? speed() : moving() ? 1 : 0;
+    const pose = stepGait(gaitState.current, spd, dt, airborne ? airborne() : false);
+    if (legL.current) legL.current.rotation.x = pose.legL;
+    if (legR.current) legR.current.rotation.x = pose.legR;
+    if (armL.current) armL.current.rotation.x = pose.armL;
+    if (armR.current) armR.current.rotation.x = pose.armR;
+    if (bob.current) bob.current.position.y = pose.bobY;
+    if (torso.current) torso.current.rotation.x = pose.torsoPitch;
   });
 
   return (
-    <group ref={bob}>
+    <group ref={bob} scale={PED_BUILD_SCALE[build]}>
       {/* legs (pivot at hips) */}
       <group ref={legL} position={[-0.12, 0.9, 0]}>
         <mesh position={[0, -0.45, 0]} castShadow>
@@ -58,11 +72,13 @@ export function Character({
         </mesh>
       </group>
 
-      {/* torso */}
+      {/* torso (breathing pivot) */}
+      <group ref={torso}>
       <mesh position={[0, 1.25, 0]} castShadow>
         <boxGeometry args={[0.5, 0.72, 0.28]} />
         <meshStandardMaterial color={shirt} roughness={0.7} />
       </mesh>
+      </group>
 
       {/* arms (pivot at shoulders) */}
       <group ref={armL} position={[-0.32, 1.55, 0]}>

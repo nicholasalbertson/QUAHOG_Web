@@ -98,6 +98,19 @@ export function followCam(
   camera.lookAt(look);
 }
 
+/** §2.1.4 — NaN guard: a non-finite position is reset to the spawn point and
+ *  reported, instead of letting the camera/player fly to infinity. Returns
+ *  true when a reset happened. */
+export function sanitizePosition(
+  pos: THREE.Vector3,
+  spawn: { x: number; z: number },
+): boolean {
+  if (Number.isFinite(pos.x) && Number.isFinite(pos.y) && Number.isFinite(pos.z)) return false;
+  console.warn("[earth] non-finite position — resetting to spawn", pos.x, pos.y, pos.z);
+  pos.set(spawn.x, 3, spawn.z);
+  return true;
+}
+
 /** A street point near Seamen's Bethel to spawn on, facing the chapel. */
 export function computeSpawn(slice: Slice): { x: number; z: number; heading: number } {
   const bethel = slice.landmarks.find((l) => l.name === "Seamen's Bethel");

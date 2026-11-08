@@ -5,6 +5,7 @@ import { shared } from "./shared";
 import { CIVIC } from "./places";
 import { districtOfWorld } from "./districts";
 import { useEconomy, BUSINESSES } from "./economy";
+import type { Slice } from "./slice";
 
 // Player-centered radar (§21): draws nearby roads, the objective, and a heading
 // arrow on a small canvas. North-up. Cheap 2D — no WebGL.
@@ -14,8 +15,18 @@ const RANGE = 230; // metres mapped to the radar radius
 const R = SIZE / 2;
 const PPM = R / RANGE; // pixels per metre
 
-export function Minimap() {
-  const slice = useGame((s) => s.slice);
+/** Pose source for the radar. The stylized build reads it from the Rapier
+ *  bodies (shared.player/car); earth passes a getter over playState (§2.5.1).
+ *  The getter is called on every draw (throttled to 100 ms). */
+export interface MinimapPose {
+  x: number;
+  z: number;
+  heading: number;
+}
+
+export function Minimap(props?: { slice?: Slice | null; pose?: () => MinimapPose }) {
+  const gameSlice = useGame((s) => s.slice);
+  const slice = props?.slice ?? gameSlice;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const routeCache = useRef<{ pKey: string; tKey: string; path: [number, number][] | null }>({ pKey: "", tKey: "", path: null });
 
@@ -123,10 +134,18 @@ export function Minimap() {
     const draw = (now: number) => {
       if (document.hidden || now - lastDraw < 100) { raf = requestAnimationFrame(draw); return; }
       lastDraw = now;
-      const body = useGame.getState().mode === "car" ? shared.car : shared.player;
-      const t = body?.translation();
-      const px = t?.x ?? 0, pz = t?.z ?? 0;
-      const heading = useGame.getState().mode === "car" ? shared.carYaw : shared.heading;
+      // Pose: an external getter (earth) wins; otherwise the stylized
+      // Rapier bodies. Identical behavior when no pose is passed.
+      let px = 0, pz = 0, heading = 0;
+      if (props?.pose) {
+        const p = props.pose();
+        px = p.x; pz = p.z; heading = p.heading;
+      } else {
+        const body = useGame.getState().mode === "car" ? shared.car : shared.player;
+        const t = body?.translation();
+        px = t?.x ?? 0; pz = t?.z ?? 0;
+        heading = useGame.getState().mode === "car" ? shared.carYaw : shared.heading;
+      }
 
       ctx.clearRect(0, 0, SIZE, SIZE);
       ctx.save();
@@ -199,8 +218,11 @@ export function Minimap() {
       {
         const ms = useMission.getState();
         const step = ms.done ? null : ms.steps[ms.step];
+        // Current district: from the pose when one is provided (earth), else
+        // the stylized store's district.
+        const curDistrict = props?.pose ? districtOfWorld(px, pz) : useGame.getState().district;
         const crossDistrict = step?.target
-          ? districtOfWorld(step.target[0], step.target[2]) !== useGame.getState().district
+          ? districtOfWorld(step.target[0], step.target[2]) !== curDistrict
           : false;
         if (step?.target && !crossDistrict) {
           const pKey = `${Math.round(px / 10)},${Math.round(pz / 10)}`;
