@@ -277,8 +277,8 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       {slice && <FlatAreas polys={slice.parks} color="#4f6e3a" y={0.036} />}
       {slice && <Rail paths={slice.rail} />}
       {slice && <Piers paths={slice.pier} />}
-      {slice && <AreaTrees areas={slice.wood} step={9} cap={800} />}
-      {slice && <AreaTrees areas={slice.parks} step={16} cap={300} />}
+      {DRESSING_ENABLED && slice && <AreaTrees areas={slice.wood} step={9} cap={800} />}
+      {DRESSING_ENABLED && slice && <AreaTrees areas={slice.parks} step={16} cap={300} />}
       {slice && <Steeples points={slice.church} />}
       {slice && slice.water?.length > 0 && <Water polys={slice.water} holes={slice.islands ?? []} />}
       {/* Harbor banks (riprap + inland grass): landscape readability, not
@@ -302,13 +302,10 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       <Marina />
       <Gulls />
       <CullByDistance center={center} radius={820}>
-      {/* Minimalist directive (2026-11-03): the dressing layer is gated by
-          the single DRESSING_ENABLED switch (world/dressing.ts, default
-          OFF). Each mount below renders nothing while off; the code stays
-          so one flip restores it. Parked cars, crosswalks, utility poles,
-          traffic signals and the overlay are NOT dressing and stay on. */}
+      {/* Minimalist directive: dressing OFF by default. Trees, awnings, signs,
+          stop lights, foliage, GLB street/harbor accents all follow the switch.
+          Parked cars, crosswalks, utility poles stay on. */}
       {DRESSING_ENABLED && slice && <Props roads={slice.roads} center={world} />}
-      {/* Real pack011 + Kenney GLBs on sidewalks (capped); Props keep density. */}
       {DRESSING_ENABLED && slice && <GlbStreetDressing roads={slice.roads} center={world} />}
       {DRESSING_ENABLED && slice && <HighMasts roads={slice.roads} center={world} />}
       {DRESSING_ENABLED && slice && <Awnings roads={slice.roads} center={world} buildings={gisBuildings} />}
@@ -317,7 +314,7 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       {slice && <Decals roads={slice.roads} center={world} />}
       {slice && <Graffiti roads={slice.roads} buildings={slice.buildings} center={world} />}
       {DRESSING_ENABLED && slice && <StreetSigns roads={slice.roads} center={world} />}
-      {slice && <TrafficLights roads={slice.roads} center={world} />}
+      {DRESSING_ENABLED && slice && <TrafficLights roads={slice.roads} center={world} />}
       {slice && <ParkedCars roads={slice.roads} center={world} />}
       {DRESSING_ENABLED && slice && <StreetExtras roads={slice.roads} center={world} />}
       {DRESSING_ENABLED && slice && <RoadFixtures roads={slice.roads} center={world} />}
@@ -326,7 +323,7 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       {DRESSING_ENABLED && slice && <Billboards roads={slice.roads} center={world} />}
       {DRESSING_ENABLED && slice && <Dumpsters roads={slice.roads} center={world} />}
       </CullByDistance>
-      {isNB && (
+      {DRESSING_ENABLED && isNB && (
         <GlbHarborDressing
           points={[
             { x: -180, z: 40, yaw: 0.4, kind: "boat" },
