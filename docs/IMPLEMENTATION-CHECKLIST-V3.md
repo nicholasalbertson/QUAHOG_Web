@@ -517,15 +517,15 @@ Accept: unified index; LOS used by witnesses (§3.1), AI, and camera.
 
 - [~] Suspension, surfaces, impact damage — finish
 [ ] 1.9.1 Per-wheel spring/damper; ride height; body roll/pitch coupling
-[ ] 1.9.2 Tire model: slip ratio/angle; longitudinal vs lateral grip split
-[ ] 1.9.3 Surface friction table fed by ClockWeather.friction() (§1.4)
+[x] 1.9.2 Tire model: slip ratio/angle; longitudinal vs lateral grip split
+[~] 1.9.3 Surface friction table fed by ClockWeather.friction() (§1.4)
 [ ] 1.9.4 Per-wheel surface sample from WorldManifest polygons
 [ ] 1.9.5 Weight transfer under accel/brake/corner (visual + handling)
 [x] 1.9.6 Damage: panel/engine/wheel HP; steering pull; smoke → fire stages
 [ ] 1.9.7 Impact via Rapier contact events; threshold curve by relative speed
 [ ] 1.9.8 Visual deformation capped per quality tier
-[ ] 1.9.9 Powertrain: gear ratios, torque curve, reverse, handbrake
-[ ] 1.9.10 Brake/ABS tuning; handbrake drift model
+[x] 1.9.9 Powertrain: gear ratios, torque curve, reverse, handbrake
+[~] 1.9.10 Brake/ABS tuning; handbrake drift model
 [ ] 1.9.11 Bike/motorcycle variant (if content exists; else TBD)
 [ ] 1.9.12 Boat coupling → §5.3
 [ ] 1.9.13 AI drivers share controller via TrafficDirector

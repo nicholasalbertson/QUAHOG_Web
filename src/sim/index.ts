@@ -143,6 +143,16 @@ export {
   restoreStation,
 } from "./RadioStations";
 export type { RadioStationDef } from "./RadioStations";
+export { sampleTire, slipRatio } from "./TireModel";
+export type { TireSample } from "./TireModel";
+export {
+  DEFAULT_POWERTRAIN,
+  createPowertrain,
+  torqueAt,
+  driveForce,
+  stepRpm,
+} from "./Powertrain";
+export type { PowertrainState, PowertrainConfig } from "./Powertrain";
 export { GameLoop } from "./GameLoop";
 export type { LoopPhase, PauseSource, LoopStats } from "./GameLoop";
 export { Rng, RngService, rng } from "./Rng";
