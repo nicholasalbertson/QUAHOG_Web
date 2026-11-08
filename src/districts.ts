@@ -1,7 +1,10 @@
 // District registry (Fall River integration, 2026-11-03; expansion,
-// 2026-11-07: Brockton + Cape added). Phase 1: two districts, fast-travel
-// only between them — no drivable corridor. Expansion keeps that rule:
-// four districts, fast-travel only between them.
+// 2026-11-07: Brockton + Cape added). Corridor phase 1 (2026-11-07):
+// the fast-travel-only standard is REVERSED — the four districts are
+// connected by authored drivable corridors (I-195 NB<->FR, MA 24 FR<->Brockton,
+// US 6 NB<->Cape); a single multi-district streamer loads them without
+// remounting Experience (see world/corridor.ts). Fast travel still exists;
+// the corridor is the drive between districts.
 // Coordinates: `center` is slice [east, north] (the frame of TRANSFORM.md:
 // origin lat 41.636 / lon -70.9205); world coords are [east, -north].
 // `bounds` is the Fall River bbox in WORLD coords, used ONLY to classify a

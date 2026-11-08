@@ -154,6 +154,15 @@ export interface BeaconInput {
   traffic: number;
   parked: number;
   errors: { level: string; msg: string }[];
+  // Render stats (2026-11-07, density measurement): the live resident
+  // numbers — draws/tris/geometries/textures from gl.info. Optional so
+  // older callers keep working. These are what settle whether the density
+  // explains the unload/reload loop; before this change the beacon shipped
+  // fps only and the overlay's draws/tris never left the device.
+  draws?: number;
+  tris?: number;
+  geometries?: number;
+  textures?: number;
   // Water/wall probes (2026-11-03 diagnosis) — all optional so older
   // callers keep working. Null means "no position / no stop to report".
   waterBlocked?: boolean | null;
@@ -187,6 +196,10 @@ export function buildBeaconPayload(i: BeaconInput): Record<string, unknown> {
     obj: i.objective.slice(0, 80),
     objDist: i.objectiveDist === null ? null : Math.round(i.objectiveDist),
     fps: i.fps,
+    ...(i.draws !== undefined ? { draws: i.draws } : {}),
+    ...(i.tris !== undefined ? { tris: i.tris } : {}),
+    ...(i.geometries !== undefined ? { geometries: i.geometries } : {}),
+    ...(i.textures !== undefined ? { textures: i.textures } : {}),
     q: i.quality,
     hr: Math.round(i.hour * 10) / 10,
     traf: i.traffic,

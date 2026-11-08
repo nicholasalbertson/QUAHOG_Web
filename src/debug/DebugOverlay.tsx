@@ -31,6 +31,8 @@ interface PanelSnap {
   fps: number;
   draws: number;
   tris: number;
+  geometries: number;
+  textures: number;
   p95: number;
   quality: number | string;
   mode: string;
@@ -143,6 +145,8 @@ function readSnapshot(): PanelSnap {
       fps: perfStats.fps,
       draws: perfStats.draws,
       tris: perfStats.tris,
+      geometries: perfStats.geometries,
+      textures: perfStats.textures,
       p95: perfStats.p95Ms,
       quality: g.quality,
       mode,
@@ -172,7 +176,7 @@ function readSnapshot(): PanelSnap {
     };
   } catch {
     return {
-      fps: 0, draws: 0, tris: 0, p95: 0, quality: "?", mode: "?", pos: null,
+      fps: 0, draws: 0, tris: 0, geometries: 0, textures: 0, p95: 0, quality: "?", mode: "?", pos: null,
       speed: 0, headingDeg: 0, carType: "?", carModel: "?", damage: 0,
       police: 0, faction: 0, missionTitle: "", objective: "", objectiveDist: null,
       traffic: 0, trafficTotal: 0, parked: -1, hour: 0, models: [], errors: [],
@@ -196,6 +200,10 @@ function beaconInput(snap: PanelSnap): BeaconInput {
     objective: snap.objective,
     objectiveDist: snap.objectiveDist,
     fps: snap.fps,
+    draws: snap.draws,
+    tris: snap.tris,
+    geometries: snap.geometries,
+    textures: snap.textures,
     quality: snap.quality,
     hour: snap.hour,
     traffic: snap.traffic,
@@ -507,7 +515,7 @@ export function DebugOverlay() {
           <div style={{ opacity: 0.7, margin: "4px 0 8px", wordBreak: "break-all" }}>build {BUILD_ID}</div>
           {snap ? (
             <>
-              <div>{snap.fps} fps · {snap.draws} draws · {(snap.tris / 1000).toFixed(0)}k tris · p95 {snap.p95.toFixed(1)} ms · quality {snap.quality}</div>
+              <div>{snap.fps} fps · {snap.draws} draws · {(snap.tris / 1000).toFixed(0)}k tris · {snap.geometries} geo · {snap.textures} tex · p95 {snap.p95.toFixed(1)} ms · quality {snap.quality}</div>
               <div>mode {snap.mode} · pos {snap.pos ? `${snap.pos.x.toFixed(1)}, ${snap.pos.y.toFixed(1)}, ${snap.pos.z.toFixed(1)}` : "—"} · {snap.speed.toFixed(1)} m/s ({(snap.speed * 2.237).toFixed(0)} mph) · hdg {snap.headingDeg.toFixed(0)}°</div>
               <div>car {snap.carType} · model: <span style={{ color: modelColor(snap.carModel.split(" ")[0]) }}>{snap.carModel}</span> · damage {snap.damage}</div>
               <div>heat police {snap.police} · faction {snap.faction} · hour {snap.hour.toFixed(1)}</div>

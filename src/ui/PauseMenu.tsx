@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useGame } from "../store";
 import { useStats } from "../game";
 import { useMission } from "../mission";
@@ -57,6 +57,17 @@ export function PauseMenu() {
   const [vol, setVol] = useState(0.5);
   const [showCredits, setShowCredits] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  // Confirm-before-quit (2026-11-07, streamer-stability diagnosis Q2).
+  // "Quit to title" is the ONLY in-app code path that returns to the title
+  // menu (the only setStarted(false) caller), so an accidental tap — the
+  // hamburger sits top-left next to the HUD — drops Nic to the menu
+  // mid-session with no warning. First tap arms, second tap quits. The arm
+  // resets whenever the menu closes, so a stale arm never survives to the
+  // next open.
+  const [confirmQuit, setConfirmQuit] = useState(false);
+  useEffect(() => {
+    if (!paused) setConfirmQuit(false);
+  }, [paused]);
   if (!paused) return null;
   const wlabel = weather === "snow" ? "Snow" : weather === "rain" ? "Rain" : weather === "fog" ? "Fog" : "Clear";
 
@@ -124,10 +135,14 @@ export function PauseMenu() {
         <button style={btn} onClick={() => setShowStats(true)}>📊 Stats</button>
         <button style={btn} onClick={() => setShowCredits(true)}>ⓘ Credits &amp; attribution</button>
         <button
-          style={btn}
-          onClick={() => { useGame.getState().setPaused(false); useGame.getState().setStarted(false); }}
+          style={{ ...btn, borderColor: confirmQuit ? "#ff6a6a" : "#5a4a8e", color: confirmQuit ? "#ffb0b0" : "#e7e0ff" }}
+          onClick={() => {
+            if (!confirmQuit) { setConfirmQuit(true); return; }
+            useGame.getState().setPaused(false);
+            useGame.getState().setStarted(false);
+          }}
         >
-          ⏏ Quit to title
+          {confirmQuit ? "⚠ Tap again to quit to title" : "⏏ Quit to title"}
         </button>
         <button
           style={{ ...btn, borderColor: "#8e3a3a", color: "#ffb0b0" }}

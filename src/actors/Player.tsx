@@ -9,6 +9,7 @@ import { useGame, useToasts } from "../store";
 import { useStats } from "../game";
 import { sfx } from "../audio/sfx";
 import { isBlockedWater, blockedWaterEntry } from "../world/waterZones";
+import { isSpawnHeld } from "../world/SpawnGuard";
 import { pickEnterTarget, ENTER_HEAT, ENTER_LABEL, type EnterCandidates } from "./enterTarget";
 import { TRAFFIC_PACK_MODEL } from "../world/StreetLife";
 import { markParkedTaken } from "../world/ParkedCars";
@@ -64,6 +65,7 @@ export function Player() {
     // hide the body in first-person, and while driving
     if (mesh.current) mesh.current.visible = game.mode === "foot" && game.view !== "first";
     if (game.paused) return; // frozen in the pause menu
+    if (isSpawnHeld()) return; // spawn guard: no input/velocity while the ground tile is unconfirmed
     if (game.mode !== "foot") return; // disabled while driving/boating
 
     const ax = moveAxis();

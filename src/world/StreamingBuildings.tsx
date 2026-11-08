@@ -13,6 +13,7 @@ import { ensureGisReplacements, withoutReplaced } from "./gisDistrict";
 import { makeFacadeMaps, makeNoiseNormal } from "./textures";
 import { districtStyle, type FacadeKind } from "./districtStyle";
 import { setCameraBuildings } from "../actors/cameraBuildings";
+import { markTileMounted, markTileUnmounted, setTileManifestFailed, setTileManifestLoaded } from "./spawnGuard";
 import { useGame } from "../store";
 import { mobileBudget } from "../mobile/profile";
 import { requestLimit, trimCache } from "../mobile/requests";
@@ -239,6 +240,15 @@ function Tile({ buildings, colliders, tileKey }: { buildings: Building[]; collid
     setCameraBuildings(`tile:${tileKey}`, buildings);
     return () => { setCameraBuildings(`tile:${tileKey}`, []); };
   }, [buildings, tileKey]);
+  // Spawn guard (2026-11-07): the tile mount is the guard's "confirmed
+  // mounted" signal — this component actually mounting (with its collider
+  // RigidBody when colliders=true) is the proof the world at the spawn
+  // exists. The slice fetch alone is not proof (Brockton void: the minimap
+  // had the roads while the 3D world never rendered).
+  useEffect(() => {
+    markTileMounted(tileKey, colliders);
+    return () => { markTileUnmounted(tileKey); };
+  }, [tileKey, colliders]);
   const geom = useMemo(() => tileGeometry(buildings, quality === 0), [buildings, quality]);
   useEffect(() => () => { Object.values(geom).forEach(g => g?.dispose()); }, [geom]);
   const procedural = useMemo(() => makeFacadeMaps(), []);
@@ -356,8 +366,10 @@ export function StreamingBuildings({ fallback, center }: { fallback: Building[];
         await ensureGisReplacements();
         if (!alive.current) return;
         keySet.current = new Set(m.keys); setManifest(m);
+        // Spawn guard: the manifest is what the guard's tile-key check reads.
+        setTileManifestLoaded(m.tile, m.keys);
       })
-      .catch(() => { if (alive.current) setFailed(true); });
+      .catch(() => { if (alive.current) { setFailed(true); setTileManifestFailed(); } });
     return () => { alive.current = false; generation.current++; abort.current?.abort(); cache.current.clear(); };
   }, []);
 

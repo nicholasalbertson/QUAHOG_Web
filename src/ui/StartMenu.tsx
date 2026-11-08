@@ -1,12 +1,23 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useGame } from "../store";
 import { useStats } from "../game";
 import { useMission } from "../mission";
 import { useEconomy } from "../economy";
 import { useInventory } from "../inventory";
 import { sfx } from "../audio/sfx";
-import { canContinue, clearAllSaves } from "../sim/SaveGame";
+import { clearAllSaves } from "../sim/SaveGame";
+import { getItem } from "../storage";
 import { worldJournal } from "../world/worldJournal";
+
+// A save exists if EITHER the stats key or the position key is present.
+// (2026-11-07, streamer-stability diagnosis Q3.) The old gate required the
+// stats key alone; a short session killed before the first autosave (the old
+// autosave ran on capped sim dt, so it could take ~80 wall-seconds on a
+// struggling phone) left no stats key and the menu reported "Continue
+// unavailable · missing stats" even though the position key existed. The
+// restore tolerates a missing stats key (load() coerces to defaults), so a
+// pos-only save still continues — at the saved position, with default stats.
+const hasSave = () => !!getItem("mounthope.save.v1") || !!getItem("mounthope.pos.v1");
 
 // Title / start screen (§22). Shown over the loading world until the player
 // presses Play; doubles as the first user gesture that unlocks audio.
@@ -24,8 +35,15 @@ const TIPS = [
 export function StartMenu({ sliceName, progress = 0 }: { sliceName: string; progress?: number }) {
   const started = useGame((s) => s.started);
   const [tip] = useState(() => TIPS[Math.floor(Math.random() * TIPS.length)]);
-  const [gate] = useState(() => canContinue());
-  const save = gate.ok;
+  const [save, setSave] = useState(hasSave);
+  // The menu is always mounted and returns null while playing, so the
+  // useState initializer above runs ONCE at app mount. Re-check the gate
+  // every time the menu becomes visible (quit-to-title mid-session, or a
+  // reload) — otherwise the Continue button can be stale relative to saves
+  // written since mount.
+  useEffect(() => {
+    if (!started) setSave(hasSave());
+  }, [started]);
   const loaded = sliceName !== "loading…";
   if (started) return null;
   const pct = Math.round(progress * 100);
@@ -63,12 +81,6 @@ export function StartMenu({ sliceName, progress = 0 }: { sliceName: string; prog
           {loaded ? (save ? "✦ NEW GAME" : "NEW GAME") : "LOADING…"}
         </button>
       </div>
-
-      {!save && gate.reason && (
-        <div style={{ marginTop: 10, fontSize: 11, opacity: 0.45, fontFamily: "'Courier New', monospace" }}>
-          Continue unavailable — {gate.reason}
-        </div>
-      )}
 
       {!loaded && (
         <div style={{ marginTop: 22, width: 280 }}>

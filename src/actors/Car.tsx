@@ -17,6 +17,7 @@ import { useStats } from "../game";
 import { sfx } from "../audio/sfx";
 import { snowVehicleLimits } from "../weather/snowstorm";
 import { isBlockedWater, blockedWaterEntry } from "../world/waterZones";
+import { isSpawnHeld } from "../world/SpawnGuard";
 import { computeLampPositions } from "../world/Props";
 import { buildStreetExtrasLayout } from "../world/StreetExtras";
 import { computeUtilityPolePositions } from "../world/UtilityPoles";
@@ -122,6 +123,7 @@ export function Car() {
     if (!rb) return;
     const game = useGame.getState();
     if (game.paused) { shared.skid = false; sfx.engine(0, false); return; }
+    if (isSpawnHeld()) { shared.skid = false; shared.carSpeed = 0; shared.steerVisual = 0; sfx.engine(0, false); return; } // spawn guard: no driving while the ground tile is unconfirmed
     if (game.mode !== "car") { shared.skid = false; shared.carSpeed = 0; shared.steerVisual = 0; sfx.engine(0, false); return; }
 
     const ax = moveAxis();

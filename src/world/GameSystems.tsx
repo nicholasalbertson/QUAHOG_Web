@@ -16,6 +16,7 @@ import { SAVE_KEYS } from "../registries";
 import { catchUpWorldClock } from "./worldContinuity";
 import type { WorldEventKind } from "./worldContinuity";
 import { worldJournal } from "./worldJournal";
+import { requestGuardedSpawn } from "./SpawnGuard";
 
 const POS_KEY = "mounthope.pos.v1";
 
@@ -88,20 +89,23 @@ function applyRestore(r: PosRec) {
       text: `While you were away, ${Math.floor(clock.elapsedGameHours * 60)} game minutes passed. The city clock kept moving.` });
   }
   if (r.mode === "car" && r.carx != null && car) {
-    car.setTranslation({ x: r.carx, y: r.cary ?? 1.4, z: r.carz ?? 0 }, true);
-    car.setLinvel({ x: 0, y: 0, z: 0 }, true);
     if (r.carYaw != null) { car.setRotation({ x: 0, y: Math.sin(r.carYaw / 2), z: 0, w: Math.cos(r.carYaw / 2) }, true); shared.carYaw = r.carYaw; }
-    pl.setTranslation({ x: r.carx, y: 2, z: r.carz ?? 0 }, true);
-    pl.setEnabled(false);
     if (r.carType && r.carColor) g.setPlayerCar(r.carType, r.carColor);
-    g.setMode("car");
+    // Spawn guard (2026-11-07): the restore is a spawn — park the car
+    // DISABLED at the saved spot and release it only once the ground tile
+    // under it is confirmed mounted (player stays disabled at the car).
+    requestGuardedSpawn({ x: r.carx, z: r.carz ?? 0, mode: "car" });
   } else if (r.px != null) {
-    pl.setEnabled(true);
-    pl.setTranslation({ x: r.px, y: r.py ?? 3, z: r.pz ?? 0 }, true);
-    pl.setLinvel({ x: 0, y: 0, z: 0 }, true);
     if (r.heading != null) shared.heading = r.heading;
-    if (r.carx != null && car) car.setTranslation({ x: r.carx, y: r.cary ?? 1.4, z: r.carz ?? 0 }, true);
-    g.setMode("foot");
+    // Spawn guard (2026-11-07): the restore is a spawn — park both bodies
+    // DISABLED (car at its saved spot, not the default offset) and release
+    // them only once the ground tile under the saved position is confirmed
+    // mounted.
+    requestGuardedSpawn({
+      x: r.px,
+      z: r.pz ?? 0,
+      carTarget: r.carx != null ? { x: r.carx, z: r.carz ?? 0 } : undefined,
+    });
   }
 }
 
@@ -120,7 +124,18 @@ const remember = (kind: WorldEventKind, text: string) => worldJournal.record({ k
 // Runs the always-on gameplay loops (§15): heat decay + periodic autosave, and
 // loads the saved game on mount. Also handles global hotkeys (weather, pause).
 export function GameSystems() {
-  const acc = useRef(0);
+  // Wall-clock autosave (2026-11-07, streamer-stability diagnosis Q3). The
+  // old autosave accumulated the CAPPED sim dt (FrameClock caps dt at 0.05 s
+  // per frame, mobile fps cap 30) — on a struggling phone at ~5 FPS the 20 s
+  // autosave took ~80 wall-seconds, so a short session could be jetsam-killed
+  // before the stats key was ever written, and the menu then reported
+  // "Continue unavailable · missing stats". The save now runs on WALL time
+  // (every 20 s of real time, checked each frame) plus the first frame of the
+  // session (so the stats key exists from the start) plus the existing
+  // pagehide/visibilitychange save below. A reload cannot tear a single
+  // localStorage key (setItem is synchronous/atomic per key) — the failure
+  // mode was a never-written key, not a corrupt one.
+  const lastSaveWall = useRef(0);
   const prevStars = useRef(0);
   const restored = useRef(false);
   const skidCool = useRef(0);
@@ -271,9 +286,13 @@ export function GameSystems() {
     }
     prevStars.current = stars;
     st.decay(dt);
-    acc.current += dt;
-    if (acc.current > 20) {
-      acc.current = 0;
+    // Wall-clock autosave (see the ref comment above): 20 s of REAL time,
+    // not 20 s of capped sim time. lastSaveWall starts at 0, so the first
+    // frame of the session saves immediately — the stats key exists from
+    // the start of any session, however short.
+    const nowWall = performance.now();
+    if (nowWall - lastSaveWall.current > 20000) {
+      lastSaveWall.current = nowWall;
       st.save();
       if (useGame.getState().started) savePos();
       const g = useGame.getState();
