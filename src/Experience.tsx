@@ -69,6 +69,9 @@ import { Embankment } from "./world/Embankment";
 import { Marina } from "./world/Marina";
 import { GlbHarborDressing, GlbStreetDressing } from "./world/GlbStreetDressing";
 import { Gulls } from "./world/Gulls";
+import { CorridorDressing } from "./world/CorridorDressing";
+import { TrafficStopZones } from "./world/TrafficStopZones";
+import { CobbleCurbPads } from "./world/CobbleCurbPads";
 import { SkidMarks } from "./world/SkidMarks";
 import { Rain } from "./world/Rain";
 import { Snow } from "./world/Snow";
@@ -323,6 +326,11 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       {slice && <Graffiti roads={slice.roads} buildings={slice.buildings} center={world} />}
       {DRESSING_ENABLED && slice && <StreetSigns roads={slice.roads} center={world} />}
       {DRESSING_ENABLED && slice && <TrafficLights roads={slice.roads} center={world} />}
+      {/* Silent stop-lines so traffic still halts at red when dressing is off (#26). */}
+      {!DRESSING_ENABLED && slice && <TrafficStopZones roads={slice.roads} center={world} />}
+      {/* Allowlisted Water St + Johnny Cake Hill furniture only (#18/#21). */}
+      {isNB && slice && <CorridorDressing roads={slice.roads} center={world} />}
+      {isNB && slice && <CobbleCurbPads roads={slice.roads} center={world} />}
       {slice && <ParkedCars roads={slice.roads} center={world} />}
       {DRESSING_ENABLED && slice && <StreetExtras roads={slice.roads} center={world} />}
       {DRESSING_ENABLED && slice && <RoadFixtures roads={slice.roads} center={world} />}

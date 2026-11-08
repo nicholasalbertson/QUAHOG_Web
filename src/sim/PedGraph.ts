@@ -9,6 +9,7 @@ import type { Road } from "../slice";
 import type { NavPath, PedNodeKind, RoadEdge, RoadNode, Vec2 } from "./types";
 import { dijkstra, type GraphEdge } from "./Dijkstra";
 import { dist } from "./math";
+import { rng } from "./Rng";
 
 const WALKABLE = new Set([
   "motorway",
@@ -206,9 +207,9 @@ export class PedGraph {
         return true;
       });
       const fallback = deg.length ? deg : this.nodes;
-      return fallback[Math.floor(Math.random() * fallback.length)].id;
+      return rng.stream("peds").pick(fallback).id;
     }
-    return pool[Math.floor(Math.random() * pool.length)];
+    return rng.stream("peds").pick(pool);
   }
 
   neighbors(id: number): readonly GraphEdge[] {

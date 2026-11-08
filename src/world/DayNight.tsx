@@ -115,7 +115,13 @@ export function DayNight() {
         m.color.copy(cSun);
       }
     }
-    if (hemi.current) hemi.current.intensity = (0.16 + dayT * 0.5) * (1 - rain * 0.25 - snow * 0.3);
+    if (hemi.current) {
+      // Cooler ambient in snow (#20); slightly brighter clear daylight (#12).
+      hemi.current.intensity = (0.16 + dayT * (0.52 + (1 - rain - fogW - snow) * 0.06)) * (1 - rain * 0.25 - snow * 0.3);
+      if (snow) hemi.current.color.set("#c8d4e0");
+      else if (fogW) hemi.current.color.set("#b8c0c8");
+      else hemi.current.color.set("#dbe7ff");
+    }
 
     // sky/fog/background lerp night→day with a warm dusk push, grey in rain/fog
     bg.copy(nightBg).lerp(dayBg, dayT).lerp(warm, dusk * 0.25).lerp(storm, rain * 0.6).lerp(fogGrey, fogW * 0.8).lerp(blizzardGrey, snow * 0.88);
@@ -135,7 +141,10 @@ export function DayNight() {
 
   return (
     <>
-      <group ref={skyGroup} visible={weatherState === "clear"}><Sky sunPosition={sunPos} turbidity={3.8} rayleigh={1.6} mieCoefficient={0.004} /></group>
+      {/* Clear sky only (#11); overcast/rain/fog/snow use flat graded background. */}
+      <group ref={skyGroup} visible={weatherState === "clear"}>
+        <Sky sunPosition={sunPos} turbidity={3.2} rayleigh={1.85} mieCoefficient={0.0035} />
+      </group>
       <group ref={starGroup}><Stars radius={400} depth={60} count={[400, 1000, 1800][quality]} factor={3} fade speed={0.3} /></group>
       <sprite ref={glow} scale={[180, 180, 1]}>
         <spriteMaterial map={glowTex} transparent depthWrite={false} opacity={0.8} blending={THREE.AdditiveBlending} />

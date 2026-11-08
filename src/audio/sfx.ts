@@ -105,7 +105,21 @@ class Sfx {
   ui() { this.ensure(); this.tone(600, 0.05, 0.15, "square"); }
   bust() { this.ensure(); this.tone(300, 0.5, 0.3, "sawtooth", 120); }
   step() { this.ensure(); this.burst(240, 0.5, 0.07, 0.05, "lowpass"); }
+  /** Footstep surface SFX (#44) — slight filter/pitch shift per road kind. */
+  stepSurface(kind: "asphalt" | "cobble" | "sidewalk" | "dirt" = "asphalt") {
+    this.ensure();
+    const freq = kind === "cobble" ? 320 : kind === "sidewalk" ? 280 : kind === "dirt" ? 180 : 240;
+    const q = kind === "cobble" ? 1.2 : kind === "dirt" ? 0.35 : 0.5;
+    this.burst(freq, q, kind === "cobble" ? 0.09 : 0.07, kind === "dirt" ? 0.06 : 0.05, "lowpass");
+  }
   screech() { this.ensure(); this.burst(1100, 7, 0.45, 0.14, "bandpass"); this.tone(900, 0.4, 0.05, "sawtooth", 1300); }
+
+  /** Distance-fade harbor ambience (#45). gain01 ≈ 0 far inland → 1 at water. */
+  setAmbienceLevel(gain01: number) {
+    if (!this.ambGain || !this.ctx) return;
+    const g = Math.max(0.008, Math.min(0.07, 0.012 + gain01 * 0.055));
+    this.ambGain.gain.setTargetAtTime(g, this.ctx.currentTime, 0.4);
+  }
 
   // ---- continuous beds (call each frame) ----
   engine(speed01: number, on: boolean) {

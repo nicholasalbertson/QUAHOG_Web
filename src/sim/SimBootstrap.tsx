@@ -94,11 +94,13 @@ export function SimBootstrap() {
       sim.setNavGoal(null);
     }
 
+    // Nav step hook (#49): refresh guidance every frame; expose path for HUD/minimap.
     const guidance = sim.tickNav(dt, { x: t.x, z: t.z }, heading, speed);
     shared.navDist = guidance.distanceRemaining;
     shared.navBearing = guidance.bearing;
     shared.navWrongWay = guidance.wrongWay;
     shared.navPath = guidance.path?.points ?? null;
+    // Review soak note (#50): tab-pause already wired above; soak harness ticks here.
     tickSoak();
     // Tile streamer advances inside StreamingBuildings after it publishes interest.
   });

@@ -41,15 +41,19 @@ const REVERSE_SPEED = 12; // NB slice improvements (2026-11-03): was 10 —
 // cars felt interchangeable. Multipliers on top/reverse speed, steering
 // peak and throttle rate. Revuelto stays fastest; Bronco feels heavy;
 // the Z feels nimble. Default covers any type not listed.
+// Vehicle class accel / steer tables (#40).
 const HANDLING: Record<string, { top: number; steer: number; accel: number }> = {
-  revuelto: { top: 1.00, steer: 1.00, accel: 1.00 },
-  mustang: { top: 0.95, steer: 0.95, accel: 0.95 },
-  nissanz: { top: 0.90, steer: 1.05, accel: 0.90 },
-  infiniti: { top: 0.90, steer: 0.95, accel: 0.90 },
-  rav4: { top: 0.85, steer: 0.90, accel: 0.90 },
-  bronco: { top: 0.80, steer: 0.80, accel: 0.85 },
+  revuelto: { top: 1.00, steer: 1.00, accel: 1.08 },
+  mustang: { top: 0.95, steer: 0.95, accel: 1.00 },
+  nissanz: { top: 0.90, steer: 1.05, accel: 0.96 },
+  infiniti: { top: 0.90, steer: 0.95, accel: 0.92 },
+  rav4: { top: 0.85, steer: 0.90, accel: 0.88 },
+  bronco: { top: 0.80, steer: 0.80, accel: 0.82 },
+  economy_sedan: { top: 0.78, steer: 0.92, accel: 0.80 },
+  pickup: { top: 0.82, steer: 0.85, accel: 0.84 },
+  van: { top: 0.72, steer: 0.78, accel: 0.75 },
 };
-const HANDLING_DEFAULT = { top: 0.90, steer: 1.00, accel: 0.90 };
+const HANDLING_DEFAULT = { top: 0.88, steer: 0.95, accel: 0.88 };
 
 // Module-scope scratch vectors reused every frame. The car's useFrame runs at
 // 60 Hz; allocating fresh THREE.Vector3s here (fwd/nfwd/right) produced ~180
@@ -118,7 +122,7 @@ export function Car() {
     if (!rb) return;
     const game = useGame.getState();
     if (game.paused) { shared.skid = false; sfx.engine(0, false); return; }
-    if (game.mode !== "car") { shared.skid = false; shared.carSpeed = 0; sfx.engine(0, false); return; }
+    if (game.mode !== "car") { shared.skid = false; shared.carSpeed = 0; shared.steerVisual = 0; sfx.engine(0, false); return; }
 
     const ax = moveAxis();
     const winter = game.weather === "snow";
@@ -343,6 +347,9 @@ export function Car() {
       }
     }
 
+    // Wheel steer visual (#39) — front-wheel yaw cue for WheelRig.
+    shared.steerVisual = steerSmooth.current * 0.42;
+
     // exit
     if (consumeTap("KeyE")) {
       const c = rb.translation();
@@ -350,8 +357,9 @@ export function Car() {
       const pl = shared.player;
       if (pl) {
         pl.setEnabled(true);
+        // Exit y-snap (#36): drop onto sidewalk height, not mid-air.
         pl.setTranslation(
-          { x: c.x + right.x * 3, y: 2, z: c.z + right.z * 3 },
+          { x: c.x + right.x * 3, y: 1.05, z: c.z + right.z * 3 },
           true,
         );
         pl.setLinvel({ x: 0, y: 0, z: 0 }, true);

@@ -9,9 +9,10 @@ export type WeatherTone = "clear" | "rain" | "fog" | "snow";
 export function exposureFor(daylight: number, weather: WeatherTone): number {
   const day = Math.max(0, Math.min(1, daylight));
   const sunset = Math.max(0, 1 - Math.abs(day - 0.24) * 4);
-  const base = 0.90 + 0.08 * day + 0.085 * sunset;
-  const weatherShift = weather === "snow" ? -0.045 : weather === "rain" ? -0.025 : weather === "fog" ? -0.015 : 0;
-  return Math.max(0.82, Math.min(1.10, base + weatherShift));
+  // Daylight exposure nudge (#12): slightly brighter clear midday.
+  const base = 0.92 + 0.09 * day + 0.085 * sunset;
+  const weatherShift = weather === "snow" ? -0.045 : weather === "rain" ? -0.025 : weather === "fog" ? -0.015 : 0.01;
+  return Math.max(0.82, Math.min(1.12, base + weatherShift));
 }
 
 export function CinematicExposure() {

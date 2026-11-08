@@ -136,6 +136,8 @@ export const shared = {
   day: 1,
   /** Signed forward speed of the car (m/s), written by Car each frame. */
   carSpeed: 0,
+  /** Front-wheel steer visual (−1..1-ish) for WheelRig yaw cue (#39). */
+  steerVisual: 0,
   /** True while the car is cornering hard at speed (lays skid marks). */
   skid: false,
   /** Decaying camera-shake impulse; bump it to jolt the chase camera. */

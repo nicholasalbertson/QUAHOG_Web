@@ -62,6 +62,13 @@ export function stepVehicleDynamics(
   const rate = (handbrake ? tuning.handbrakeRate : input.throttle !== 0 ? tuning.accelRate : tuning.coastRate) * grip;
   speed = lerp(speed, target * grip, expSmooth(dt, rate));
 
+  // Lateral slip clamp (#41): cap cornering angle proxy via steer×speed.
+  const slip = Math.abs(input.steer) * Math.abs(speed);
+  const maxSlip = handbrake ? 28 : 16;
+  if (slip > maxSlip && Math.abs(speed) > 1) {
+    speed *= maxSlip / slip;
+  }
+
   const skidding =
     (handbrake && Math.abs(speed) > 6) || (Math.abs(input.steer) > 0.6 && Math.abs(speed) > 18);
 

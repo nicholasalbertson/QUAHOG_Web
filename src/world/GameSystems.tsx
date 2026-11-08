@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { useStats } from "../game";
 import { MISSIONS, useMission } from "../mission";
@@ -161,6 +162,7 @@ export function GameSystems() {
     previousDay.current = shared.day;
     prevStars.current = Math.floor(useStats.getState().police);
     sfx.startAmbience();
+    // Harbor ambience distance fade continues in the frame loop (#45).
     // restore settings (§26)
     {
       const s = loadJSON<Record<string, unknown>>("mounthope.settings.v1", {});
@@ -214,6 +216,16 @@ export function GameSystems() {
       previousDay.current = shared.day;
     }
     if (shared.alarm.t > 0) shared.alarm.t = Math.max(0, shared.alarm.t - dt);
+    // Harbor ambience distance fade (#45): louder near waterfront, soft inland.
+    {
+      const body = useGame.getState().mode === "car" ? shared.car : shared.player;
+      const t = body?.translation();
+      if (t) {
+        const d = Math.hypot(t.x - (-180), t.z - 40);
+        const near = THREE.MathUtils.clamp(1 - d / 420, 0, 1);
+        sfx.setAmbienceLevel(near);
+      }
+    }
     // tire screech on hard cornering (§13/§20), with a cooldown so it doesn't spam
     skidCool.current = Math.max(0, skidCool.current - dt);
     if (shared.skid && skidCool.current <= 0) { sfx.screech(); skidCool.current = 0.55; }

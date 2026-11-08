@@ -203,8 +203,13 @@ function tileGeometry(buildings: Building[], lowQuality = false): Partial<Record
     // flat-topped boxes; taller commercial/downtown blocks get a parapet coping
     // band instead (both deterministic per-building).
     if (!isHero && b.height < 12) {
+      // Roof typology mix (#3): gable majority, hip minority, skip rare flat.
       const roofH = 1.5 + ((style.seed % 997) / 997) * 1.6;
-      const r = (style.seed % 4 !== 0 ? gableRoof(b, roofH, roof) : null) ?? hipRoof(b, roofH, roof);
+      const roll = style.seed % 7;
+      const r = roll === 0 ? null
+        : roll <= 5
+          ? (gableRoof(b, roofH, roof) ?? hipRoof(b, roofH, roof))
+          : hipRoof(b, roofH, roof);
       if (r) parts[materialKind].push(r);
     } else if (!isHero) {
       // coping tone: the wall colour lightened toward limestone/concrete
@@ -249,8 +254,10 @@ function Tile({ buildings, colliders, tileKey }: { buildings: Building[]; collid
         normalMap: maps?.normal ?? nrm,
         normalScale: new THREE.Vector2(0.34, 0.34),
         roughnessMap: maps?.roughness,
-        roughness: 0.88,
-        metalness: 0.025,
+        // Match GIS Buildings glass/window read (#1/#2).
+        roughness: 0.82,
+        metalness: 0.08,
+        envMapIntensity: 0.55,
         emissive: WINDOW_GLOW,
         emissiveIntensity: 0,
       });
@@ -260,7 +267,8 @@ function Tile({ buildings, colliders, tileKey }: { buildings: Building[]; collid
   useEffect(() => () => { Object.values(mats).forEach(m => m.dispose()); }, [mats]);
   useFrame(() => {
     const night = 1 - THREE.MathUtils.smoothstep(shared.dayT, 0, 0.3);
-    Object.values(mats).forEach(m => { m.emissiveIntensity = night * 0.35; });
+    // Night glow parity with GIS Buildings (#2/#17).
+    Object.values(mats).forEach(m => { m.emissiveIntensity = night * 0.42; });
   });
 
   // rooftop clutter (water tanks / AC units) on mid-rise buildings for skyline depth

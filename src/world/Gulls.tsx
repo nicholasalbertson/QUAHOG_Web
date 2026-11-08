@@ -4,7 +4,7 @@ import { useFrame } from "@react-three/fiber";
 
 // Wheeling harbor gulls (§7) — instanced, circling over the waterfront. Cheap
 // life in the sky; bloom-free, just simple winged sprites.
-const N = 40;
+const N = 56; // denser harbor sky life (audit #30)
 const _m = new THREE.Matrix4();
 const _q = new THREE.Quaternion();
 const _e = new THREE.Euler();

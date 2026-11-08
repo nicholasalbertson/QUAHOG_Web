@@ -105,9 +105,15 @@ export const WheelRig: React.FC<WheelRigProps> = ({ scene, wheelR = 0.41, getSpe
   useFrame((_, delta) => {
     const speed = getSpeed ? getSpeed() : shared.carSpeed;
     if (!Number.isFinite(speed) || speed === 0 || !Number.isFinite(delta) || delta <= 0) return;
+    // Wheel spin sync (#39): slight steer visual gain on front wheels via yaw.
     const angle = (speed * delta) / wheelR;
+    const steerVis = THREE.MathUtils.clamp(shared.steerVisual ?? 0, -0.45, 0.45);
+    let i = 0;
     for (const wheel of validWheels) {
       wheel.rotation.x += angle;
+      // Front pair (first two validated) get yaw steer cue.
+      if (i < 2) wheel.rotation.y = THREE.MathUtils.lerp(wheel.rotation.y, steerVis, 1 - Math.exp(-delta * 8));
+      i++;
     }
   });
 

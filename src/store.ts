@@ -150,9 +150,12 @@ export const useGame = create<GameState>((set) => ({
   toggleView: () => set((s) => ({ view: s.view === "third" ? "first" : "third" })),
   setNearCar: (nearCar) => set((s) => (s.nearCar === nearCar ? s : { nearCar })),
   setNearLabel: (nearLabel) => set((s) => (s.nearLabel === nearLabel ? s : { nearLabel })),
-  // Player preview: clear → rain → snow. Story weather stays locked.
+  // Player preview: clear → rain → fog → snow. Story weather stays locked.
   toggleWeather: () => set((s) => s.blizzardActive ? s : ({
-    weather: s.weather === "clear" ? "rain" : s.weather === "rain" ? "snow" : "clear",
+    weather: s.weather === "clear" ? "rain"
+      : s.weather === "rain" ? "fog"
+      : s.weather === "fog" ? "snow"
+      : "clear",
   })),
   setBlizzardActive: (active) => set((s) => {
     if (s.blizzardActive === active) return s;

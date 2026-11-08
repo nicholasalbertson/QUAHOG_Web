@@ -8,6 +8,7 @@ import { SpatialIndex } from "./SpatialIndex";
 import type { PedGraph } from "./PedGraph";
 import type { Vec2 } from "./types";
 import { dist } from "./math";
+import { rng } from "./Rng";
 
 export type PedLod = "near" | "mid" | "far";
 
@@ -185,8 +186,10 @@ export class PedestrianAI {
       a.pathCursor = 0;
       return;
     }
-    const start = g.nearestNode(a.x, a.z) ?? g.randomNodeNear(a.x, a.z, 0, 200);
-    const goal = g.randomNodeNear(a.x, a.z, 18, this.wander * 2.5);
+    const start = g.nearestNode(a.x, a.z) ?? g.randomNodeNear(a.x, a.z, 0, 200, "sidewalk");
+    // Crosswalk preference bias (#25): prefer sidewalk goals; allow crosswalk rarely.
+    const preferSide = rng.stream("peds").next() < 0.82;
+    const goal = g.randomNodeNear(a.x, a.z, 18, this.wander * 2.5, preferSide ? "sidewalk" : undefined);
     if (start == null || goal == null || start === goal) {
       const n = g.node(goal ?? start ?? 0);
       if (n) {
@@ -251,9 +254,10 @@ export class PedestrianAI {
         return { x: n.x, z: n.z };
       }
     }
+    const r = rng.stream("peds");
     return {
-      x: this.center.x + (Math.random() * 2 - 1) * this.wander,
-      z: this.center.z + (Math.random() * 2 - 1) * this.wander,
+      x: this.center.x + (r.next() * 2 - 1) * this.wander,
+      z: this.center.z + (r.next() * 2 - 1) * this.wander,
     };
   }
 }

@@ -67,8 +67,11 @@ export function Buildings({
           roughnessMap: maps.roughness,
           emissive: WINDOW_GLOW,
           emissiveIntensity: 0,
-          roughness: 0.88,
-          metalness: 0.025,
+          // Cooler glass read at street distance (audit #1) — metalness on
+          // the atlas window bays without plastic walls.
+          roughness: 0.82,
+          metalness: 0.08,
+          envMapIntensity: 0.55,
         });
       } else {
         const maps = districtFacadeMaps(kind);
@@ -120,7 +123,8 @@ export function Buildings({
   const camera = useThree((s) => s.camera);
   useFrame(() => {
     const night = 1 - THREE.MathUtils.smoothstep(shared.dayT, 0, 0.3); // dusk-gated: dark by day
-    Object.values(materials).forEach((m) => { m.emissiveIntensity = night * 0.3; });
+    // Night lit-window bump (audit #17) — still budgeted vs StreamingBuildings.
+    Object.values(materials).forEach((m) => { m.emissiveIntensity = night * 0.42; });
     const cp = camera.position;
     chunks.forEach((c, i) => {
       const mesh = chunkRefs.current[i];

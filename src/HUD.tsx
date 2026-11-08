@@ -154,8 +154,9 @@ export function HUD({ sliceName }: { sliceName: string }) {
     {wp && <div className="hud-waypoint"><span style={{display:"inline-block",transform:`rotate(${wp.bearing}rad)`}}>▲</span> Waypoint · {wp.dist} m</div>}
     {edge && !missionDone && <div className={`hud-edge-arrow ${edge.side}`} aria-label="Objective off-screen">{edge.side === "left" ? `◀ ${edge.dist} m` : `${edge.dist} m ▶`}</div>}
     {sub && <div className="hud-caption"><b>{sub.name}: </b>{sub.text}</div>}
-    {mode === "foot" && nearCar && <div className="hud-prompt"><span className="desktop-interact">E · </span>{nearLabel || "Enter vehicle"}<small>Use the CAR control on touch</small></div>}
-    {near && <div className="hud-prompt" style={{bottom:"34%"}}><span className="desktop-interact">B · </span>{near.name} · ${near.cost.toLocaleString()}<small>{near.blurb} · +${near.perDay}/day</small><button onClick={() => { import("./input").then(({virtualTap}) => virtualTap("KeyB")); }} disabled={cash < near.cost}>Buy front</button></div>}
+    {/* Interact prompt style unify (#47): shared class + key · verb layout. */}
+    {mode === "foot" && nearCar && <div className="hud-prompt hud-prompt-interact"><span className="desktop-interact">E · </span>{nearLabel || "Enter vehicle"}<small>Use the CAR control on touch</small></div>}
+    {near && <div className="hud-prompt hud-prompt-interact" style={{bottom:"34%"}}><span className="desktop-interact">B · </span>{near.name} · ${near.cost.toLocaleString()}<small>{near.blurb} · +${near.perDay}/day</small><button onClick={() => { import("./input").then(({virtualTap}) => virtualTap("KeyB")); }} disabled={cash < near.cost}>Buy front</button></div>}
     <nav className="hud-actions" aria-label="Game panels">
     {touch && <button className="hud-density" aria-label={expanded ? "Use compact HUD" : "Expand HUD"} aria-pressed={expanded} onClick={() => {
       setExpanded(!expanded); saveJSON("mounthope.hud.expanded", !expanded);

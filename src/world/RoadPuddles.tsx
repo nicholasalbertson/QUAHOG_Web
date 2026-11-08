@@ -9,7 +9,8 @@ import { layoutPuddles } from "./puddleLayout";
 export function RoadPuddles({ roads, center }: { roads: Road[]; center: [number, number] }) {
   const rainy = useGame((s) => s.weather === "rain");
   const quality = useGame((s) => s.quality);
-  const spots = useMemo(() => layoutPuddles(roads, center, [22, 52, 96][quality]), [roads, center, quality]);
+  // Rain puddle density bump (#14).
+  const spots = useMemo(() => layoutPuddles(roads, center, [30, 68, 120][quality]), [roads, center, quality]);
   const ref = useRef<THREE.InstancedMesh>(null);
   useLayoutEffect(() => {
     const mesh = ref.current;
