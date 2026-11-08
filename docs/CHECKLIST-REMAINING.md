@@ -4,22 +4,22 @@ Canonical: [`IMPLEMENTATION-CHECKLIST-V3.md`](./IMPLEMENTATION-CHECKLIST-V3.md) 
 
 | Status | Count |
 |--------|------:|
-| Done `[x]` | ~350 |
-| Partial `[~]` | ~160 |
-| Open `[ ]` | ~230 |
+| Done `[x]` | ~364 |
+| Partial `[~]` | ~169 |
+| Open `[ ]` | ~199 |
 
-Progress: next-50 → deepen → stability/manifest/input → heat/map/tutorial/audio → loco/cover/boats/safehouse.
+Progress: next-50 → deepen → stability/manifest → heat/map/audio → loco/cover/boats → interiors/cutscenes/SFX/VO → impostor/dispose.
 
-## Hard blockers
+## Hard blockers (~still open)
 
-- §7.3 Cape/Hyannis/Brockton authored tiles (CONTENT-BLOCKED)
-- §15 measured Device A/B/C FPS
-- §16–§17 l10n/release packaging
-- §2 Earth/DEM photoreal content (GLB packs, tile soaks)
-- §9.1 licensed audio sample packs (maps/keys exist)
-- Rapier contact wiring in live actors (§1.9.7 / §3.3.6)
-- Full mission content 11/11 + HUD chrome polish
+- §7.2–§7.3 district/Cape authored content (CONTENT-BLOCKED)
+- §15 Device A/B/C measured FPS
+- §16–§17 l10n / store release
+- §2 Earth photoreal GLB/tile soaks
+- §9.1 audio *sample packs* (key catalogs exist)
+- Rapier live actor contacts
+- Mission 11/11 authored content + set pieces
 
 ## Keep shipping
 
-Wire new sim modules into StreetLife/HUD; deepen remaining code-only IDs; mark truthfully.
+Wire sim modules into StreetLife/HUD; remaining code-only opens; mark blockers honestly.

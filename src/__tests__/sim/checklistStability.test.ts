@@ -51,6 +51,21 @@ import { SAFEHOUSES, canUnlock, unlockedSafehouses } from "../../sim/SafehouseUn
 import { FALLBACK_GROUND, fallbackNotice } from "../../sim/FallbackGround";
 import { ownershipRows } from "../../sim/OwnershipUi";
 import { CorpseField } from "../../sim/CorpseTtl";
+import { INTERIORS, enterInterior, createInteriorSession } from "../../sim/InteriorScenes";
+import { createWardrobe, buyOutfit, equipOutfit } from "../../sim/Wardrobe";
+import { startTrack, stepTrack, skipTrack, sampleCamera } from "../../sim/CutsceneTracks";
+import { worldArrow } from "../../sim/WorldArrow";
+import { inMissionRange } from "../../sim/MissionDistance";
+import { assertSfxCatalog, impactSfx, WEAPON_SFX } from "../../sim/SfxCatalog";
+import { createDeferredMusic, loadMusicDeferred } from "../../sim/DeferredMusic";
+import { corruptSavePrompt, applyCorruptAction } from "../../sim/CorruptSaveUi";
+import { createGloria, startGloria } from "../../sim/GloriaSurge";
+import { projectedFirstUpgradeMin, meetsFirstUpgradeGate } from "../../sim/EconomyBalance";
+import { createSwim, stepSwim } from "../../sim/SwimMode";
+import { deliverNarrative } from "../../sim/VoSilent";
+import { applyNewGame, DEFAULT_NEW_GAME } from "../../sim/NewGamePolicy";
+import { impostorsForTiles } from "../../sim/TileImpostor";
+import { disposeObject3D } from "../../sim/MeshDispose";
 
 function sampleManifest(): WorldManifest {
   return {
@@ -392,5 +407,94 @@ describe("checklist stability + manifest deepen", () => {
     const corpses = new CorpseField();
     corpses.add({ id: "officer-1", x: 0, z: 0, kind: "cop" });
     expect(corpses.list().length).toBe(1);
+  });
+
+  it("§6.2 interiors + wardrobe + §7.4 gloria/swim + §8 cutscene/arrow", () => {
+    const sess = createInteriorSession();
+    enterInterior(sess, INTERIORS[0]!);
+    expect(sess.interiorId).toBeTruthy();
+    const w = createWardrobe();
+    expect(buyOutfit(w, "dock", 200).ok).toBe(true);
+    expect(equipOutfit(w, "dock")).toBe(true);
+    const g = createGloria();
+    startGloria(g, 0.9);
+    expect(g.waterRise).toBeGreaterThan(1);
+    expect(g.frictionMul).toBeLessThan(1);
+    const swim = createSwim();
+    stepSwim(swim, { inWater: true, throttle: 1, dt: 0.1 });
+    expect(swim.active).toBe(true);
+    const track = startTrack({
+      id: "open",
+      duration: 2,
+      skippable: true,
+      camera: [
+        { t: 0, x: 0, y: 2, z: 0, lookX: 0, lookY: 1, lookZ: 1 },
+        { t: 2, x: 5, y: 2, z: 5, lookX: 1, lookY: 1, lookZ: 2 },
+      ],
+      cues: [{ t: 0.5, entityId: "npc", clip: "wave" }],
+    });
+    const cues = stepTrack(track, 0.6);
+    expect(cues.length).toBe(1);
+    expect(sampleCamera(track).x).toBeGreaterThan(0);
+    skipTrack(track);
+    expect(track.done).toBe(true);
+    const arrow = worldArrow({ x: 0, z: 0, yaw: 0 }, { x: 10, z: 0 });
+    expect(arrow.distance).toBeGreaterThan(9);
+    expect(inMissionRange("boat", { x: 0, z: 0 }, { x: 4, z: 0 }, 4)).toBe(true);
+  });
+
+  it("§9 sfx catalogs + deferred music + §11.4 corrupt save + §4.5 balance", async () => {
+    expect(assertSfxCatalog()).toEqual([]);
+    expect(impactSfx("metal", "heavy")).toBe("impact.metal.heavy");
+    expect(WEAPON_SFX.pistol.fire).toMatch(/pistol/);
+    const m = createDeferredMusic();
+    await loadMusicDeferred(m, "bed-a");
+    expect(m.state).toBe("ready");
+    const prompt = corruptSavePrompt("slot0", "bad json");
+    expect(prompt.actions).toContain("discard");
+    const mem: Record<string, string> = { slot0: "{bad" };
+    const store = {
+      getItem: (k: string) => mem[k] ?? null,
+      setItem: (k: string, v: string) => {
+        mem[k] = v;
+      },
+      removeItem: (k: string) => {
+        delete mem[k];
+      },
+    };
+    applyCorruptAction("export", store, "slot0");
+    expect(mem["slot0.export"]).toBe("{bad");
+    const mins = projectedFirstUpgradeMin(100, 1500, 500);
+    expect(mins).toBeLessThanOrEqual(20);
+    expect(meetsFirstUpgradeGate(mins)).toBe(true);
+  });
+
+  it("§9.5.3 VO-silent + §11.4.4 new game + §7.1 dispose/impostor", () => {
+    const shown: string[] = [];
+    const r = deliverNarrative(
+      [
+        { id: "a", text: "Hello", voKey: "vo.a" },
+        { id: "b", text: "World" },
+      ],
+      { voEnabled: false, showText: (t) => shown.push(t) },
+    );
+    expect(r.shown).toEqual(["a", "b"]);
+    expect(r.spoken).toEqual([]);
+    expect(shown).toHaveLength(2);
+    const mem: Record<string, string> = { race: "1", settings: "x", s0: "y" };
+    const cleared = applyNewGame(DEFAULT_NEW_GAME, {
+      removeItem: (k) => {
+        delete mem[k];
+      },
+    }, { raceBests: "race", settings: "settings", slots: ["s0"] });
+    expect(cleared).toContain("race");
+    expect(mem.settings).toBe("x");
+    expect(impostorsForTiles([{ id: "t0", minX: 1000, maxX: 1256, minZ: 1000, maxZ: 1256 }], { x: 0, z: 0 }).length).toBe(1);
+    const disposed = disposeObject3D({
+      geometry: { dispose: () => undefined },
+      material: { dispose: () => undefined },
+      children: [{ geometry: { dispose: () => undefined } }],
+    });
+    expect(disposed).toBe(3);
   });
 });

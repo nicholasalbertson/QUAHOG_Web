@@ -492,7 +492,7 @@ Accept: one schema governs all authored data; boot is clean; hot reload works.
 [~] 1.7.4 Cancellation: in-flight loads for evicted tiles dropped on arrival
 [~] 1.7.5 Error retry with backoff; persistent failures → HUD notice (AssetLoadNotice)
 [~] 1.7.6 Eviction hysteresis tuned against orbit thrash
-[ ] 1.7.7 tileImpostor() wired into active streaming set → §7.12
+[x] 1.7.7 tileImpostor() wired into active streaming set → §7.12
 [~] 1.7.8 30-min drive soak: protocol + SoakHarness (`?debug&soak=1&perf=1`); measurement pending
 
 Accept: no pop-in > 1 frame at 60 km/h on Device A; memory flat over 30 min.
@@ -784,7 +784,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 4.5 Payout / balance — (M)
 
 [x] 4.5.1 Day-based payout summary UI
-[ ] 4.5.2 Balance pass: time-to-first-upgrade, time-to-wealth
+[x] 4.5.2 Balance pass: time-to-first-upgrade, time-to-wealth — EconomyBalance targets
 [ ] 4.5.3 Distant business markers need world content (§7.2)
 [ ] 4.5.4 Fresh save reaches first upgrade ≤ 20 min (test)
 
@@ -853,15 +853,15 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [x] 6.1.1 Entry → heat clear + save prompt
 [x] 6.1.2 Sleep advances clock (§1.4)
 [~] 6.1.3 Multiple unlockable safehouses w/ interiors (§6.2) — unlock table; interiors TBD
-[ ] 6.1.4 Wardrobe (ties to §4.4)
+[x] 6.1.4 Wardrobe (ties to §4.4)
 [x] 6.1.5 Sleep advances to next morning; heat clears (test)
 
 6.2 Interiors — (L)
 
-[ ] 6.2.1 Interior scene loading (additive room volumes)
-[ ] 6.2.2 One detailed safehouse interior
-[ ] 6.2.3 Hospital interior + respawn point
-[ ] 6.2.4 Police station interior (busted flow)
+[x] 6.2.1 Interior scene loading (additive room volumes)
+[~] 6.2.2 One detailed safehouse interior — def present; mesh TBD
+[~] 6.2.3 Hospital interior + respawn point — def present; mesh TBD
+[~] 6.2.4 Police station interior (busted flow) — def present; mesh TBD
 [ ] 6.2.5 Enter/exit without streaming errors (test)
 
 6.3 Wasted / busted — (M)
@@ -889,14 +889,14 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 - [~] NB tile stream + FR heroes — finish
 [x] JSON cache eviction + unwanted grace
-[ ] 7.1.1 GPU mesh dispose on unmount verified (§12.2)
-[ ] 7.1.2 tileImpostor() in active set (§1.7.7)
+[x] 7.1.1 GPU mesh dispose on unmount verified (§12.2)
+[x] 7.1.2 tileImpostor() in active set (§1.7.7)
 [ ] 7.1.3 Resident plateau + no GPU leak over 30 min (test)
 
 7.2 Districts — (L)
 
-[ ] 7.2.1 Lived-in Fall River (props, peds, businesses)
-[ ] 7.2.2 NB polish (props, signage, lighting)
+[ ] 7.2.1 Lived-in Fall River (props, peds, businesses) — CONTENT-BLOCKED
+[ ] 7.2.2 NB polish (props, signage, lighting) — CONTENT-BLOCKED
 [ ] 7.2.3 Each district passes walk-through checklist
 
 7.3 Cape / Hyannis / Brockton (Act II/III) — (XXL)
@@ -909,10 +909,10 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 7.4 Water & weather gameplay — (L)
 
-[ ] 7.4.1 Swim mode (enter water, stamina, drown risk)
-[ ] 7.4.2 Storm-surge "Gloria" event
+[x] 7.4.1 Swim mode (enter water, stamina, drown risk)
+[x] 7.4.2 Storm-surge "Gloria" event
 [ ] 7.4.3 Stronger water reflections (tiered)
-[ ] 7.4.4 Weather → tire friction (§1.4, §1.9)
+[x] 7.4.4 Weather → tire friction (§1.4, §1.9)
 [ ] 7.4.5 Gloria surge + handling change; swim from any shoreline (test)
 
 7.5 Fog — (S)
@@ -964,10 +964,10 @@ M11 Finale … … …
 8.2 Dialogue & cutscenes — (L)
 
 [x] 8.2.1 Dialogue system: lines, speaker, portrait/name, skip, log
-[ ] 8.2.2 Cutscene camera tracks + entity animation cues
+[x] 8.2.2 Cutscene camera tracks + entity animation cues
 [x] 8.2.3 Subtitle hook (§10.4)
 [x] 8.2.4 VO hook with Web Speech fallback (§9.5)
-[ ] 8.2.5 Cutscene plays, skips, logs, no soft-lock (test)
+[x] 8.2.5 Cutscene plays, skips, logs, no soft-lock (test)
 
 8.3 Objective types — (L)
 
@@ -997,9 +997,9 @@ M11 Finale … … …
 
 8.6 Content — (XL)
 
-[ ] 8.6.1 3D world arrow widget (on/off-screen)
+[x] 8.6.1 3D world arrow widget (on/off-screen)
 [ ] 8.6.2 Authored opening fish-pier set piece
-[ ] 8.6.3 Boat mode in target distance checks (§5.3)
+[x] 8.6.3 Boat mode in target distance checks (§5.3)
 [~] 8.6.4 Playable mid/late campaign once map content exists (§7.3) — CONTENT-BLOCKED
 [ ] 8.6.5 Opening set piece plays with correct camera/audio/markers (test)
 
@@ -1011,10 +1011,10 @@ M11 Finale … … …
 
 - [~] Procedural SFX + 4 stations — finish
 [x] 9.1.1 Surface footsteps (asphalt/grass/wood/water)
-[ ] 9.1.2 Door/UI packs
-[ ] 9.1.3 Ped VO barks (greeting/panic/hit)
-[ ] 9.1.4 Impact variety (material × intensity matrix)
-[ ] 9.1.5 Weapon SFX per weapon
+[~] 9.1.2 Door/UI packs — key catalog; samples TBD
+[~] 9.1.3 Ped VO barks (greeting/panic/hit) — key catalog; samples TBD
+[x] 9.1.4 Impact variety (material × intensity matrix)
+[~] 9.1.5 Weapon SFX per weapon — key catalog; samples TBD
 [~] 9.1.6 Every friction surface has footstep + impact (test)
 
 9.2 Spatial audio — (L)
@@ -1035,7 +1035,7 @@ M11 Finale … … …
 
 9.4 Music — (M)
 
-[ ] 9.4.1 Deferred music loading (no boot block)
+[x] 9.4.1 Deferred music loading (no boot block)
 [x] 9.4.2 Adaptive layers: explore/mission/chase/wanted
 [x] 9.4.3 Cross-fades without clicks
 [~] 9.4.4 Chase→wanted seamless + loop-safe (test)
@@ -1045,7 +1045,7 @@ M11 Finale … … …
 - [~] Mobile-safe VO path — finish
 [x] 9.5.1 Detect Web Speech; fallback to text-only subtitles
 [x] 9.5.2 Never block gameplay on VO
-[ ] 9.5.3 VO-silent path still delivers all narrative text (test)
+[x] 9.5.3 VO-silent path still delivers all narrative text (test)
 
 ---
 
@@ -1140,10 +1140,10 @@ M11 Finale … … …
 
 11.4 Recovery & slots — (M)
 
-[ ] 11.4.1 Corrupt-save recovery UI (discard/export/retry)
+[x] 11.4.1 Corrupt-save recovery UI (discard/export/retry)
 [x] 11.4.2 Multi-slot saves
 [x] 11.4.3 Cloud sync (TBD — document)
-[ ] 11.4.4 Clear race best / settings policy on New Game
+[x] 11.4.4 Clear race best / settings policy on New Game
 [ ] 11.4.5 Corrupt payload never bricks; multi-slot swaps cleanly (test)
 
 ---

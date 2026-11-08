@@ -363,3 +363,43 @@ export { FALLBACK_GROUND, FALLBACK_SKY, fallbackNotice } from "./FallbackGround"
 export type { FallbackGround, FallbackSky } from "./FallbackGround";
 export { ownershipRows } from "./OwnershipUi";
 export type { OwnershipRow } from "./OwnershipUi";
+export {
+  INTERIORS,
+  createInteriorSession,
+  enterInterior,
+  exitInterior,
+  nearestInteriorDoor,
+} from "./InteriorScenes";
+export type { InteriorDef, InteriorKind, InteriorSession } from "./InteriorScenes";
+export { OUTFITS, createWardrobe, buyOutfit, equipOutfit } from "./Wardrobe";
+export type { Outfit, WardrobeState } from "./Wardrobe";
+export { startTrack, skipTrack, stepTrack, sampleCamera } from "./CutsceneTracks";
+export type { CamKey, AnimCue, CutsceneTrack, CutscenePlayer } from "./CutsceneTracks";
+export { worldArrow } from "./WorldArrow";
+export type { WorldArrow } from "./WorldArrow";
+export { missionDistance, inMissionRange } from "./MissionDistance";
+export type { MissionMode } from "./MissionDistance";
+export {
+  DOOR_UI_SFX,
+  PED_VO_BARKS,
+  impactSfx,
+  WEAPON_SFX,
+  assertSfxCatalog,
+} from "./SfxCatalog";
+export type { ImpactMaterial, ImpactIntensity } from "./SfxCatalog";
+export { createDeferredMusic, loadMusicDeferred } from "./DeferredMusic";
+export type { DeferredMusic, MusicLoadState } from "./DeferredMusic";
+export { corruptSavePrompt, applyCorruptAction } from "./CorruptSaveUi";
+export type { CorruptAction, CorruptSavePrompt } from "./CorruptSaveUi";
+export { createGloria, startGloria, endGloria, stepGloria } from "./GloriaSurge";
+export type { GloriaState } from "./GloriaSurge";
+export { BALANCE_TARGETS, projectedFirstUpgradeMin, meetsFirstUpgradeGate } from "./EconomyBalance";
+export type { BalanceTargets } from "./EconomyBalance";
+export { deliverNarrative } from "./VoSilent";
+export type { NarrativeLine } from "./VoSilent";
+export { DEFAULT_NEW_GAME, applyNewGame } from "./NewGamePolicy";
+export type { NewGamePolicy } from "./NewGamePolicy";
+export { tileImpostor, impostorsForTiles } from "./TileImpostor";
+export type { TileImpostor } from "./TileImpostor";
+export { disposeObject3D } from "./MeshDispose";
+export type { DisposableLike } from "./MeshDispose";
