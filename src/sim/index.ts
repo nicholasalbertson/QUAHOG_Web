@@ -93,11 +93,28 @@ export {
   setA11y,
   loadA11y,
   a11yColor,
+  motionScale,
+  subtitleScalePx,
   DEFAULT_A11Y,
 } from "./Accessibility";
 export type { A11ySettings } from "./Accessibility";
-export { SHOPS, canPurchase, nearestShop } from "./ShopCatalog";
-export type { ShopKind, ShopItem, ShopDef, PurchaseCtx } from "./ShopCatalog";
+export { SHOPS, canPurchase, nearestShop, applyPurchase, shopCounterPrompt } from "./ShopCatalog";
+export type { ShopKind, ShopItem, ShopDef, PurchaseCtx, PurchaseBag } from "./ShopCatalog";
+export {
+  missionsFromOwned,
+  ownershipMissionDelta,
+  missionStillAvailable,
+} from "./OwnershipMissionGate";
+export type { FrontDef } from "./OwnershipMissionGate";
+export { copReactionToCorpse, trafficReactionToCorpse } from "./CorpseReaction";
+export type { CopReaction, TrafficReaction } from "./CorpseReaction";
+export {
+  SUNRISE_TABLE,
+  seasonForDay,
+  nightFactorFor,
+  sunMoonUniforms,
+} from "./SunriseTables";
+export type { Season, SunMoonUniforms } from "./SunriseTables";
 export {
   createWeaponWheel,
   openWheel,
@@ -156,8 +173,14 @@ export {
   powerMul,
 } from "./CarDamage";
 export type { DamageStage, CarDamageState } from "./CarDamage";
-export { footstepFor, footstepInterval, FOOTSTEP_SURFACES } from "./Footsteps";
-export type { FootstepKey } from "./Footsteps";
+export {
+  footstepFor,
+  footstepInterval,
+  FOOTSTEP_SURFACES,
+  impactFor,
+  surfaceSfxHoles,
+} from "./Footsteps";
+export type { FootstepKey, ImpactKey } from "./Footsteps";
 export { radarBlips } from "./WantedRadar";
 export type { RadarBlip } from "./WantedRadar";
 export {

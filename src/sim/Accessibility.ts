@@ -5,6 +5,8 @@
 export interface A11ySettings {
   subtitles: boolean;
   subtitleSize: "sm" | "md" | "lg";
+  /** §10.4.3 Caption plate opacity 0..1. */
+  subtitleBgOpacity: number;
   colorblind: "none" | "protan" | "deutan" | "tritan";
   reduceMotion: boolean;
   screenFlash: boolean;
@@ -16,6 +18,7 @@ const KEY = "mounthope.a11y.v1";
 export const DEFAULT_A11Y: A11ySettings = {
   subtitles: true,
   subtitleSize: "md",
+  subtitleBgOpacity: 0.55,
   colorblind: "none",
   reduceMotion: false,
   screenFlash: true,
@@ -44,6 +47,17 @@ export function loadA11y(): A11ySettings {
     current = { ...DEFAULT_A11Y, ...parsed };
   } catch { /* ignore */ }
   return getA11y();
+}
+
+/** §10.4.4 Scale shake / flash intensity under reduce-motion. */
+export function motionScale(kind: "shake" | "flash" = "shake"): number {
+  if (current.reduceMotion) return 0;
+  if (kind === "flash" && !current.screenFlash) return 0;
+  return 1;
+}
+
+export function subtitleScalePx(size = current.subtitleSize): number {
+  return size === "sm" ? 12 : size === "lg" ? 18 : 14;
 }
 
 /** Map a semantic color through colorblind filter (simple channel swap). */

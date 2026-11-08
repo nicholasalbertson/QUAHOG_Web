@@ -75,6 +75,8 @@ export function collectLegacySave(): SaveBlobV2 {
   blob.inventory = loadJSON(SAVE_KEYS.inventory, undefined);
   blob.radio = loadJSON(SAVE_KEYS.radio, undefined);
   blob.raceBests = loadJSON(SAVE_KEYS.raceBests, undefined);
+  blob.weapons = loadJSON(SAVE_KEYS.weapons, undefined);
+  blob.waypoint = loadJSON(SAVE_KEYS.waypoint, undefined);
   // Boat / carDamage piggy-back on the position record when present.
   const pos = blob.position as
     | {
@@ -107,6 +109,9 @@ export function saveUnified(partial?: Partial<SaveBlobV2>): SaveBlobV2 {
   if (raw.length > 256 * 1024) {
     console.warn("[SaveGame] blob exceeds 256KB soft budget", raw.length);
   }
+  // Domain mirrors for weapons / waypoint (§11.2.4–5).
+  if (blob.weapons) saveJSON(SAVE_KEYS.weapons, blob.weapons);
+  if (blob.waypoint !== undefined) saveJSON(SAVE_KEYS.waypoint, blob.waypoint);
   // Atomic-ish: write temp then main
   saveJSON(SAVE_KEYS.saveV2 + ".tmp", blob);
   saveJSON(SAVE_KEYS.saveV2, blob);
@@ -135,6 +140,8 @@ export function clearAllSaves(): void {
     SAVE_KEYS.inventory,
     SAVE_KEYS.radio,
     SAVE_KEYS.raceBests,
+    SAVE_KEYS.weapons,
+    SAVE_KEYS.waypoint,
     SAVE_KEYS.saveV2,
     SAVE_KEYS.saveV2 + ".tmp",
   );
@@ -156,6 +163,21 @@ export function validateSave(blob: unknown): string[] {
     for (const k of ["cash", "health", "police", "faction"] as const) {
       if (typeof b.stats[k] !== "number" || !Number.isFinite(b.stats[k])) errs.push(`stats.${k}`);
     }
+    // §1.5.2 Field-level range validators.
+    if (typeof b.stats.cash === "number" && b.stats.cash < 0) errs.push("stats.cash range");
+    if (typeof b.stats.health === "number" && (b.stats.health < 0 || b.stats.health > 100)) {
+      errs.push("stats.health range");
+    }
+    if (typeof b.stats.police === "number" && (b.stats.police < 0 || b.stats.police > 5)) {
+      errs.push("stats.police range");
+    }
+  }
+  if (b.weapons) {
+    if (typeof b.weapons.armed !== "boolean") errs.push("weapons.armed");
+    if (typeof b.weapons.weapon !== "string") errs.push("weapons.weapon");
+  }
+  if (b.waypoint != null) {
+    if (typeof b.waypoint.x !== "number" || typeof b.waypoint.z !== "number") errs.push("waypoint");
   }
   // §1.5.3 Size budget assert.
   try {

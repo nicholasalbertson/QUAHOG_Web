@@ -32,7 +32,7 @@ Baseline that is now on `main` (deepen per task trees below):
   `docs/FPS-MATRIX.md` soak protocol, `docs/EARTH-DECISION.md`
 · Remaining open work includes CONTENT-BLOCKED §7.3 Cape/FR tiles, device FPS
 soaks (§15), and release/l10n (§16–§17). See `docs/CHECKLIST-REMAINING.md`.
-· Live tally (~2026-11-07 night): ~498 `[x]` / ~165 `[~]` / ~53 `[ ]` — all bare
+· Live tally (~2026-11-07 night): ~520 `[x]` / ~145 `[~]` / ~53 `[ ]` — all bare
   `[ ]` are DEVICE/CONTENT/RAPIER-LIVE/PLAYTEST blockers. NEXT50 is 50/50 Done.
 
 Pointer checklist: [`IMPLEMENTATION-CHECKLIST.md`](./IMPLEMENTATION-CHECKLIST.md)
@@ -238,7 +238,7 @@ Task tree
 [x] 1.2.17 Right-hand walk bias by edge direction (lane feel)
 [x] 1.2.18 Crosswalk FSM: approach → wait → cross → clear, driven by signal phase
 [~] 1.2.19 Ped spawn/despawn tied to WorldStreamer tile residency (§1.7)
-[~] 1.2.20 LOD: path follow (near ≤ 30m), anchor-lerp (30–80m), freeze (> 80m)
+[x] 1.2.20 LOD: path follow (near ≤ 30m), anchor-lerp (30–80m), freeze (> 80m)
 [x] 1.2.21 Bind to PedestrianAI behind flag.pedGraph (StreetLife); wander remains fallback
 [x] 1.2.22 Door interaction: ped enters building → despawn with TTL → respawn at door
 [x] 1.2.23 Stuck detection: no progress > 3s → re-path; > 10s → despawn
@@ -371,9 +371,9 @@ interface ClockWeather {
 Task tree
 
 [x] 1.4.1 Clock: day index, time01, timeScale, pause on menu
-[~] 1.4.2 Configurable day length; sunrise/sunset tables per season
-[~] 1.4.3 Sun/moon direction + color curve → lighting uniforms
-[~] 1.4.4 Night factor 0..1 consumed by lights (§7.6) + shaders
+[x] 1.4.2 Configurable day length; sunrise/sunset tables per season — SunriseTables
+[x] 1.4.3 Sun/moon direction + color curve → lighting uniforms
+[x] 1.4.4 Night factor 0..1 consumed by lights (§7.6) + shaders — ClockWeather.nightFactor
 [~] 1.4.5 Weather FSM: clear → rain → snow → fog → clear (cloudy/storm TBD)
 [~] 1.4.6 Transition durations + cross-fade weights per transition
 [x] 1.4.7 Wetness accumulator: rises in rain/snow, decays after
@@ -417,7 +417,7 @@ interface SaveBlobV2 {
 Task tree — schema
 
 [x] 1.5.1 Define full V2 interface (all fields above enumerated in code comment)
-[~] 1.5.2 Field-level validators (type + range + referential integrity)
+[x] 1.5.2 Field-level validators (type + range + referential integrity)
 [x] 1.5.3 Size budget assert < 256KB serialized
 [x] 1.5.4 Optional fields nullable; missing = default, never crash
 
@@ -775,8 +775,8 @@ Accept: 20-min soak clean; context loss recovers without reload.
 4.3 Ownership-tied missions — (S)
 
 [x] 4.3.1 Mission unlock gated by owned front
-[~] 4.3.2 Ownership change refreshes availability
-[~] 4.3.3 Selling a front disables its tied mission cleanly (test)
+[x] 4.3.2 Ownership change refreshes availability — OwnershipMissionGate
+[x] 4.3.3 Selling a front disables its tied mission cleanly (test)
 
 4.4 Shops — (L)
 
@@ -784,8 +784,8 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [x] 4.4.2 Weapons shop (gated by wanted/mission)
 [x] 4.4.3 Clothes shop (appearance swap)
 [x] 4.4.4 Garage storage (beyond respray)
-[~] 4.4.5 Interiors or counter interaction (interim: counter prompt)
-[~] 4.4.6 Each purchase reflected immediately (test)
+[x] 4.4.5 Interiors or counter interaction (interim: counter prompt)
+[x] 4.4.6 Each purchase reflected immediately (test)
 
 4.5 Payout / balance — (M)
 
@@ -821,14 +821,14 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 5.3 Boats — (L)
 
-- [~] One marina boat — finish
+- [x] One marina boat — finish
 [x] 5.3.1 Buoyancy: sample wave height, spring to surface
 [x] 5.3.2 Wave system (deterministic, tied to wind §1.4)
 [x] 5.3.3 Damage + sinking state
 [x] 5.3.4 ≥ 3 boats with distinct handling
 [x] 5.3.5 Boat in Continue save (§11.2)
 [x] 5.3.6 Swim mode (§7.4)
-[~] 5.3.7 Floats, bobs, damages, sinks, persists (test)
+[x] 5.3.7 Floats, bobs, damages, sinks, persists (test)
 
 5.4 Races — (L)
 
@@ -1021,7 +1021,7 @@ M11 Finale … … …
 [~] 9.1.3 Ped VO barks (greeting/panic/hit) — key catalog; samples TBD
 [x] 9.1.4 Impact variety (material × intensity matrix)
 [~] 9.1.5 Weapon SFX per weapon — key catalog; samples TBD
-[~] 9.1.6 Every friction surface has footstep + impact (test)
+[x] 9.1.6 Every friction surface has footstep + impact (test)
 
 9.2 Spatial audio — (L)
 
@@ -1044,7 +1044,7 @@ M11 Finale … … …
 [x] 9.4.1 Deferred music loading (no boot block)
 [x] 9.4.2 Adaptive layers: explore/mission/chase/wanted
 [x] 9.4.3 Cross-fades without clicks
-[~] 9.4.4 Chase→wanted seamless + loop-safe (test)
+[x] 9.4.4 Chase→wanted seamless + loop-safe (test)
 
 9.5 Mobile VO — (S)
 
@@ -1086,9 +1086,9 @@ M11 Finale … … …
 
 [x] 10.4.1 Screen reader labels for HUD + menus
 [x] 10.4.2 Colorblind modes (wanted stars, map blips)
-[~] 10.4.3 Subtitle scale + background opacity
-[~] 10.4.4 Reduced motion (shake, flashes)
-[~] 10.4.5 Each a11y option toggles + persists independently (test)
+[x] 10.4.3 Subtitle scale + background opacity
+[x] 10.4.4 Reduced motion (shake, flashes)
+[x] 10.4.5 Each a11y option toggles + persists independently (test)
 
 10.5 Onboarding — (M)
 
@@ -1132,17 +1132,17 @@ M11 Finale … … …
 [x] 11.2.1 Boat state (piggy-backs position record)
 [x] 11.2.2 Race bests
 [x] 11.2.3 Radio station
-[~] 11.2.4 Weapon/melee/armed state
-[~] 11.2.5 Waypoint
+[x] 11.2.4 Weapon/melee/armed state
+[x] 11.2.5 Waypoint
 [x] 11.2.6 Car damage
-[~] 11.2.7 Each domain round-trips (test)
+[x] 11.2.7 Each domain round-trips (test)
 
 11.3 Continue correctness — (S)
 
 - [~] Continue requires stats + position; mission optional for legacy saves
 [x] 11.3.1 Validate required keys before enabling Continue (`canContinue`)
 [x] 11.3.2 Fall back to New Game with clear message (StartMenu reason line)
-[~] 11.3.3 Delete pos key → Continue disabled; missing mission alone still allows Continue
+[x] 11.3.3 Delete pos key → Continue disabled; missing mission alone still allows Continue
 
 11.4 Recovery & slots — (M)
 
@@ -1210,15 +1210,15 @@ M11 Finale … … …
 
 13.2 Corpses — (S)
 
-[~] 13.2.1 Cop/traffic reaction to corpses
+[x] 13.2.1 Cop/traffic reaction to corpses — CorpseReaction
 [x] 13.2.2 Persistent bodies with TTL + cap
-[~] 13.2.3 Corpses age out at cap; cops react (test)
+[x] 13.2.3 Corpses age out at cap; cops react (test)
 
 13.3 Police soft-fail — (S)
 
-- [~] ChaseController never soft-locks on empty path
+- [x] ChaseController never soft-locks on empty path
 [x] 13.3.1 Chase degrades gracefully without sim.graph / empty path
-[~] 13.3.2 Chase runs (reduced) with graph missing; no crash (test)
+[x] 13.3.2 Chase runs (reduced) with graph missing; no crash (test)
 
 13.4 Earth stack — (M)
 
@@ -1500,10 +1500,14 @@ Priority implementation order (updated)
 
 Changelog
 
+· v3.5b (2026-11-07) — OwnershipMissionGate; Shop applyPurchase; CorpseReaction;
+  SunriseTables + lightingUniforms; a11y opacity/motion; weapons/waypoint save;
+  boat accept; ped LOD 30/80; chase empty-graph; surface SFX holes; field validators.
+  ~522 done / ~141 partial / ~53 open blockers.
 · v3.5 (2026-11-07) — Race bests persist; HeatEscalation; ReloadFsm/AmmoPickup;
   TierFlash+heatChip HUD; FailReasons; MissionNavSync; TrafficDirector signals;
   SURFACE_FRICTION; 10k replay digest; radioEngine-aligned stations; mapProgressRows;
-  Police↔HeatTiers soft wiring; NEXT50 Prior closeout. ~498 done / ~53 open blockers.
+  Police↔HeatTiers soft wiring; NEXT50 Prior closeout.
 · v3.4c (2026-11-07) — InputMode/Suspension/SurfaceSample/DeformBudget;
   more matrix tests; SimBootstrap heat-zone/signal/thunder wiring; ~250+ done.
 · v3.4b (2026-11-07) — Test matrix §1.1–§1.5; SaveSlots; ManifestSchema lint;

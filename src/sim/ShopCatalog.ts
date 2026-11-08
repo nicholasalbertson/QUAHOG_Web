@@ -99,3 +99,49 @@ export function nearestShop(x: number, z: number, maxDist = 12): ShopDef | null 
   }
   return best;
 }
+
+export interface PurchaseBag {
+  cash: number;
+  pistol?: number;
+  shotgun?: number;
+  weapon?: string;
+  outfit?: string;
+  garageAction?: string;
+}
+
+/** §4.4.6 Apply a purchase immediately into a bag + cash. */
+export function applyPurchase(
+  item: ShopItem,
+  bag: PurchaseBag,
+): { ok: boolean; bag: PurchaseBag; reason?: string } {
+  if (bag.cash < item.cost) return { ok: false, bag, reason: "cash" };
+  const next: PurchaseBag = { ...bag, cash: bag.cash - item.cost };
+  const p = item.payload;
+  if (typeof p.pistol === "number") next.pistol = (next.pistol ?? 0) + p.pistol;
+  if (typeof p.shotgun === "number") next.shotgun = (next.shotgun ?? 0) + p.shotgun;
+  if (typeof p.weapon === "string") next.weapon = p.weapon;
+  if (typeof p.outfit === "string") next.outfit = p.outfit;
+  if (typeof p.action === "string") next.garageAction = p.action;
+  return { ok: true, bag: next };
+}
+
+/** §4.4.5 Interim counter prompt near a shop. */
+export function shopCounterPrompt(shop: ShopDef): {
+  id: string;
+  kind: "shop";
+  label: string;
+  priority: number;
+  x: number;
+  z: number;
+  radius: number;
+} {
+  return {
+    id: `shop:${shop.id}`,
+    kind: "shop",
+    label: `${shop.name} · browse`,
+    priority: 4,
+    x: shop.x,
+    z: shop.z,
+    radius: 3.5,
+  };
+}

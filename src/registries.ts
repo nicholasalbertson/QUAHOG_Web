@@ -37,6 +37,8 @@ export const SAVE_KEYS = {
   radio: "mounthope.radio.v1",
   raceBests: "mounthope.race.v1",
   scrimshaw: "mounthope.scrimshaw.v1",
+  weapons: "mounthope.weapons.v1",
+  waypoint: "mounthope.waypoint.v1",
 } as const;
 
 export type SaveKey = (typeof SAVE_KEYS)[keyof typeof SAVE_KEYS];

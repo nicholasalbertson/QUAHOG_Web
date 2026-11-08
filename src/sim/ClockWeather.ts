@@ -6,6 +6,7 @@
 import type { Weather } from "../store";
 import { emitTelemetry } from "../telemetry/schema";
 import { rng } from "./Rng";
+import { nightFactorFor, seasonForDay, sunMoonUniforms } from "./SunriseTables";
 
 export type Surface =
   | "asphalt"
@@ -65,10 +66,14 @@ export class ClockWeather {
     return ((this.hour % 24) + 24) % 24 / 24;
   }
 
-  /** Night factor 0..1 for lighting. */
+  /** Night factor 0..1 for lighting (§1.4.2 season tables). */
   get nightFactor(): number {
-    const elev = Math.sin(((this.hour - 6) / 12) * Math.PI);
-    return 1 - Math.max(0, Math.min(1, elev));
+    return nightFactorFor(this.hour, seasonForDay(this.day));
+  }
+
+  /** §1.4.3 Sun/moon uniforms for lighting consumers. */
+  lightingUniforms() {
+    return sunMoonUniforms(this.hour, seasonForDay(this.day));
   }
 
   advance(dt: number, dayLengthSec = 600): void {

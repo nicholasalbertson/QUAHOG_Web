@@ -73,8 +73,9 @@ export class PedestrianAI {
   private simElapsed = 0;
 
   constructor(opts: PedestrianAIOptions = {}) {
-    this.nearR = opts.nearR ?? 40;
-    this.midR = opts.midR ?? 90;
+    // §1.2.20 LOD bands: near ≤30m, mid 30–80m, freeze >80m.
+    this.nearR = opts.nearR ?? 30;
+    this.midR = opts.midR ?? 80;
     this.wander = opts.wander ?? 32;
     this.speed = opts.speed ?? 1.5;
     this.midPeriod = 1 / (opts.midHz ?? 8);

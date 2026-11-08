@@ -4,8 +4,8 @@ Canonical: [`IMPLEMENTATION-CHECKLIST-V3.md`](./IMPLEMENTATION-CHECKLIST-V3.md) 
 
 | Status | Count |
 |--------|------:|
-| Done `[x]` | ~498 |
-| Partial `[~]` | ~165 |
+| Done `[x]` | ~520 |
+| Partial `[~]` | ~145 |
 | Open `[ ]` | ~53 |
 
 **All remaining `[ ]` items are annotated blockers** (DEVICE / CONTENT / RAPIER-LIVE / PLAYTEST). No further unmarked code-only checklist IDs.
@@ -23,4 +23,4 @@ Partials (`[~]`) still open are mostly earth-mount parity, live actor migration 
 
 ## Landed (latest)
 
-Race bests persist · HeatEscalation · ReloadFsm · AmmoPickup · heat chip + TierFlash HUD · spread reticle · FailReasons · MissionNavSync · TrafficDirector signal yield · SURFACE_FRICTION · 10k replay digest · radioEngine-aligned stations · mapProgressRows · escort beat complete · Police↔HeatTiers soft wiring · NEXT50 50/50.
+v3.5 + v3.5b: race bests, HeatEscalation, Reload/Ammo, HUD flash/chip/reticle, FailReasons, MissionNavSync, TrafficDirector signals, SURFACE_FRICTION, 10k replay, radio align, mapProgressRows, OwnershipMissionGate, Shop applyPurchase, CorpseReaction, SunriseTables, a11y opacity/motion, weapons/waypoint save, boat accept test, ped LOD 30/80, chase empty-graph, surface SFX holes · NEXT50 50/50.
