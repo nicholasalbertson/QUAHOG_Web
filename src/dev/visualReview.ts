@@ -3,12 +3,17 @@ import type { Camera, PerspectiveCamera } from "three";
 // Explicit opt-in, development-only fixed views. Never active in a release.
 // World x=east, z=-north; views are anchored to the existing Johnny Cake Hill
 // landmarks, not invented GIS positions. Keep these stable for comparisons.
+// Landmark origin for Seamen's Bethel (slice [-272.23, -106.5] → world).
+const BETHEL: [number, number, number] = [-272.23, 7.5, 106.5];
+
 export const REVIEW_SHOTS = {
-  "bethel-front": { eye: [-235, 9, 126], target: [-271, 7, 106], weather: "clear" as const },
-  "bethel-side": { eye: [-291, 8, 135], target: [-271, 6, 105], weather: "clear" as const },
+  // Eyes pulled closer so the authored clapboard Bethel fills frame (not a
+  // neighbor GIS box). Target = landmark roof line.
+  "bethel-front": { eye: [-248, 10, 118], target: BETHEL, weather: "clear" as const },
+  "bethel-side": { eye: [-286, 9, 122], target: BETHEL, weather: "clear" as const },
   "mariners-home": { eye: [-239, 9, 65], target: [-271, 6, 81], weather: "clear" as const },
   "water-street": { eye: [-150, 12, 23], target: [-222, 6, 74], weather: "clear" as const },
-  "blizzard": { eye: [-235, 9, 126], target: [-271, 7, 106], weather: "snow" as const },
+  "blizzard": { eye: [-248, 10, 118], target: BETHEL, weather: "snow" as const },
 } as const;
 
 export function reviewShot() {

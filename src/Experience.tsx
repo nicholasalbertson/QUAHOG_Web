@@ -19,6 +19,7 @@ import { Tier1Models } from "./world/Tier1Models";
 import { NbTier1Models } from "./world/NbTier1Models";
 import { DowntownTier1Models } from "./world/DowntownTier1Models";
 import { withoutTier1 } from "./world/tier1Models";
+import { NB_TIER1_MODELS } from "./world/nbTier1Models";
 import { GisDistrict } from "./world/GisDistrict";
 import { Water } from "./world/Water";
 import { Landmarks } from "./world/Landmarks";
@@ -114,7 +115,14 @@ function ShadowGate() {
 }
 
 // Landmarks rendered as hand-detailed models (so the generic beam/label is skipped).
-const MODELED = new Set(["Seamen's Bethel"]);
+// Include NB tier1 display names so "Double Bank Building" etc. don't float
+// over an already-mounted hero GLB (visual audit P1).
+const MODELED = new Set<string>([
+  "Seamen's Bethel",
+  "Mariner's Home",
+  "Mariners' Home",
+  ...NB_TIER1_MODELS.map((m) => m.name),
+]);
 // Fall River integration (2026-11-03): the playable core is no longer a
 // single hardcoded point — it comes from the active district registry
 // (districts.ts). newBedford keeps CORE exactly ([-266, -100]); fallRiver

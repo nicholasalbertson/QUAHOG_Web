@@ -196,15 +196,17 @@ export function Roads({ roads }: { roads: Road[] }) {
     }
     return [...cells.values()].map((c) => ({
       cx: c.cx, cz: c.cz,
-      // concrete curb/sidewalk apron under + around ordinary streets
-      apron: buildRibbon(c.sf, 0.04, 0, 2.6),
+      // concrete curb/sidewalk apron under + around ordinary + cobble streets
+      // (Johnny Cake Hill needs apron/curb too — otherwise Bethel cams read as
+      // floating setts with no sidewalk language).
+      apron: buildRibbon([...c.sf, ...c.cb], 0.04, 0, 2.6),
       // Rt 18 programme: freeway shoulders are NOT the apron slab. The old
       // shared apron (pad 2.6) merged both carriageways into one flat
       // parking-looking slab; shoulders now read as shoulders — narrower
       // (pad 1.0), darker tone, outside the edge lines.
       shoulder: buildRibbon(c.hw, 0.04, 0, 1.0),
-      // raised curb + walkway flanking ordinary streets (not highways/cobble)
-      sidewalk: buildSidewalks(c.sf, 0.14, 0.1, 2.0),
+      // raised curb + walkway flanking ordinary + historic sett streets
+      sidewalk: buildSidewalks([...c.sf, ...c.cb], 0.14, 0.1, 2.0),
       // Real-world setts only (Johnny Cake Hill / OSM surface=sett|cobblestone).
       cobble: buildRibbon(c.cb, 0.05, 1.2),
       // Footways / paths without cobble surface — concrete sidewalk texture.

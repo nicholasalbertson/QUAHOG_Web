@@ -50,7 +50,9 @@ export function HarborProps({
           pilings.push([x, z]);
           // push a buoy slightly off the edge into the water now and then
           if (acc % 5 === 0) buoys.push([x - uz * 6, z + ux * 6]);
-          if (acc % 17 === 0) boats.push([x - uz * 14, z + ux * 14, Math.atan2(ux, uz)]);
+          // Denser working fleet so water-street review frustum catches craft
+          // (was every 17th piling → often empty in-camera).
+          if (acc % 9 === 0) boats.push([x - uz * 14, z + ux * 14, Math.atan2(ux, uz)]);
         }
       }
     }
@@ -60,7 +62,7 @@ export function HarborProps({
     return {
       pilings: pilings.slice(0, 600),
       buoys: buoys.slice(0, 120),
-      boats: boats.slice(0, 16),
+      boats: boats.slice(0, 28),
       gear: gear.slice(0, 60),
     };
   }, [polys, center]);

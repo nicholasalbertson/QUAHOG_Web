@@ -63,7 +63,9 @@ export function buildParkedCars(roads: Road[], center: [number, number]): Parked
       if (len < 14) continue;
       const ux = dx / len, uz = dz / len;
       const nx = -uz, nz = ux;
-      for (let d = 7; d < len; d += 30) {
+      // Tighter curb spacing near the hub so Johnny Cake Hill / Water St
+      // actually show parked life at Medium quality (was 30 m → sparse).
+      for (let d = 7; d < len; d += 18) {
         const side = (n & 1) ? 1 : -1;
         const x = x1 + ux * d + nx * off * side;
         const z = z1 + uz * d + nz * off * side;

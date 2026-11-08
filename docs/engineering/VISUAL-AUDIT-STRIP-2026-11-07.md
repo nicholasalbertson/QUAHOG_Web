@@ -90,6 +90,20 @@ Captured via browser at the five review cameras after closing overlays.
 - Do **not** restore dirt-road materials.  
 - Do **not** scatter Kenney nature trees / awnings / stop lights everywhere.
 
+## Implementation status (2026-11-07 follow-up)
+
+| Item | Status |
+|------|--------|
+| P0 GIS production facades on `Buildings.tsx` | Done |
+| P0 Bethel review camera → landmark origin | Done |
+| P0 Cobble streets get apron + sidewalk | Done |
+| P0 Character preview PNGs (Franklin + Dockhand) | Done |
+| P0 Blizzard review weather | Done (prior commit) |
+| P1 Parked/ped Medium budgets + tighter curb spacing | Done |
+| P1 Harbor boat density | Done |
+| P1 Hide labels for NB tier1 / Bethel / Mariners Home | Done |
+| P1 Urban ground fallback plate under NB core | Done |
+
 ## Artifacts
 
 Screenshots under `/opt/cursor/artifacts/visual-audit-2026-11-07/` (review + browser captures).

@@ -7,6 +7,7 @@ import { shared } from "../shared";
 import type { Building } from "../slice";
 import { BETHEL_FOOTPRINT, dressFootprint, districtStyle } from "./districtStyle";
 import { districtFacadeMaps } from "./districtMaterials";
+import { productionFacadeMaps } from "./productionFacadeMaps";
 import { useGame } from "../store";
 import { ArchitecturalShell } from "./ArchitecturalShell";
 
@@ -50,10 +51,39 @@ export function Buildings({
   colliderRadius?: number;
 }) {
   const quality = useGame((s) => s.quality);
-  const materials = useMemo(() => Object.fromEntries((["brick", "clapboard", "granite"] as const).map((kind) => {
-    const maps = districtFacadeMaps(kind);
-    return [kind, new THREE.MeshStandardMaterial({ vertexColors: true, map: maps.albedo, emissiveMap: maps.emissive, emissive: WINDOW_GLOW, emissiveIntensity: 0, roughness: 0.88 })];
-  })), []);
+  // Match StreamingBuildings: production PBR facades at quality > 0 so GIS
+  // waterfront stops reading as flat beige boxes next to textured heroes.
+  const materials = useMemo(() => {
+    const out = {} as Record<"brick" | "clapboard" | "granite", THREE.MeshStandardMaterial>;
+    for (const kind of ["brick", "clapboard", "granite"] as const) {
+      if (quality > 0) {
+        const maps = productionFacadeMaps(kind);
+        out[kind] = new THREE.MeshStandardMaterial({
+          vertexColors: true,
+          map: maps.albedo,
+          emissiveMap: maps.emissive,
+          normalMap: maps.normal,
+          normalScale: new THREE.Vector2(0.34, 0.34),
+          roughnessMap: maps.roughness,
+          emissive: WINDOW_GLOW,
+          emissiveIntensity: 0,
+          roughness: 0.88,
+          metalness: 0.025,
+        });
+      } else {
+        const maps = districtFacadeMaps(kind);
+        out[kind] = new THREE.MeshStandardMaterial({
+          vertexColors: true,
+          map: maps.albedo,
+          emissiveMap: maps.emissive,
+          emissive: WINDOW_GLOW,
+          emissiveIntensity: 0,
+          roughness: 0.88,
+        });
+      }
+    }
+    return out;
+  }, [quality]);
   useEffect(() => () => { Object.values(materials).forEach((m) => m.dispose()); }, [materials]);
   const { near, chunks } = useMemo(() => {
     const near: { geom: THREE.BufferGeometry; kind: "brick" | "clapboard" | "granite"; hidden: boolean }[] = [];

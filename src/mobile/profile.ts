@@ -13,9 +13,11 @@ export function mobileBudget(q: Quality, mobile = isMobileDevice()) {
     aerialConcurrency: mobile ? 2 : 6,
     tileConcurrency: mobile ? 2 : 6,
     tileCache: [40, 64, 100][q],
-    parkedCars: [12, 24, 46][q],
-    pedestrians: [10, 20, 32][q],
-    traffic: [6, 12, 20][q],
+    // Raised Medium parked/ped counts so Johnny Cake Hill review cams show life
+    // without flipping dressing back on (audit P1).
+    parkedCars: [14, 36, 52][q],
+    pedestrians: [12, 28, 40][q],
+    traffic: [6, 14, 22][q],
     shadows: q > 0,
   };
 }
