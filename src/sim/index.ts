@@ -206,6 +206,8 @@ export { emitBackupCall } from "./BackupCall";
 export type { BackupCall } from "./BackupCall";
 export { createTierFlash, triggerTierFlash, stepTierFlash } from "./TierFlash";
 export type { TierFlashState } from "./TierFlash";
+export { CorpseField } from "./CorpseTtl";
+export type { Corpse } from "./CorpseTtl";
 export { GameLoop } from "./GameLoop";
 export type { LoopPhase, PauseSource, LoopStats } from "./GameLoop";
 export { Rng, RngService, rng } from "./Rng";

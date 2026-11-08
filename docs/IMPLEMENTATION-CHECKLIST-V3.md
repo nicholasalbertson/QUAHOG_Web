@@ -1183,7 +1183,7 @@ M11 Finale … … …
 
 12.5 Idle — (S)
 
-[ ] 12.5.1 Pause stylized Canvas when tab hidden
+[x] 12.5.1 Pause stylized Canvas when tab hidden
 [ ] 12.5.2 Pause render loop on idle (§2.2)
 [ ] 12.5.3 Hidden-tab CPU < 2% on Device A (test)
 
@@ -1200,9 +1200,9 @@ M11 Finale … … …
 
 13.2 Corpses — (S)
 
-[ ] 13.2.1 Cop/traffic reaction to corpses
-[ ] 13.2.2 Persistent bodies with TTL + cap
-[ ] 13.2.3 Corpses age out at cap; cops react (test)
+[~] 13.2.1 Cop/traffic reaction to corpses
+[x] 13.2.2 Persistent bodies with TTL + cap
+[~] 13.2.3 Corpses age out at cap; cops react (test)
 
 13.3 Police soft-fail — (S)
 
