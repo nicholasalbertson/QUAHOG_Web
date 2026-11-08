@@ -19,6 +19,9 @@ import { ClockWeather } from "./ClockWeather";
 import { manifestFromSlice, validateManifest, type WorldManifest } from "./WorldManifest";
 import { streamPreset, type StreamPreset } from "./mobilePresets";
 import { emitTelemetry } from "../telemetry/schema";
+import { HeatAxes } from "./HeatAxes";
+import { LoseHeatZones } from "./LoseHeatZone";
+import { SignalNetwork } from "./SignalFsm";
 import type { CameraMode, NavGuidance, Vec2, Vec3 } from "./types";
 
 class SimRuntime {
@@ -27,6 +30,9 @@ class SimRuntime {
   readonly streamer = new WorldStreamer();
   readonly missions = new MissionRuntime();
   readonly clock = new ClockWeather();
+  readonly heat = new HeatAxes();
+  readonly loseHeat = new LoseHeatZones();
+  readonly signals = new SignalNetwork();
   readonly loop = new GameLoop({
     onOverrun: () => emitTelemetry("sim.loop.overrun", { acc: this.loop.stats.accHighWater }),
   });
@@ -67,6 +73,27 @@ class SimRuntime {
     if (slice.buildings?.length) this.pedGraph.addDoorNodes(slice.buildings, 120);
     this.nav.setGraph(this.graph);
     this.manifest = manifestFromSlice(slice);
+    // §1.2.5 / §13.1 Bind crosswalk signals from manifest.
+    if (this.manifest.signals.length) {
+      this.pedGraph.bindSignals(this.manifest.signals);
+      for (let i = 0; i < this.manifest.signals.length; i++) {
+        const s = this.manifest.signals[i];
+        this.signals.add(s.id, i * 0.37);
+      }
+    }
+    // §3.5.3 Default lose-heat pocket near core safehouse.
+    this.loseHeat.setZones([
+      {
+        id: "safehouse-lot",
+        mul: 2.5,
+        points: [
+          { x: -210, z: 20 },
+          { x: -160, z: 20 },
+          { x: -160, z: 60 },
+          { x: -210, z: 60 },
+        ],
+      },
+    ]);
     const v = validateManifest(this.manifest);
     if (!v.ok) console.warn("[WorldManifest]", v.errors.join("; "));
   }

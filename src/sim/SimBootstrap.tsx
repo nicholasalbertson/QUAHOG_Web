@@ -14,6 +14,8 @@ import { GAME_DAY_SECONDS, weatherBusinessMultiplier } from "../world/worldConti
 import { moveAxis, isDown } from "../input";
 import { replayRecorder } from "./ReplayRecorder";
 import { setTelemetrySink } from "../telemetry/schema";
+import { duckForWanted } from "./CutsceneStub";
+import { playThunderNear } from "./LightningAudio";
 
 /**
  * Boots the clean-room simulation layer once the slice is ready and keeps
@@ -50,14 +52,22 @@ export function SimBootstrap() {
       if (flag("deterministicSim")) sim.rng.stream("default").advance(1);
 
       // Weather transition on fixed step (§1.1.22).
+      const prevFlash = sim.clock.lightningFlash;
       sim.clock.advance(dt);
+      sim.signals.stepAll(dt);
 
       // Mission timers + triggers on fixed step (§1.1.20 / §1.3.12).
       if (flag("missionTimers")) {
         const body = useGame.getState().mode === "car" ? shared.car
           : useGame.getState().mode === "boat" ? shared.boat : shared.player;
         const p = body?.translation();
-        sim.missions.advance(dt, [], p ? { x: p.x, z: p.z } : undefined);
+        const st = useStats.getState();
+        sim.missions.advance(dt, [], p ? {
+          x: p.x,
+          z: p.z,
+          hp: st.health,
+          inventory: { pistol: 1 },
+        } : undefined);
       }
 
       // Economy passive income on fixed step (§1.1.21).
@@ -67,11 +77,28 @@ export function SimBootstrap() {
         useStats.getState().addCash(income * dt * w);
       }
 
-      // Soft heat decay when not in combat alarm (§1.1.19) — safehouse still owns fast clear.
+      // Soft heat decay when not in combat alarm (§1.1.19) — lose-heat zones accelerate.
       if (shared.alarm.t <= 0) {
         const st = useStats.getState();
-        if (st.police > 0 || st.faction > 0) st.heat(-dt * 0.02, -dt * 0.015);
+        const body = useGame.getState().mode === "car" ? shared.car
+          : useGame.getState().mode === "boat" ? shared.boat : shared.player;
+        const p = body?.translation();
+        const mul = p ? sim.loseHeat.mulAt(p.x, p.z) : 1;
+        if (st.police > 0 || st.faction > 0) st.heat(-dt * 0.02 * mul, -dt * 0.015 * mul);
+        sim.heat.decay(dt * mul, true, mul > 1);
       }
+
+      // §1.4.10 Thunder when lightning just flashed.
+      if (prevFlash <= 0 && sim.clock.lightningFlash > 0) {
+        const body = useGame.getState().mode === "car" ? shared.car
+          : useGame.getState().mode === "boat" ? shared.boat : shared.player;
+        const p = body?.translation();
+        if (p) playThunderNear(p.x + 40, p.z - 20, 0.5);
+      }
+
+      // §1.3.36 / §9.4 Duck for wanted stars.
+      spatialAudio.setDuck(duckForWanted(useStats.getState().police));
+
 
       // Replay record hook (§1.1.12).
       if (replayRecorder.isRecording) {
@@ -189,6 +216,8 @@ export function SimBootstrap() {
         roadNodes: sim.graph?.nodes.length ?? 0,
         replay: replayRecorder.digest(),
         stepDigest: sim.rng.digest(),
+        missionOwned: sim.missions.ownedCount,
+        occupancyHot: Math.round(sim.clock.lightningFlash * 10),
       });
     }
 
