@@ -11,6 +11,7 @@ import { ArchitecturalShell } from "./ArchitecturalShell";
 import { productionFacadeMaps } from "./productionFacadeMaps";
 import { windowGlowNight } from "./streetLights";
 import { ensureGisReplacements, withoutReplaced } from "./gisDistrict";
+import { tagBrocktonTileBuildings } from "./heightProvenance";
 import { makeFacadeMaps, makeNoiseNormal } from "./textures";
 import { districtStyle, type FacadeKind } from "./districtStyle";
 import { setCameraBuildings } from "../actors/cameraBuildings";
@@ -416,7 +417,10 @@ export function StreamingBuildings({ fallback, center }: { fallback: Building[];
           if (!response.ok) throw new Error("Building tile unavailable");
           const data = await response.json() as Building[];
           if (!alive.current || signal?.aborted || !wanted.current.has(key)) return;
-          cache.current.set(key, withoutReplaced(key, data));
+          // Brockton 3DEP gap: stamp estimated provenance so tools don't
+          // treat flat 8 m defaults as "pending lidar" (§7.3).
+          const tagged = tagBrocktonTileBuildings(key, data, m.tile);
+          cache.current.set(key, withoutReplaced(key, tagged));
           trimCache(cache.current, wanted.current, budget.tileCache);
         }).finally(() => { inflight.current.delete(key); });
         inflight.current.set(key, pending);

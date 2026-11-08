@@ -22,3 +22,4 @@ heights — they remain `estimated`.
 - Estimated heights remain valid to ship (scrimshaw / fronts / missions).
 - Manifest flags should say `ESTIMATED` / `gap` / provenance — never silent.
 - Lidar progress counters elsewhere do not imply Brockton verification.
+- Runtime: `tagBrocktonTileBuildings` stamps `heightSource: "3dep-gap-estimated-default"` on Brockton tile loads (see [HEIGHT-SOURCES.md](./HEIGHT-SOURCES.md)).
