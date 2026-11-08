@@ -153,6 +153,26 @@ export {
   stepRpm,
 } from "./Powertrain";
 export type { PowertrainState, PowertrainConfig } from "./Powertrain";
+export {
+  stepTimed,
+  stepEscort,
+  destroyTarget,
+  evaluatePhoto,
+  stepDelivery,
+} from "./MissionBeats";
+export type {
+  BeatKind,
+  MissionBeat,
+  TimedBeat,
+  EscortBeat,
+  DestroyBeat,
+  PhotoBeat,
+  DeliveryBeat,
+} from "./MissionBeats";
+export { MAP_LEGEND, legendFor } from "./MapLegend";
+export type { LegendEntry } from "./MapLegend";
+export { LoseHeatZones } from "./LoseHeatZone";
+export type { LoseHeatZone } from "./LoseHeatZone";
 export { GameLoop } from "./GameLoop";
 export type { LoopPhase, PauseSource, LoopStats } from "./GameLoop";
 export { Rng, RngService, rng } from "./Rng";

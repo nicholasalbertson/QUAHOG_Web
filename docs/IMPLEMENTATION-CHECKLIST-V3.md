@@ -736,7 +736,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 [x] 3.5.1 Wanted radar (unit blips)
 [ ] 3.5.2 Backup call event (audio + HUD)
-[ ] 3.5.3 Lose-heat zones on map + decay inside
+[x] 3.5.3 Lose-heat zones on map + decay inside
 [ ] 3.5.4 Full-screen tier transition flash
 [ ] 3.5.5 Player always knows tier + decay state (test)
 
@@ -967,12 +967,12 @@ M11 Finale … … …
 
 8.3 Objective types — (L)
 
-[ ] 8.3.1 Timed fails
-[ ] 8.3.2 Escort (follow, protect HP)
-[ ] 8.3.3 Destroy (targets, waves)
-[ ] 8.3.4 Photo (framing + subject check)
-[ ] 8.3.5 Delivery / pickup
-[ ] 8.3.6 One implemented beat + test per type
+[x] 8.3.1 Timed fails
+[x] 8.3.2 Escort (follow, protect HP)
+[x] 8.3.3 Destroy (targets, waves)
+[x] 8.3.4 Photo (framing + subject check)
+[x] 8.3.5 Delivery / pickup
+[~] 8.3.6 One implemented beat + test per type
 
 8.4 Triggers — (M)
 
@@ -1059,7 +1059,7 @@ M11 Finale … … …
 
 10.2 Map — (M)
 
-[ ] 10.2.1 Legend
+[x] 10.2.1 Legend
 [ ] 10.2.2 Fog-of-war
 [ ] 10.2.3 Richer blips (shops/safehouses/races/collectibles)
 [ ] 10.2.4 Route line parity with minimap
