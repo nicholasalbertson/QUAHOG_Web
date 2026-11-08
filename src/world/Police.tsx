@@ -9,6 +9,9 @@ import { useGame } from "../store";
 import { sfx } from "../audio/sfx";
 import { POLICE_STATION } from "../places";
 import { desiredCops, heatTier } from "../sim/HeatTiers";
+import { escalateHeat } from "../sim/HeatEscalation";
+import { sim } from "../sim";
+import { useInventory } from "../inventory";
 
 // Police pursuit (§14): REMOVED 2026-11-02 per Nic — the pursuit homed
 // straight onto the player with no standoff distance and no colliders, so
@@ -107,7 +110,20 @@ export function Police() {
       if (!u.active || !target) { g.visible = false; return; }
 
       // apply queued gun damage
-      if (u.car.dmg > 0) { u.hp -= u.car.dmg; u.car.dmg = 0; if (u.hp <= 0) { u.deadT = 1.2; stats.addCash(75); stats.heat(-0.4, 0); } }
+      if (u.car.dmg > 0) {
+        u.hp -= u.car.dmg; u.car.dmg = 0;
+        if (u.hp <= 0) {
+          u.deadT = 1.2;
+          stats.addCash(75);
+          // §3.2.7 Officer down escalates wanted — never cools heat.
+          escalateHeat(sim.heat, "officer_down");
+          const bump = Math.max(0, sim.heat.wanted - stats.police);
+          stats.heat(bump || 0.8, 0);
+          // §5.2.4 Ammo drop from downed unit.
+          useInventory.getState().add("pistol", 8);
+          useInventory.getState().save();
+        }
+      }
 
       // home toward the player
       const dx = target.x - u.pos.x, dz = target.z - u.pos.z;

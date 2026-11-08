@@ -153,7 +153,22 @@ export function GameSystems() {
       for (const id of Object.keys(next.owned)) {
         if (!previous.owned[id]) {
           const b = BUSINESSES.find((item) => item.id === id);
-          if (b) remember("business", `${b.name} changed hands. Your neighborhood income increased.`);
+          if (b) {
+            remember("business", `${b.name} changed hands. Your neighborhood income increased.`);
+            // §4.3.2 Ownership → mission availability toast
+            if (b.unlockMission) {
+              useToasts.getState().push(`Unlocked job: ${b.unlockMission}`, "#ffd24a");
+              remember("mission", `Front unlock: ${b.unlockMission}`);
+            }
+          }
+        }
+      }
+      for (const id of Object.keys(previous.owned)) {
+        if (!next.owned[id]) {
+          const b = BUSINESSES.find((item) => item.id === id);
+          if (b?.unlockMission) {
+            useToasts.getState().push(`Job locked: ${b.unlockMission}`, "#ff6a6a");
+          }
         }
       }
     });
@@ -212,8 +227,8 @@ export function GameSystems() {
       previousDay.current = shared.day;
       prevStars.current = Math.floor(useStats.getState().police);
     }
-    // global hotkeys
-    if (consumeTap("KeyR")) { useGame.getState().toggleWeather(); sfx.ui(); }
+    // global hotkeys — KeyR reloads when armed (Player), weather when holstered
+    if (consumeTap("KeyR") && !useGame.getState().armed) { useGame.getState().toggleWeather(); sfx.ui(); }
     if (consumeTap("KeyP") || consumeTap("Escape")) { useGame.getState().togglePause(); sfx.ui(); }
     if (consumeTap("KeyC")) { useGame.getState().toggleChar(); sfx.ui(); }
     if (consumeTap("KeyM")) { useGame.getState().toggleMap(); sfx.ui(); }

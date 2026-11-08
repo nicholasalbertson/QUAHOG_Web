@@ -17,6 +17,7 @@ import { WorldJournalPanel } from "./world/WorldJournalPanel";
 import { SCRIMSHAW_TOTAL } from "./world/Collectibles";
 import { flag } from "./flags";
 import { formatDebugOverlayLine, readDebugOverlay } from "./sim/DebugOverlay";
+import { useInventory } from "./inventory";
 
 const stars = (n: number) => "★".repeat(Math.round(n)) + "☆".repeat(Math.max(0, 5 - Math.round(n)));
 
@@ -36,6 +37,10 @@ export function HUD({ sliceName }: { sliceName: string }) {
   const armed = useGame((s) => s.armed);
   const weapon = useGame((s) => s.weapon);
   const melee = useGame((s) => s.melee);
+  const magPistol = useInventory((s) => s.magPistol);
+  const magShotgun = useInventory((s) => s.magShotgun);
+  const reservePistol = useInventory((s) => s.pistol);
+  const reserveShotgun = useInventory((s) => s.shotgun);
   const down = useGame((s) => s.down);
   const nearLabel = useGame((s) => s.nearLabel);
   const photo = useGame((s) => s.photo);
@@ -156,7 +161,13 @@ export function HUD({ sliceName }: { sliceName: string }) {
       {faction > 0 && <div className="hud-heat faction" aria-label={`Faction heat ${faction}`}>{stars(faction)}</div>}
       {ownedCount > 0 && <div className="hud-inventory hud-secondary">{ownedCount}/{BUSINESSES.length} fronts</div>}
       {scrimshaw > 0 && <div className="hud-inventory hud-secondary">{scrimshaw}/{SCRIMSHAW_TOTAL} scrimshaw</div>}
-      {(armed || melee === "bat") && <div className="hud-inventory hud-secondary">{armed ? weapon : "bat"}</div>}
+      {(armed || melee === "bat") && (
+        <div className="hud-inventory hud-secondary">
+          {armed
+            ? `${weapon} ${weapon === "shotgun" ? `${magShotgun}/${reserveShotgun}` : `${magPistol}/${reservePistol}`}`
+            : "bat"}
+        </div>
+      )}
     </div>
     <section className="hud-objective" aria-label="Current objective">
       <h2>{missionDone ? "MISSION COMPLETE" : missionTitle.toUpperCase()}</h2>

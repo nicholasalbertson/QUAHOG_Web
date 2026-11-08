@@ -5,6 +5,7 @@ import { Sky, Stars } from "@react-three/drei";
 import { shared } from "../shared";
 import { useGame } from "../store";
 import { reviewShot } from "../dev/visualReview";
+import { sim } from "../sim";
 
 // Day/night cycle (§4): drives the sun, sky, ambient/hemisphere, fog, and
 // background through a full day on a loop. Exposes shared.dayT / shared.hour so
@@ -71,9 +72,12 @@ export function DayNight() {
     const h = import.meta.env.DEV && reviewShot() ? 10 : (prev + dt * (24 / DAY_LENGTH)) % 24;
     if (h < prev) shared.day += 1; // wrapped 24→0
     shared.hour = h;
+    // Keep ClockWeather aligned so lightingUniforms / season tables stay live.
+    sim.clock.syncFromShared(shared.day, shared.hour, useGame.getState().weather);
+    const L = sim.clock.lightingUniforms();
     const a = ((h - 6) / 12) * Math.PI; // 6am rise → 6pm set
     const elev = Math.sin(a);
-    const dayT = THREE.MathUtils.clamp(elev, 0, 1);
+    const dayT = THREE.MathUtils.clamp(1 - L.nightFactor, 0, 1);
     const dusk = THREE.MathUtils.clamp(1 - Math.abs(elev) * 4, 0, 1); // peaks near horizon
     shared.dayT = dayT;
     if (starGroup.current) starGroup.current.visible = dayT < 0.08 && useGame.getState().weather === "clear";
@@ -82,7 +86,10 @@ export function DayNight() {
     const fogW = weather === "fog" ? 1 : 0;
     const snow = weather === "snow" ? 1 : 0;
 
-    const sx = Math.cos(a) * 150, sy = elev * 170, sz = 60;
+    // Prefer seasonal sun dir from ClockWeather; fall back to legacy elev curve.
+    const sx = L.sunDir[0] * 150 || Math.cos(a) * 150;
+    const sy = Math.max(1.5, L.sunDir[1] * 170);
+    const sz = L.sunDir[2] * 150 || 60;
 
     // Playtest fix (2026-11-02): the drei Sky box is finite and fixed at
     // the world origin — driving ~800 m out, its face edge entered the

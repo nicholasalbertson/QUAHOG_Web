@@ -88,6 +88,7 @@ import { Ambient } from "./earth/Ambient";
 import { DayNight } from "./world/DayNight";
 import { EnvLight } from "./world/EnvLight";
 import { GameSystems } from "./world/GameSystems";
+import { ShopInteract } from "./world/ShopInteract";
 import { MissionRunner } from "./world/MissionRunner";
 import { ObjectiveBeacon } from "./world/ObjectiveBeacon";
 import { RenderDiagnostics } from "./world/RenderDiagnostics";
@@ -305,6 +306,7 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       <EnvLight />
       <CinematicExposure />
       <GameSystems />
+      <ShopInteract />
       <SimBootstrap />
       <MissionRunner />
       <ObjectiveBeacon />
