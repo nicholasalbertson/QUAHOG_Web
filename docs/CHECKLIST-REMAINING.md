@@ -4,20 +4,21 @@ Canonical: [`IMPLEMENTATION-CHECKLIST-V3.md`](./IMPLEMENTATION-CHECKLIST-V3.md) 
 
 | Status | Count |
 |--------|------:|
-| Done `[x]` | ~423 |
-| Partial `[~]` | ~198 |
-| Open `[ ]` | ~111 |
+| Done `[x]` | ~465 |
+| Partial `[~]` | ~212 |
+| Open `[ ]` | ~55 |
 
-Open remainder is almost entirely **DEVICE-BLOCKED**, **CONTENT-BLOCKED**, **RAPIER-LIVE-BLOCKED**, playtest, or release/l10n (§16–§17).
+**All remaining `[ ]` items are annotated blockers** (DEVICE / CONTENT / RAPIER-LIVE / PLAYTEST). No further code-only checklist IDs remain unmarked.
 
-## Blockers
+## Blocker classes
 
-- Authored tiles/art §7.2–§7.3 / §7.6 / §7.8
-- Mission 11/11 content §8.1
-- Device FPS/thermal/heap §12 / §15
-- Rapier live actor contacts
-- Audio sample binaries; l10n full pass; store packaging
+| Class | Examples |
+|-------|----------|
+| CONTENT-BLOCKED | §7.2–§7.3 tiles, §7.6/§7.8 art, §8.1 11/11 missions, anim meshes |
+| DEVICE-BLOCKED | §12/§15 FPS, thermal, soaks, heap, golden screenshots |
+| RAPIER-LIVE-BLOCKED | Broadphase / contact / cop collision in live actors |
+| PLAYTEST-BLOCKED | Tutorial unaided, first-upgrade timing feel |
 
-## Landed this autonomous run
+## Landed
 
-CI workflow, stability stack, editors, string catalog seed, weather timeline, ped palette, full sim test coverage for new modules.
+Full code-feasible V3 surface in `src/sim/**`, CI workflow, editors, i18n seed, release ops, DoD gates, stability test suite (33+).

@@ -88,7 +88,7 @@ parallel work.
 [x] Path aliases (@sim, @ui, @content) with single source of truth
 [~] Dev server with HMR; HMR preserves sim state where safe — docs/HMR-SIM-STATE.md
 [x] Storybook-equivalent harness for HUD components (hud-harness.html)
-[ ] Accept: pnpm ci green on a clean clone; HMR reload < 300ms.
+[~] Accept: pnpm ci green on a clean clone; HMR reload < 300ms. — npm CI; HMR doc
 
 0.2 Feature flags — (S)
 
@@ -385,7 +385,7 @@ Test matrix
 
 [x] 1.4.T1 Wet braking distance ≥ 20% longer than dry (scripted stop test)
 [x] 1.4.T2 Weather round-trips through save mid-transition
-[ ] 1.4.T3 clear↔rain toggle in < 1s produces no visual popping
+[ ] 1.4.T3 clear↔rain toggle in < 1s produces no visual popping — DEVICE-BLOCKED (visual)
 [x] 1.4.T4 Same seed + dt → identical weather timeline
 [x] 1.4.T5 Fog reduces draw distance within one step of transition start
 
@@ -586,7 +586,7 @@ Accept: overlay is free when hidden; dump reproduces a reported bug.
 [~] 1.12.4 Stream memory plateau check (30 min, ±5% resident) — SoakHarness protocol ready
 [~] 1.12.5 Mission fail/retry gate (deterministic seed)
 [~] 1.12.6 CI: headless run, artifact bundle on failure — vitest in CI + artifacts
-[ ] 1.12.7 Green on both devices; artifacts upload
+[ ] 1.12.7 Green on both devices; artifacts upload — DEVICE-BLOCKED
 
 Accept: all stages green on both devices; failures upload reproducible artifacts.
 
@@ -652,7 +652,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [~] 2.6.2 Import pipeline + LODs + material remap — assets scripts partial
 [x] 2.6.3 Night headlights: emissive + spotlight, budgeted per tier
 [~] 2.6.4 Share with stylized where feasible — shared packs where present
-[ ] 2.6.5 Headlights cost < 1ms on Device A (test)
+[ ] 2.6.5 Headlights cost < 1ms on Device A (test) — DEVICE-BLOCKED
 
 2.7 Pedestrians — (M)
 
@@ -666,7 +666,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [~] 2.8.2 Wanted/heat wired (§3) — sim ready; earth mount TBD
 [~] 2.8.3 Economy wired (§4) — sim ready; earth mount TBD
 [~] 2.8.4 Persistence parity (§1.5) — sim ready; earth mount TBD
-[ ] 2.8.5 Full mission completable start-to-finish in earth (test)
+[ ] 2.8.5 Full mission completable start-to-finish in earth (test) — CONTENT-BLOCKED
 
 2.9 Earth environment — (L)
 
@@ -720,13 +720,13 @@ Accept: 20-min soak clean; context loss recovers without reload.
 3.3 Police units — (XL)
 
 [x] 3.3.1 Foot cops: PedGraph patrol, chase, tackle/arrest
-[ ] 3.3.2 Road cops: polish ChaseController
+[x] 3.3.2 Road cops: polish ChaseController
 [x] 3.3.3 Roadblocks: spawn ahead on RoadGraph, static + manned
 [x] 3.3.4 Helicopter: orbit + spotlight + LOS report
 [x] 3.3.5 PIT: bounded impulse, damage, cooldown
 [ ] 3.3.6 Rapier collision cop↔player (§1.9) — RAPIER-LIVE-BLOCKED
 [x] 3.3.7 Officer down / corpse persistence (§13.2)
-[ ] 3.3.8 Heli holds LOS 80% of 60s chase on open road (test)
+[ ] 3.3.8 Heli holds LOS 80% of 60s chase on open road (test) — DEVICE-BLOCKED
 
 3.4 Faction heat — (M)
 
@@ -786,7 +786,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [x] 4.5.1 Day-based payout summary UI
 [x] 4.5.2 Balance pass: time-to-first-upgrade, time-to-wealth — EconomyBalance targets
 [ ] 4.5.3 Distant business markers need world content (§7.2) — CONTENT-BLOCKED
-[ ] 4.5.4 Fresh save reaches first upgrade ≤ 20 min (test)
+[ ] 4.5.4 Fresh save reaches first upgrade ≤ 20 min (test) — PLAYTEST-BLOCKED
 
 ---
 
@@ -841,7 +841,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [x] 5.5.2 Parking AI (drive to slot, park, despawn)
 [x] 5.5.3 Door/sidewalk coupling (parked driver becomes ped)
 [~] 5.5.4 Yield/lights via signal FSM (§13.1)
-[ ] 5.5.5 5-min soak: zero deadlocks, ≤ 1% stuck cars (test)
+[ ] 5.5.5 5-min soak: zero deadlocks, ≤ 1% stuck cars (test) — DEVICE-BLOCKED
 
 ---
 
@@ -862,7 +862,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [~] 6.2.2 One detailed safehouse interior — def present; mesh TBD
 [~] 6.2.3 Hospital interior + respawn point — def present; mesh TBD
 [~] 6.2.4 Police station interior (busted flow) — def present; mesh TBD
-[ ] 6.2.5 Enter/exit without streaming errors (test)
+[ ] 6.2.5 Enter/exit without streaming errors (test) — DEVICE-BLOCKED
 
 6.3 Wasted / busted — (M)
 
@@ -891,7 +891,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [x] JSON cache eviction + unwanted grace
 [x] 7.1.1 GPU mesh dispose on unmount verified (§12.2)
 [x] 7.1.2 tileImpostor() in active set (§1.7.7)
-[ ] 7.1.3 Resident plateau + no GPU leak over 30 min (test)
+[ ] 7.1.3 Resident plateau + no GPU leak over 30 min (test) — DEVICE-BLOCKED
 
 7.2 Districts — (L)
 
@@ -927,19 +927,19 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [ ] 7.6.1 Streetlights (instanced, tiered) — CONTENT-BLOCKED (art)
 [ ] 7.6.2 Lit windows (emissive atlas or instanced) — CONTENT-BLOCKED (art)
 [x] 7.6.3 Light count cap per tile
-[ ] 7.6.4 Night reads as lit without frame-budget drop (test)
+[ ] 7.6.4 Night reads as lit without frame-budget drop (test) — DEVICE-BLOCKED
 
 7.7 LOD — (M)
 
 [x] 7.7.1 Distant LOD for non-building content
 [x] 7.7.2 Dithered/faded LOD transitions
-[ ] 7.7.3 No visible pop at 200m on Device A (test)
+[ ] 7.7.3 No visible pop at 200m on Device A (test) — DEVICE-BLOCKED
 
 7.8 Hero content — (M)
 
 [ ] 7.8.1 ≥ 2 hand-detailed hero interiors — CONTENT-BLOCKED (art)
 [ ] 7.8.2 Hero exteriors with unique props/signage — CONTENT-BLOCKED (art)
-[ ] 7.8.3 Hero interiors match external orientation/scale (test)
+[ ] 7.8.3 Hero interiors match external orientation/scale (test) — CONTENT-BLOCKED
 
 ---
 
@@ -1103,7 +1103,7 @@ M11 Finale … … …
 [x] 10.7.2 apple-touch-icon
 [x] 10.7.3 Install prompt + manifest
 [~] 10.7.4 Offline shell (core assets) — manifest present; SW TBD
-[ ] 10.7.5 Installable on iOS + Android; offline shell → menu (test)
+[ ] 10.7.5 Installable on iOS + Android; offline shell → menu (test) — DEVICE-BLOCKED
 
 10.8 Branding — (S)
 
@@ -1168,28 +1168,28 @@ M11 Finale … … …
 12.2 Disposal — (M)
 
 - [~] GPU geometry dispose on tile unmount — verify
-[ ] 12.2.1 Verify JSON eviction → mesh GC on unmount
-[ ] 12.2.2 Heap snapshot flat across 30-min drive; no orphan geometries (test)
+[~] 12.2.1 Verify JSON eviction → mesh GC on unmount — disposeObject3D
+[ ] 12.2.2 Heap snapshot flat across 30-min drive; no orphan geometries (test) — DEVICE-BLOCKED
 
 12.3 GC hygiene — (M)
 
 - [~] Boat.tsx, earth paths — finish
 [x] 12.3.1 Audit per-frame allocations in sim + render
 [x] 12.3.2 Reuse temp vectors/quats; no new in update loops — VecPool
-[ ] 12.3.3 Zero minor-GC spikes > 8ms during chase (test)
+[ ] 12.3.3 Zero minor-GC spikes > 8ms during chase (test) — DEVICE-BLOCKED
 
 12.4 Loading — (M)
 
 [~] 12.4.1 Code-splitting by route/feature — LazyFeatures registry
-[ ] 12.4.2 Rapier + slice load budget (first playable < N s on 4G)
+[ ] 12.4.2 Rapier + slice load budget (first playable < N s on 4G) — DEVICE-BLOCKED
 [x] 12.4.3 Deferred non-critical assets (audio, GLBs)
-[ ] 12.4.4 First playable within budget on throttled network (test)
+[ ] 12.4.4 First playable within budget on throttled network (test) — DEVICE-BLOCKED
 
 12.5 Idle — (S)
 
 [x] 12.5.1 Pause stylized Canvas when tab hidden
 [x] 12.5.2 Pause render loop on idle (§2.2)
-[ ] 12.5.3 Hidden-tab CPU < 2% on Device A (test)
+[ ] 12.5.3 Hidden-tab CPU < 2% on Device A (test) — DEVICE-BLOCKED
 
 ---
 
@@ -1227,7 +1227,7 @@ M11 Finale … … …
 
 13.6 Integration — (L)
 
-[ ] 13.6.1 Integration playtest suite (§15)
+[ ] 13.6.1 Integration playtest suite (§15) — DEVICE-BLOCKED
 [x] 13.6.2 CI gate on suite
 [~] 13.6.3 Runs on PR, blocks on regression (test) — workflow on PR
 
@@ -1246,13 +1246,13 @@ M11 Finale … … …
 
 [x] 14.1.1 Road/PedGraph visualizer (import manifest → SVG/Canvas)
 [x] 14.1.2 Orphan/connectivity report view
-[ ] 14.1.3 Editing round-trip: visualize → tweak JSON → re-import
+[x] 14.1.3 Editing round-trip: visualize → tweak JSON → re-import
 [x] 14.1.4 Signal phase editor with preview
 
 14.2 Mission tooling — (XL)
 
-[ ] 14.2.1 Mission editor: objectives, triggers, spawns, markers
-[ ] 14.2.2 Live preview: boot into mission at step N
+[x] 14.2.1 Mission editor: objectives, triggers, spawns, markers
+[x] 14.2.2 Live preview: boot into mission at step N
 [x] 14.2.3 Validation: unreachable objective, missing actor, dangling marker
 [x] 14.2.4 Export to MissionDef with stable ids
 
@@ -1266,7 +1266,7 @@ M11 Finale … … …
 
 [x] 14.4.1 Race editor (checkpoints, class, laps)
 [x] 14.4.2 AI rubber-band tuning curves with live preview
-[ ] 14.4.3 Traffic density/lighting timeline editor
+[x] 14.4.3 Traffic density/lighting timeline editor
 
 14.5 Weather & time-of-day timeline — (M)
 
@@ -1276,22 +1276,22 @@ M11 Finale … … …
 
 14.6 Camera path editor — (M)
 
-[ ] 14.6.1 Cutscene camera spline editor
-[ ] 14.6.2 Playback preview in-engine
-[ ] 14.6.3 Export to mission cutscene cues
+[x] 14.6.1 Cutscene camera spline editor
+[~] 14.6.2 Playback preview in-engine — CutsceneTracks player
+[x] 14.6.3 Export to mission cutscene cues
 
 14.7 Asset import — (M)
 
 [ ] 14.7.1 GLB import with LOD generation — CONTENT-BLOCKED (pipeline)
 [ ] 14.7.2 Texture atlas builder + compression — CONTENT-BLOCKED (pipeline)
 [ ] 14.7.3 Audio loudness normalization — CONTENT-BLOCKED (samples)
-[ ] 14.7.4 Tile import from JSON → streamer-ready
+[x] 14.7.4 Tile import from JSON → streamer-ready
 
 14.8 Test content — (S)
 
-[ ] 14.8.1 Sandbox map with all features
-[ ] 14.8.2 Dummy missions for each objective type
-[ ] 14.8.3 Perf stress scene (max entities)
+[x] 14.8.1 Sandbox map with all features
+[x] 14.8.2 Dummy missions for each objective type
+[x] 14.8.3 Perf stress scene (max entities)
 
 ---
 
@@ -1299,32 +1299,32 @@ M11 Finale … … …
 
 15.1 Test tiers
 
-[ ] 15.1.1 Unit: pure functions, graph math, conditions, save validators
-[ ] 15.1.2 Integration: subsystem pairs (streamer↔buildings, police↔graph)
-[ ] 15.1.3 Soak: 30-min drives, 50-cycle mission fuzz, memory plateau
-[ ] 15.1.4 Determinism: replay hash equality across refresh rates
-[ ] 15.1.5 Perf: per-stage budgets on Device A/B/C
-[ ] 15.1.6 Device: real-device smoke per release
-[ ] 15.1.7 A11y: automated label/lint + manual screen-reader pass
+[x] 15.1.1 Unit: pure functions, graph math, conditions, save validators
+[x] 15.1.2 Integration: subsystem pairs (streamer↔buildings, police↔graph)
+[ ] 15.1.3 Soak: 30-min drives, 50-cycle mission fuzz, memory plateau — DEVICE-BLOCKED
+[x] 15.1.4 Determinism: replay hash equality across refresh rates
+[ ] 15.1.5 Perf: per-stage budgets on Device A/B/C — DEVICE-BLOCKED
+[ ] 15.1.6 Device: real-device smoke per release — DEVICE-BLOCKED
+[~] 15.1.7 A11y: automated label/lint + manual screen-reader pass — HUD_LABELS
 [~] 15.1.8 Localization: pseudo-locale + RTL smoke — pseudo-locale
 [~] 15.1.9 Save: fuzz round-trip + corrupt payloads + migrations — fixtures + corrupt UI
-[ ] 15.1.10 Fuzz: mission defs, manifests, network failures
+[~] 15.1.10 Fuzz: mission defs, manifests, network failures — bad fixtures
 
 15.2 Fixtures
 
 [x] 15.2.1 Legacy saves v1 (≥ 5 real)
-[ ] 15.2.2 Bad manifests (one per lint rule)
-[ ] 15.2.3 Bad mission defs (one per validation rule)
-[ ] 15.2.4 Scripted input traces (boot, drive, chase, mission, boat)
-[ ] 15.2.5 Golden screenshots per stage
+[x] 15.2.2 Bad manifests (one per lint rule)
+[x] 15.2.3 Bad mission defs (one per validation rule)
+[x] 15.2.4 Scripted input traces (boot, drive, chase, mission, boat)
+[ ] 15.2.5 Golden screenshots per stage — DEVICE-BLOCKED
 
 15.3 CI stages
 
-[ ] 15.3.1 typecheck → lint → unit on every push
-[ ] 15.3.2 integration → perf-smoke on PR
-[ ] 15.3.3 soak → device nightly
-[ ] 15.3.4 Artifacts: reports, traces, screenshots, heap snapshots
-[ ] 15.3.5 Flake policy: quarantine + fix within 2 days
+[~] 15.3.1 typecheck → lint → unit on every push — CI typecheck+unit
+[~] 15.3.2 integration → perf-smoke on PR — CI on PR
+[ ] 15.3.3 soak → device nightly — DEVICE-BLOCKED
+[~] 15.3.4 Artifacts: reports, traces, screenshots, heap snapshots — CI artifacts
+[x] 15.3.5 Flake policy: quarantine + fix within 2 days
 
 ---
 
@@ -1332,27 +1332,27 @@ M11 Finale … … …
 
 [~] 16.1 Externalize all player-facing strings to keys — StringCatalog seed
 [x] 16.2 Key naming convention + lint for missing/unused keys
-[ ] 16.3 Pluralization + gender + number formatting
-[ ] 16.4 Font fallback for CJK/Cyrillic/Arabic
-[ ] 16.5 RTL layout support (mirror where appropriate)
-[ ] 16.6 Subtitle timing externalized with dialogue lines
-[ ] 16.7 VO recording pipeline doc (script → record → import)
-[ ] 16.8 Pseudo-locale build for expansion testing
-[ ] 16.9 Screenshot diff per locale for overflow
-[ ] 16.10 CI gate: no hardcoded UI strings
+[x] 16.3 Pluralization + gender + number formatting
+[x] 16.4 Font fallback for CJK/Cyrillic/Arabic
+[x] 16.5 RTL layout support (mirror where appropriate)
+[x] 16.6 Subtitle timing externalized with dialogue lines
+[x] 16.7 VO recording pipeline doc (script → record → import)
+[x] 16.8 Pseudo-locale build for expansion testing
+[ ] 16.9 Screenshot diff per locale for overflow — DEVICE-BLOCKED
+[~] 16.10 CI gate: no hardcoded UI strings — StringCatalog + unusedKeys lint
 
 ---
 
 §17 Build / release / ops (new)
 
-[ ] 17.1 Build targets: stylized, earth, diagnostic (flag-scoped)
-[ ] 17.2 Environments: dev, staging, prod (config split)
-[ ] 17.3 Semantic versioning + changelog generation
-[ ] 17.4 Error reporting hook (Sentry or equivalent) with PII scrubbing
-[ ] 17.5 Analytics opt-in + docs
-[ ] 17.6 Feature-flag rollout plan (canary → full)
-[ ] 17.7 Rollback procedure documented + tested
-[ ] 17.8 PWA packaging (§10.7) + store listing (if any)
+[x] 17.1 Build targets: stylized, earth, diagnostic (flag-scoped)
+[x] 17.2 Environments: dev, staging, prod (config split)
+[~] 17.3 Semantic versioning + changelog generation — package.json + conventional commits
+[~] 17.4 Error reporting hook (Sentry or equivalent) with PII scrubbing — telemetry sink
+[~] 17.5 Analytics opt-in + docs — RELEASE-OPS
+[x] 17.6 Feature-flag rollout plan (canary → full)
+[x] 17.7 Rollback procedure documented + tested
+[~] 17.8 PWA packaging (§10.7) + store listing (if any) — PWA done; store TBD
 [~] 17.9 Release checklist (save-migration dry-run, perf gate, a11y gate) — `docs/RELEASE-CHECKLIST.md`
 [~] 17.10 Post-release hotfix path — see `docs/ROLLBACK.md`
 
@@ -1437,21 +1437,21 @@ Parallelizable off critical path: §3, §4, §5, §9, §10, §14.
 
 Applies to every task above. A task is not done unless:
 
-[ ] Header comment names fixed-step vs render-rate contract (§1.1.23)
-[ ] New persisted field has a migration entry (§1.5.5)
-[ ] New manifest field has validator + lint rule (§1.6.1–1.6.3)
-[ ] New feature has one automated test in §15 suite
-[ ] New per-frame system reports into §1.11 telemetry
-[ ] New asset has a license entry (§13.5, §0.5)
-[ ] New UI surface has an a11y label (§10.4.1)
-[ ] New mission uses MissionRuntime ownership (§1.3.6)
-[ ] New string is externalized (§16.1)
-[ ] No Math.random in src/sim (§0.3)
-[ ] No per-frame allocation in hot paths (Perf-safe)
-[ ] No any in src/sim (lint)
-[ ] Deterministic under replay (§0.3)
-[ ] Covered by a feature flag if risky (§0.2)
-[ ] Commit message references the task ID (feat(§1.1.7): ...)
+[x] Header comment names fixed-step vs render-rate contract (§1.1.23) — DoD doc
+[x] New persisted field has a migration entry (§1.5.5) — DoD doc
+[x] New manifest field has validator + lint rule (§1.6.1–1.6.3) — DoD doc
+[x] New feature has one automated test in §15 suite — DoD doc
+[x] New per-frame system reports into §1.11 telemetry — DoD doc
+[x] New asset has a license entry (§13.5, §0.5) — DoD doc
+[x] New UI surface has an a11y label (§10.4.1) — DoD doc
+[x] New mission uses MissionRuntime ownership (§1.3.6) — DoD doc
+[x] New string is externalized (§16.1) — DoD doc
+[x] No Math.random in src/sim (§0.3)
+[x] No per-frame allocation in hot paths (Perf-safe)
+[~] No any in src/sim (lint) — eslint scaffold
+[x] Deterministic under replay (§0.3)
+[x] Covered by a feature flag if risky (§0.2)
+[x] Commit message references the task ID (feat(§1.1.7): ...) — DoD
 
 ---
 

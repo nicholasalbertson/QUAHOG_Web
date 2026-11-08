@@ -103,6 +103,14 @@ import { bootCriticalOnly, markFeatureLoaded, isFeatureLoaded } from "../../sim/
 import { toPseudoLocale, missingKeys } from "../../sim/PseudoLocale";
 import { t, STRINGS, unusedKeys } from "../../sim/StringCatalog";
 import { adjacentDistinct, paletteForIndex } from "../../sim/PedPalette";
+import { insertCamKey, exportCutsceneTrack } from "../../sim/CutsceneSplineEditor";
+import { sampleTraffic } from "../../sim/TrafficTimeline";
+import { importTilesFromJson } from "../../sim/TileJsonImport";
+import { dummyMissions, STRESS_SCENE, SANDBOX_FEATURES } from "../../sim/SandboxContent";
+import { BAD_MANIFEST_FIXTURES, BAD_MISSION_FIXTURES } from "../../sim/BadFixtures";
+import { createMissionEditor, bootPreviewAt } from "../../sim/MissionEditorModel";
+import { roundTripManifest } from "../../sim/GraphRoundTrip";
+import { defineMission } from "../../sim/MissionAuthoring";
 
 function sampleManifest(): WorldManifest {
   return {
@@ -689,5 +697,22 @@ describe("checklist stability + manifest deepen", () => {
     expect(unusedKeys(STRINGS, Object.keys(STRINGS))).toEqual([]);
     expect(paletteForIndex(0).id).not.toBe(paletteForIndex(1).id);
     expect(adjacentDistinct(9)).toBe(true);
+  });
+
+  it("§14 editors sandbox + §15.2 bad fixtures", () => {
+    const keys = insertCamKey([], { t: 1, x: 0, y: 2, z: 0, lookX: 1, lookY: 1, lookZ: 1 });
+    expect(exportCutsceneTrack("c", keys, [], 2).id).toBe("c");
+    expect(sampleTraffic([{ hour: 8, density: 0.5, streetlight: 0 }], 9).density).toBe(0.5);
+    const tiles = importTilesFromJson(sampleManifest());
+    expect(tiles.ok).toBe(true);
+    expect(dummyMissions().every((m) => m.ok)).toBe(true);
+    expect(STRESS_SCENE.peds).toBeGreaterThan(100);
+    expect(SANDBOX_FEATURES.length).toBeGreaterThan(5);
+    expect(BAD_MANIFEST_FIXTURES.length).toBeGreaterThanOrEqual(4);
+    expect(validateManifestDeep(BAD_MANIFEST_FIXTURES[0]!.raw).ok).toBe(false);
+    expect(defineMission(BAD_MISSION_FIXTURES[2]!.raw).ok).toBe(false);
+    const ed = bootPreviewAt(createMissionEditor("m"), 0);
+    expect(ed.previewStep).toBe(0);
+    expect(roundTripManifest(sampleManifest()).svg).toContain("svg");
   });
 });
