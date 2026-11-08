@@ -4,8 +4,8 @@ Canonical: [`IMPLEMENTATION-CHECKLIST-V3.md`](./IMPLEMENTATION-CHECKLIST-V3.md) 
 
 | Status | Count |
 |--------|------:|
-| Done `[x]` | ~534 |
-| Partial `[~]` | ~129 |
+| Done `[x]` | ~549 |
+| Partial `[~]` | ~114 |
 | Open `[ ]` | ~53 |
 
 **All remaining `[ ]` items are annotated blockers** (DEVICE / CONTENT / RAPIER-LIVE / PLAYTEST). No further unmarked code-only checklist IDs.

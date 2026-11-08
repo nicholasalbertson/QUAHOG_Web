@@ -195,6 +195,22 @@ export function refuseFutureSave(blob: unknown): { ok: false; reason: string } |
   return { ok: true, blob: blob as SaveBlobV2 };
 }
 
+/** §1.5.11 Classify corrupt / schema / checksum failures. */
+export type CorruptKind = "parse" | "schema" | "checksum" | "ok";
+
+export function detectCorruptSave(raw: string, checksum?: string): CorruptKind {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return "parse";
+  }
+  if (checksum != null && checksumSave(raw) !== checksum) return "checksum";
+  const errs = validateSave(parsed);
+  if (errs.length) return "schema";
+  return "ok";
+}
+
 /** §1.5.9 Lightweight checksum (not crypto — detects corruption). */
 export function checksumSave(raw: string): string {
   let h = 2166136261;

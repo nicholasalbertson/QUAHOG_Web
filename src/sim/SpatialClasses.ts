@@ -18,6 +18,8 @@ const CELL: Record<SpatialClass, number> = {
 
 export class SpatialClassRegistry {
   private indexes = new Map<SpatialClass, SpatialIndex<unknown>>();
+  /** §1.8.3 Identity map so dynamic remove works by id. */
+  private byId = new Map<string, { cls: SpatialClass; item: unknown }>();
 
   index<T>(cls: SpatialClass): SpatialIndex<T> {
     let ix = this.indexes.get(cls);
@@ -30,6 +32,22 @@ export class SpatialClassRegistry {
 
   clear(): void {
     for (const ix of this.indexes.values()) ix.clear();
+    this.byId.clear();
+  }
+
+  /** §1.8.3 Dynamic insert for live vehicles/peds/boats/mission entities. */
+  upsert<T>(cls: SpatialClass, id: string, item: T, x: number, z: number): void {
+    const prev = this.byId.get(id);
+    if (prev) this.index(prev.cls).remove(prev.item);
+    this.index<T>(cls).insert(item, x, z);
+    this.byId.set(id, { cls, item });
+  }
+
+  remove(id: string): void {
+    const prev = this.byId.get(id);
+    if (!prev) return;
+    this.index(prev.cls).remove(prev.item);
+    this.byId.delete(id);
   }
 
   stats(): Record<string, { size: number; sectors: number; cell: number }> {

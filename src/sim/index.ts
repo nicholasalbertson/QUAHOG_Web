@@ -283,6 +283,7 @@ export {
   SCHEMA_VERSION,
   refuseFutureSave,
   checksumSave,
+  detectCorruptSave,
   packSave,
   unpackSave,
   exportSaveJson,
@@ -507,8 +508,10 @@ export { subtitleWindows, exportVoManifest } from "./DialogueEditor";
 export type { DialogueLineEdit } from "./DialogueEditor";
 export { rubberBandRate, validateRaceEdit } from "./RaceEditor";
 export type { RaceEdit } from "./RaceEditor";
-export { sampleSchedule, frictionFromWetness } from "./WeatherTimeline";
+export { sampleSchedule, frictionFromWetness, applySchedule } from "./WeatherTimeline";
 export type { WeatherKeyframe, WeatherSchedule } from "./WeatherTimeline";
+export { missionDebugSnapshot } from "./MissionDebug";
+export type { MissionDebugRow } from "./MissionDebug";
 export { exportMissionDef } from "./MissionDefExport";
 export { previewSignalPhases } from "./SignalPhaseEditor";
 export type { PhasePreview } from "./SignalPhaseEditor";

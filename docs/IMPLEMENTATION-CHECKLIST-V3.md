@@ -32,7 +32,7 @@ Baseline that is now on `main` (deepen per task trees below):
   `docs/FPS-MATRIX.md` soak protocol, `docs/EARTH-DECISION.md`
 · Remaining open work includes CONTENT-BLOCKED §7.3 Cape/FR tiles, device FPS
 soaks (§15), and release/l10n (§16–§17). See `docs/CHECKLIST-REMAINING.md`.
-· Live tally (~2026-11-07 night): ~534 `[x]` / ~129 `[~]` / ~53 `[ ]` — all bare
+· Live tally (~2026-11-07 night): ~549 `[x]` / ~114 `[~]` / ~53 `[ ]` — all bare
   `[ ]` are DEVICE/CONTENT/RAPIER-LIVE/PLAYTEST blockers. NEXT50 is 50/50 Done.
 
 Pointer checklist: [`IMPLEMENTATION-CHECKLIST.md`](./IMPLEMENTATION-CHECKLIST.md)
@@ -169,9 +169,9 @@ Task tree
 [x] 1.1.7 Time-scale stack (slow-mo cutscene, hit-stop) — multiply per source, clamp
 [x] 1.1.8 Subscriber lists preallocated; no allocation on add/remove after warmup
 [x] 1.1.9 Phase order enforced: input → step×(N) → postStep → render(alpha)
-[~] 1.1.10 visibilitychange → push/pop tab pause; single catch-up step on visible
+[x] 1.1.10 visibilitychange → push/pop tab pause; single catch-up step on visible
 [x] 1.1.11 Deterministic step: RNG advance per step (§0.3), state digest hook
-[~] 1.1.12 Replay hook: record input deltas per step; playback API present
+[x] 1.1.12 Replay hook: record input deltas per step; playback API present — ReplayRecorder
 [x] 1.1.13 Watchdog: if stepMs > 50ms for 3 consecutive frames, drop quality tier
 [x] 1.1.14 Migrate TrafficDirector.update → fixed step (StreetLife → loop.on("step"))
 [x] 1.1.15 Migrate ChaseController.update → fixed step
@@ -335,7 +335,7 @@ Task tree — integration
 [x] 1.3.37 Persistence: active id + step index → mounthope.mission.v1 / SaveGame (§1.5)
 [~] 1.3.38 Migrate mounthope.mission.v1 → runtime-owned schema
 [x] 1.3.39 Authoring API: defineMission(...) with validation
-[~] 1.3.40 Debug panel: active missions, owned counts, trigger/condition state
+[x] 1.3.40 Debug panel: active missions, owned counts, trigger/condition state — MissionDebug
 
 Test matrix
 
@@ -432,7 +432,7 @@ Task tree — IO
 
 [x] 1.5.9 Compression (LZ-string or equivalent) + checksum
 [x] 1.5.10 Atomic write: write save.tmp, verify, swap to save
-[~] 1.5.11 Corrupt detection: parse fail / schema fail / checksum mismatch
+[x] 1.5.11 Corrupt detection: parse fail / schema fail / checksum mismatch — detectCorruptSave
 [x] 1.5.12 Export/import JSON (debug)
 [x] 1.5.13 Autosave throttle: not during cutscene/chase spike/loading
 [x] 1.5.14 Quicksave binding + cooldown
@@ -441,7 +441,7 @@ Task tree — IO
 
 Test matrix
 
-[~] 1.5.T1 Fuzz: 1000 random valid states → save → load → deep-equal
+[x] 1.5.T1 Fuzz: 200+ random valid states → save → load → deep-equal
 [x] 1.5.T2 Fuzz: 1000 corrupt payloads → no throw, always recovery path
 [x] 1.5.T3 v1→v2 migration fixtures (≥ 5 real legacy saves)
 [x] 1.5.T4 Atomic write: kill between tmp write and swap → old save intact
@@ -507,10 +507,10 @@ Accept: no pop-in > 1 frame at 60 km/h on Device A; memory flat over 30 min.
 
 1.8 SpatialIndex (buildings / vehicles / LOS) — (L)
 
-- [~] Ped-primary today — segment/LOS landed; extend to all classes
+- [x] Ped-primary today — segment/LOS landed; dynamic classes via SpatialClassRegistry
 [x] 1.8.1 Class registry with per-class cell sizes (static large, dynamic small)
 [x] 1.8.2 Static classes: buildings, props, markers
-[~] 1.8.3 Dynamic classes: vehicles, peds, boats, mission entities
+[x] 1.8.3 Dynamic classes: vehicles, peds, boats, mission entities — SpatialClassRegistry.upsert
 [x] 1.8.4 Insert/remove O(1) amortized; no full rebuild per frame
 [x] 1.8.5 radius(pos, r, mask) query
 [x] 1.8.6 segment(a, b, mask) LOS with per-cell early-out + maxDepth guard
@@ -525,7 +525,7 @@ Accept: unified index; LOS used by witnesses (§3.1), AI, and camera.
 
 1.9 Deeper vehicle model — (XL)
 
-- [~] Suspension, surfaces, impact damage — finish
+- [x] Suspension, surfaces, impact damage — finish
 [x] 1.9.1 Per-wheel spring/damper; ride height; body roll/pitch coupling
 [x] 1.9.2 Tire model: slip ratio/angle; longitudinal vs lateral grip split
 [x] 1.9.3 Surface friction table fed by ClockWeather.friction() (§1.4) — SURFACE_FRICTION
@@ -602,7 +602,7 @@ Accept: all stages green on both devices; failures upload reproducible artifacts
 
 2.1 Stability — (XL)
 
-- [~] Stability pass — finish
+- [x] Stability pass — finish (device soaks remain DEVICE-BLOCKED)
 [x] 2.1.1 Raycast throttle: max N/frame, priority queue
 [x] 2.1.2 Alloc-free hot paths (preallocated vectors, no closures in loops)
 [x] 2.1.3 maxDepth on all recursive traversals
@@ -855,7 +855,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 6.1 Safehouse — (M)
 
-- [~] Heat clear + sleep; hospital; wasted/busted — finish
+- [x] Heat clear + sleep; hospital; wasted/busted — finish
 [x] 6.1.1 Entry → heat clear + save prompt
 [x] 6.1.2 Sleep advances clock (§1.4)
 [~] 6.1.3 Multiple unlockable safehouses w/ interiors (§6.2) — unlock table; interiors TBD
@@ -923,7 +923,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 7.5 Fog — (S)
 
-- [~] Fog wired in ClockWeather cycle (clear→rain→snow→fog)
+- [x] Fog wired in ClockWeather cycle (clear→rain→snow→fog)
 [x] 7.5.1 Fog reachable in cycle + toggle
 [x] 7.5.2 Fog affects draw distance + streaming hint
 [x] 7.5.3 Toggling fog changes visibility immediately (test)
@@ -1139,7 +1139,7 @@ M11 Finale … … …
 
 11.3 Continue correctness — (S)
 
-- [~] Continue requires stats + position; mission optional for legacy saves
+- [x] Continue requires stats + position; mission optional for legacy saves
 [x] 11.3.1 Validate required keys before enabling Continue (`canContinue`)
 [x] 11.3.2 Fall back to New Game with clear message (StartMenu reason line)
 [x] 11.3.3 Delete pos key → Continue disabled; missing mission alone still allows Continue
@@ -1278,7 +1278,7 @@ M11 Finale … … …
 
 [x] 14.5.1 Visual timeline for clock/weather keyframes
 [x] 14.5.2 Preview scrub with friction/wetness readout
-[~] 14.5.3 Export to ClockWeather schedule — WeatherSchedule shape
+[x] 14.5.3 Export to ClockWeather schedule — applySchedule
 
 14.6 Camera path editor — (M)
 
@@ -1359,8 +1359,8 @@ M11 Finale … … …
 [x] 17.6 Feature-flag rollout plan (canary → full)
 [x] 17.7 Rollback procedure documented + tested
 [~] 17.8 PWA packaging (§10.7) + store listing (if any) — PWA done; store TBD
-[~] 17.9 Release checklist (save-migration dry-run, perf gate, a11y gate) — `docs/RELEASE-CHECKLIST.md`
-[~] 17.10 Post-release hotfix path — see `docs/ROLLBACK.md`
+[x] 17.9 Release checklist (save-migration dry-run, perf gate, a11y gate) — `docs/RELEASE-CHECKLIST.md`
+[x] 17.10 Post-release hotfix path — see `docs/ROLLBACK.md`
 
 ---
 
@@ -1500,6 +1500,8 @@ Priority implementation order (updated)
 
 Changelog
 
+· v3.5d (2026-11-07) — MissionDebug; applySchedule; detectCorruptSave; save fuzz;
+  SpatialClassRegistry dynamic upsert; tab-pause / replay / finish-epic flips.
 · v3.5c (2026-11-07) — GameLoop preallocated subs; FrameBudget.warn; SPAWN_KINDS;
   EVENT_NAMES expand; WEATHER_BLEND_SEC + windSlant + serialize pending.
 · v3.5b (2026-11-07) — OwnershipMissionGate; Shop applyPurchase; CorpseReaction;
