@@ -9,6 +9,7 @@ import type { PedGraph } from "./PedGraph";
 import type { Vec2 } from "./types";
 import { dist } from "./math";
 import { rng } from "./Rng";
+import { OccupancyGrid } from "./OccupancyGrid";
 
 export type PedLod = "near" | "mid" | "far";
 
@@ -41,6 +42,7 @@ export interface PedestrianAIOptions {
 
 export class PedestrianAI {
   readonly index = new SpatialIndex<PedAgent>({ sectorSize: 32 });
+  readonly occupancy = new OccupancyGrid(4);
   private nearR: number;
   private midR: number;
   private wander: number;
@@ -103,6 +105,12 @@ export class PedestrianAI {
     if (runMid) this.midAcc = 0;
     if (runFar) this.farAcc = 0;
 
+    // §1.2.15 Occupancy decay + rebuild for active agents.
+    this.occupancy.decay(0.8);
+    for (const a of agents) {
+      if (!a.dead && a.down <= 0) this.occupancy.insert(a.x, a.z);
+    }
+
     let simulated = 0;
     for (const a of agents) {
       if (performance.now() - t0 > budgetMs) break;
@@ -114,6 +122,15 @@ export class PedestrianAI {
 
       const step = lod === "near" ? dt : lod === "mid" ? this.midPeriod : this.farPeriod;
       this.stepAgent(a, step, fleeFrom);
+      // §1.2.16 Local avoidance from occupancy neighborhood.
+      if (lod === "near") {
+        const nb = this.occupancy.sampleNeighbors(a.x, a.z, 1);
+        if (nb.n > 0) {
+          const len = Math.hypot(nb.dx, nb.dz) || 1;
+          a.x += (nb.dx / len) * this.speed * 0.35 * step;
+          a.z += (nb.dz / len) * this.speed * 0.35 * step;
+        }
+      }
       this.index.insert(a, a.x, a.z);
       simulated++;
     }
@@ -182,8 +199,10 @@ export class PedestrianAI {
       }
       dx /= d;
       dz /= d;
-      a.x += dx * this.speed * dt;
-      a.z += dz * this.speed * dt;
+      // §1.2.17 Right-hand walk bias — slight right offset while following.
+      const rx = dz * 0.12, rz = -dx * 0.12;
+      a.x += (dx + rx) * this.speed * dt;
+      a.z += (dz + rz) * this.speed * dt;
       a.heading = Math.atan2(dx, dz);
       return;
     }

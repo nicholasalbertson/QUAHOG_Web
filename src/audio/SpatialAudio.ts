@@ -49,12 +49,13 @@ export class SpatialAudio {
   /**
    * Play a short noise burst at a world position (siren fly-by test / impacts).
    * Returns false if audio is unavailable.
+   * §9.2.3 Occlusion stub: pass `occluded: true` to muffle (lowpass + quieter).
    */
   playAt(
     x: number,
     y: number,
     z: number,
-    opts: { duration?: number; freq?: number; gain?: number } = {},
+    opts: { duration?: number; freq?: number; gain?: number; occluded?: boolean } = {},
   ): boolean {
     const ctx = this.ensure();
     if (!ctx) return false;
@@ -67,6 +68,7 @@ export class SpatialAudio {
     panner.refDistance = 8;
     panner.maxDistance = 180;
     panner.rolloffFactor = 1.2;
+    const occluded = !!opts.occluded;
     if (panner.positionX) {
       panner.positionX.value = x;
       panner.positionY.value = y;
@@ -75,10 +77,18 @@ export class SpatialAudio {
       (panner as PannerNode & { setPosition?: (x: number, y: number, z: number) => void }).setPosition?.(x, y, z);
     }
     osc.frequency.value = opts.freq ?? 440;
-    gain.gain.value = opts.gain ?? 0.15;
+    gain.gain.value = (opts.gain ?? 0.15) * (occluded ? 0.35 : 1);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
     osc.connect(gain);
-    gain.connect(panner);
+    if (occluded) {
+      const lp = ctx.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.value = 480;
+      gain.connect(lp);
+      lp.connect(panner);
+    } else {
+      gain.connect(panner);
+    }
     panner.connect(ctx.destination);
     osc.start();
     osc.stop(ctx.currentTime + dur);

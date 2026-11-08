@@ -52,8 +52,13 @@ export function SimBootstrap() {
       // Weather transition on fixed step (§1.1.22).
       sim.clock.advance(dt);
 
-      // Mission timers on fixed step (§1.1.20).
-      if (flag("missionTimers")) sim.missions.advance(dt);
+      // Mission timers + triggers on fixed step (§1.1.20 / §1.3.12).
+      if (flag("missionTimers")) {
+        const body = useGame.getState().mode === "car" ? shared.car
+          : useGame.getState().mode === "boat" ? shared.boat : shared.player;
+        const p = body?.translation();
+        sim.missions.advance(dt, [], p ? { x: p.x, z: p.z } : undefined);
+      }
 
       // Economy passive income on fixed step (§1.1.21).
       const income = useEconomy.getState().incomePerSec(GAME_DAY_SECONDS);

@@ -72,9 +72,28 @@ export function manifestFromSlice(slice: Slice): WorldManifest {
     })),
     spawns: [
       { id: "player-start", kind: "player", x: 0, z: 0 },
+      ...slice.landmarks.slice(0, 8).map((l, i) => ({
+        id: `ped-spawn-${i}`,
+        kind: "ped" as const,
+        x: l.pos[0],
+        z: -l.pos[1],
+      })),
     ],
-    doors: [],
-    signals: [],
+    // §1.2.6 / §1.6 door stubs from building footprints (south edge midpoints).
+    doors: slice.buildings.slice(0, 120).map((b, i) => {
+      let best = 0, bestN = Infinity;
+      for (let k = 0; k < b.footprint.length; k++) {
+        if (b.footprint[k][1] < bestN) { bestN = b.footprint[k][1]; best = k; }
+      }
+      const j = (best + 1) % b.footprint.length;
+      const x = (b.footprint[best][0] + b.footprint[j][0]) / 2;
+      const z = -((b.footprint[best][1] + b.footprint[j][1]) / 2);
+      return { id: `door-${i}`, x, z, building: b.name };
+    }),
+    signals: slice.roads
+      .filter((r) => ["primary", "secondary", "tertiary"].includes(r.highway) && r.points.length >= 2)
+      .slice(0, 24)
+      .map((r, i) => ({ id: `sig-${i}`, x: r.points[0][0], z: -r.points[0][1] })),
     raceTracks: [],
     collectibles: [],
     fronts: [],

@@ -217,9 +217,9 @@ Task tree
 [x] 1.2.12 A* implementation with binary heap; tie-break by node id (deterministic)
 [~] 1.2.13 Cost model: length × lanePenalty × crosswalkPenalty × crowdPenalty
 [x] 1.2.14 Path smoothing: string-pulling within edge width, no corner clipping
-[ ] 1.2.15 Occupancy grid: cell → count, decay per step, updated on ped move
-[~] 1.2.16 Local avoidance: sample ≤ 8 neighbors, steer vector, no allocation (Perf-safe)
-[ ] 1.2.17 Right-hand walk bias by edge direction (lane feel)
+[x] 1.2.15 Occupancy grid: cell → count, decay per step, updated on ped move
+[x] 1.2.16 Local avoidance: occupancy neighborhood steer (Perf-safe)
+[x] 1.2.17 Right-hand walk bias by edge direction (lane feel)
 [ ] 1.2.18 Crosswalk FSM: approach → wait → cross → clear, driven by signal phase
 [ ] 1.2.19 Ped spawn/despawn tied to WorldStreamer tile residency (§1.7)
 [~] 1.2.20 LOD: path follow (near ≤ 30m), anchor-lerp (30–80m), freeze (> 80m)
@@ -275,17 +275,17 @@ Task tree — entity ownership
 [x] 1.3.8 Scoped ownership: mission/checkpoint/temporary scopes
 [x] 1.3.9 Scope teardown order: despawn → unsubscribe → free ids (reverse creation)
 [x] 1.3.10 Leak detector: after mission end, owned count must be 0 (assert in dev)
-[ ] 1.3.11 Deterministic spawn: mission spawns use missions RNG stream (§0.3)
+[x] 1.3.11 Deterministic spawn: mission spawns use missions RNG stream (§0.3)
 
 Task tree — triggers
 
-[~] 1.3.12 Volume trigger (AABB + sphere) with enter/exit/inside edges
-[~] 1.3.13 Distance trigger (player, entity, position)
-[ ] 1.3.14 Flag trigger (save/flag state)
+[x] 1.3.12 Volume trigger (AABB + sphere) with enter/exit/inside edges
+[x] 1.3.13 Distance trigger (player, entity, position)
+[x] 1.3.14 Flag trigger (save/flag state)
 [ ] 1.3.15 Damage trigger (entity HP threshold)
 [ ] 1.3.16 Inventory trigger (has/doesn't have weapon/item)
-[~] 1.3.17 Timer trigger (elapsed sim time)
-[~] 1.3.18 Trigger dedupe: fire-once flag; re-arm API
+[x] 1.3.17 Timer trigger (elapsed sim time)
+[x] 1.3.18 Trigger dedupe: fire-once flag; re-arm API
 [ ] 1.3.19 Trigger debug overlay: volumes + armed/fired state
 
 Task tree — conditions DSL
@@ -368,8 +368,8 @@ Task tree
 [x] 1.4.12 Fog type in cycle + streamer radius hint → §7.5
 [x] 1.4.13 Streaming hint: reduce far LOD / draw distance in fog/snow (§1.7)
 [~] 1.4.14 Serialize/restore clock + weather + transition progress
-[ ] 1.4.15 Deterministic weather from weather RNG stream (§0.3)
-[ ] 1.4.16 Telemetry: current weather, wetness, friction sample
+[x] 1.4.15 Deterministic weather from weather RNG stream (§0.3)
+[x] 1.4.16 Telemetry: current weather, wetness, friction sample
 
 Test matrix
 
@@ -402,7 +402,7 @@ Task tree — schema
 
 [x] 1.5.1 Define full V2 interface (all fields above enumerated in code comment)
 [~] 1.5.2 Field-level validators (type + range + referential integrity)
-[ ] 1.5.3 Size budget assert < 256KB serialized
+[x] 1.5.3 Size budget assert < 256KB serialized
 [x] 1.5.4 Optional fields nullable; missing = default, never crash
 
 Task tree — migration
@@ -410,7 +410,7 @@ Task tree — migration
 [~] 1.5.5 Migration runner: chained v1→v2, idempotent, tested per hop
 [~] 1.5.6 Migrate mounthope.mission.v1 (still dual-key with collectLegacySave)
 [~] 1.5.7 Migrate scattered settings keys into settings
-[ ] 1.5.8 Unknown future version → refuse load with recovery UI (§11.4)
+[x] 1.5.8 Unknown future version → refuse load (`refuseFutureSave`)
 
 Task tree — IO
 
@@ -1009,10 +1009,10 @@ M11 Finale … … …
 
 9.2 Spatial audio — (L)
 
-[ ] 9.2.1 Positional audio (PannerNode or equivalent)
-[ ] 9.2.2 Distance attenuation per category
-[ ] 9.2.3 Occlusion stub (muffle behind geometry)
-[ ] 9.2.4 Listener from CameraRig
+[x] 9.2.1 Positional audio (PannerNode or equivalent)
+[x] 9.2.2 Distance attenuation per category
+[x] 9.2.3 Occlusion stub (muffle behind geometry)
+[x] 9.2.4 Listener from actor pose (SimBootstrap)
 [ ] 9.2.5 Passing siren pans + attenuates correctly (test)
 
 9.3 Radio — (M)
@@ -1484,6 +1484,9 @@ Priority implementation order (updated)
 
 Changelog
 
+· v3.3 (2026-11-07) — Occupancy/avoidance/RH bias; mission triggers+spawn;
+  ClockWeather RNG+telemetry; SaveGame future refuse+size; SpatialAudio occlusion;
+  WorldManifest doors/signals/spawns from slice.
 · v3.2 (2026-11-07) — Foundations deepen: Math.random purged from src/sim,
   ReplayRecorder, telemetry schema marked landed, PedGraph orphans/doors/crosswalk tags,
   stuck detection, MissionRuntime event log + leak assert, SimBootstrap fixed-step

@@ -25,6 +25,7 @@ export const TELEMETRY_SCHEMA: readonly TelemetryEventDef[] = [
   { name: "mission.fail", policy: "always", description: "Mission failed" },
   { name: "mission.retry", policy: "always", description: "Mission retried" },
   { name: "mission.abandon", policy: "always", description: "Mission abandoned" },
+  { name: "mission.trigger", policy: "always", description: "Mission trigger fired" },
   { name: "sim.loop.overrun", policy: "always", description: "GameLoop hit step cap" },
   { name: "sim.traffic.spawn", policy: "oneInN", n: 20, description: "Traffic agent spawned" },
   { name: "sim.ped.spawn", policy: "oneInN", n: 20, description: "Pedestrian spawned" },

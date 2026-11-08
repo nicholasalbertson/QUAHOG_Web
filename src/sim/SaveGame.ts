@@ -144,12 +144,31 @@ export function clearAllSaves(): void {
 export function validateSave(blob: unknown): string[] {
   const errs: string[] = [];
   if (!blob || typeof blob !== "object") return ["not an object"];
-  const b = blob as SaveBlobV2;
-  if (b.schemaVersion !== 2) errs.push(`unsupported schemaVersion ${String(b.schemaVersion)}`);
+  const b = blob as SaveBlobV2 & { schemaVersion?: number };
+  if (typeof b.schemaVersion !== "number") errs.push("schemaVersion missing");
+  else if (b.schemaVersion > SCHEMA_VERSION) {
+    // §1.5.8 Unknown future version → refuse load.
+    errs.push(`future schemaVersion ${b.schemaVersion} (max ${SCHEMA_VERSION})`);
+  } else if (b.schemaVersion !== 2) {
+    errs.push(`unsupported schemaVersion ${String(b.schemaVersion)}`);
+  }
   if (b.stats) {
     for (const k of ["cash", "health", "police", "faction"] as const) {
       if (typeof b.stats[k] !== "number" || !Number.isFinite(b.stats[k])) errs.push(`stats.${k}`);
     }
   }
+  // §1.5.3 Size budget assert.
+  try {
+    if (JSON.stringify(b).length > 256 * 1024) errs.push("size exceeds 256KB budget");
+  } catch {
+    errs.push("not serializable");
+  }
   return errs;
+}
+
+/** §1.5.8 Refuse load helper for recovery UI. */
+export function refuseFutureSave(blob: unknown): { ok: false; reason: string } | { ok: true; blob: SaveBlobV2 } {
+  const errs = validateSave(blob);
+  if (errs.length) return { ok: false, reason: errs[0] };
+  return { ok: true, blob: blob as SaveBlobV2 };
 }

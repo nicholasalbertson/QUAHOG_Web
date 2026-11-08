@@ -68,3 +68,7 @@ export { ReplayRecorder, replayRecorder } from "./ReplayRecorder";
 export type { ReplayFrame } from "./ReplayRecorder";
 export { publishDebugOverlay, readDebugOverlay, formatDebugOverlayLine } from "./DebugOverlay";
 export type { DebugOverlayState } from "./DebugOverlay";
+export { OccupancyGrid } from "./OccupancyGrid";
+export { evalTrigger, rearm } from "./Triggers";
+export type { Trigger } from "./Triggers";
+export { refuseFutureSave } from "./SaveGame";

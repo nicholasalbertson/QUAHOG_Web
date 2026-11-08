@@ -4,6 +4,9 @@
  * Independent Mount Hope design — not a port of proprietary mission scripts.
  */
 
+import { rng } from "./Rng";
+import { evalTrigger, type Trigger } from "./Triggers";
+
 export type MissionPhase = "idle" | "active" | "failed" | "complete" | "abandoned";
 
 export interface GameEvent {
@@ -53,9 +56,11 @@ export class MissionRuntime {
   private logHead = 0;
   private emitting = false;
   private emitQueue: GameEvent[] = [];
+  private triggers: Trigger[] = [];
 
   start(mi: number, step = 0, failSec: number | null = null): void {
     this.cleanupOwned();
+    this.clearTriggers();
     this.phase = "active";
     this.mi = mi;
     this.step = step;
@@ -64,6 +69,29 @@ export class MissionRuntime {
     this.stepElapsed = 0;
     this.stepFailSec = failSec;
     this.emit({ type: "mission.start", payload: { mi, step } });
+  }
+
+  /**
+   * §1.3.6 / §1.3.11 Deterministic spawn — id entropy from missions RNG stream.
+   */
+  spawn(
+    kind: string,
+    cleanup: () => void,
+    opts: { step?: number; id?: string } = {},
+  ): OwnedEntity {
+    const id = opts.id ?? `${kind}-${rng.stream("missions").int(0, 1_000_000_000)}`;
+    const entity: OwnedEntity = { id, kind, step: opts.step, cleanup };
+    this.claim(entity);
+    return entity;
+  }
+
+  /** §1.3.12–18 Register triggers evaluated in advance(). */
+  addTrigger(t: Trigger): void {
+    this.triggers.push({ ...t, armed: t.armed !== false, fired: false });
+  }
+
+  clearTriggers(): void {
+    this.triggers = [];
   }
 
   /** Register a mission-owned entity; cleaned on fail/retry/abandon/complete. */
@@ -184,12 +212,24 @@ export class MissionRuntime {
    * Advance timers and process a batch of world events.
    * Returns true if the mission just failed this tick.
    */
-  advance(dt: number, events: readonly GameEvent[] = []): boolean {
+  advance(
+    dt: number,
+    events: readonly GameEvent[] = [],
+    pose?: { x: number; z: number },
+  ): boolean {
     if (this.phase !== "active") return false;
     this.elapsed += dt;
     this.stepElapsed += dt;
 
     for (const ev of events) this.emit(ev);
+
+    if (pose) {
+      for (const t of this.triggers) {
+        if (evalTrigger(t, { x: pose.x, z: pose.z, dt })) {
+          this.emit({ type: "mission.trigger", payload: { id: t.id, kind: t.kind } });
+        }
+      }
+    }
 
     if (this.stepFailSec != null && this.stepElapsed >= this.stepFailSec) {
       this.fail("Time's up");

@@ -49,6 +49,7 @@ export const EVENT_NAMES = {
   "mission.fail": true,
   "mission.retry": true,
   "mission.abandon": true,
+  "mission.trigger": true,
   "sim.loop.overrun": true,
   "sim.traffic.spawn": true,
   "sim.ped.spawn": true,

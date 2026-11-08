@@ -5,6 +5,7 @@
 
 import type { Weather } from "../store";
 import { emitTelemetry } from "../telemetry/schema";
+import { rng } from "./Rng";
 
 export type Surface =
   | "asphalt"
@@ -113,6 +114,24 @@ export class ClockWeather {
     const next = CYCLE[(i + 1) % CYCLE.length];
     this.setWeather(next, 0.6);
     return next;
+  }
+
+  /** §1.4.15 Deterministic weather pick from weather RNG stream. */
+  rollWeather(blendSec = 0.8): WeatherKind {
+    const next = rng.stream("weather").pick(CYCLE);
+    this.setWeather(next, blendSec);
+    return next;
+  }
+
+  /** §1.4.16 Telemetry snapshot. */
+  telemetrySample(surface: Surface = "asphalt"): Record<string, unknown> {
+    return {
+      weather: this.weather,
+      wetness: this.wetness,
+      friction: this.friction(surface),
+      night: this.nightFactor,
+      wind: { ...this.wind },
+    };
   }
 
   friction(surface: Surface = "asphalt"): number {
