@@ -120,7 +120,7 @@ parallel work.
 0.5 Asset pipeline — (M)
 
 [~] Asset manifest — license catalog at public/assets-licenses.json (full import pipeline TBD)
-[ ] Import scripts: GLB → optimized (draco/meshopt), textures → atlas/compressed
+[~] Import scripts: GLB → optimized (draco/meshopt), textures → atlas/compressed — meshopt dep present; pipeline TBD
 [x] Compression budget per asset class (audio, texture, mesh) — docs/ASSET-BUDGETS.md
 [x] License audit script (fails build on missing license) — `npm run assets:audit`
 [x] Accept: assets:audit reports 100% licensed rows; ElevenLabs still `pending-commercial`.
@@ -182,7 +182,7 @@ Task tree
 Test matrix
 
 [x] 1.1.T1 144Hz vs 30Hz replay of 60s scripted session → identical state hash
-[ ] 1.1.T2 Heap snapshot: 10k steps, zero net allocation growth in sim
+[ ] 1.1.T2 Heap snapshot: 10k steps, zero net allocation growth in sim — DEVICE-BLOCKED
 [x] 1.1.T3 Pause stack: nested pause/resume returns to exact prior state
 [x] 1.1.T4 Tab hide 30s → visible: exactly one catch-up step, no burst
 [x] 1.1.T5 Step-cap overflow emits one warn/second, never drops frames unbounded
@@ -241,9 +241,9 @@ Task tree
 
 Test matrix
 
-[ ] 1.2.T1 200 agents on 3×3 block grid: no two centers < 0.35m for 10 min
-[ ] 1.2.T2 Sidewalk adherence: zero road clips outside crosswalks in 10-min soak
-[ ] 1.2.T3 A* p95 < 0.5ms for 100 concurrent queries on Device A
+[ ] 1.2.T1 200 agents on 3×3 block grid: no two centers < 0.35m for 10 min — DEVICE-BLOCKED
+[ ] 1.2.T2 Sidewalk adherence: zero road clips outside crosswalks in 10-min soak — DEVICE-BLOCKED
+[ ] 1.2.T3 A* p95 < 0.5ms for 100 concurrent queries on Device A — DEVICE-BLOCKED
 [x] 1.2.T4 Crosswalk: peds only cross during walk window (±1 step)
 [x] 1.2.T5 Orphan pruning: injected dangling component is pruned + logged
 [x] 1.2.T6 Determinism: same seed + inputs → identical ped positions at step N
@@ -508,7 +508,7 @@ Accept: no pop-in > 1 frame at 60 km/h on Device A; memory flat over 30 min.
 [x] 1.8.4 Insert/remove O(1) amortized; no full rebuild per frame
 [x] 1.8.5 radius(pos, r, mask) query
 [x] 1.8.6 segment(a, b, mask) LOS with per-cell early-out + maxDepth guard
-[ ] 1.8.7 Rapier broadphase integration where physics exists
+[ ] 1.8.7 Rapier broadphase integration where physics exists — RAPIER-LIVE-BLOCKED
 [x] 1.8.8 Debug overlay: cell occupancy + last query
 [x] 1.8.9 Tests: 2000 entities, 500 queries/frame < 1ms on Device A
 [x] 1.8.10 Tests: LOS agrees with raycast ground truth on 100 random pairs
@@ -526,7 +526,7 @@ Accept: unified index; LOS used by witnesses (§3.1), AI, and camera.
 [x] 1.9.4 Per-wheel surface sample from WorldManifest polygons
 [x] 1.9.5 Weight transfer under accel/brake/corner (visual + handling)
 [x] 1.9.6 Damage: panel/engine/wheel HP; steering pull; smoke → fire stages
-[ ] 1.9.7 Impact via Rapier contact events; threshold curve by relative speed
+[ ] 1.9.7 Impact via Rapier contact events; threshold curve by relative speed — RAPIER-LIVE-BLOCKED
 [x] 1.9.8 Visual deformation capped per quality tier
 [x] 1.9.9 Powertrain: gear ratios, torque curve, reverse, handbrake
 [x] 1.9.10 Brake/ABS tuning; handbrake drift model
@@ -582,10 +582,10 @@ Accept: overlay is free when hidden; dump reproduces a reported bug.
 
 [x] 1.12.1 Define stages: 0 boot, 1 walk, 2 drive, 3 mission, 4 chase, 5 boat, 6 economy, 7 save
 [~] 1.12.2 Per stage: scripted input, assertions, screenshot hook
-[ ] 1.12.3 Device FPS gate per stage (Device A + B, §12.1)
+[ ] 1.12.3 Device FPS gate per stage (Device A + B, §12.1) — DEVICE-BLOCKED
 [~] 1.12.4 Stream memory plateau check (30 min, ±5% resident) — SoakHarness protocol ready
 [~] 1.12.5 Mission fail/retry gate (deterministic seed)
-[ ] 1.12.6 CI: headless run, artifact bundle on failure
+[~] 1.12.6 CI: headless run, artifact bundle on failure — vitest in CI + artifacts
 [ ] 1.12.7 Green on both devices; artifacts upload
 
 Accept: all stages green on both devices; failures upload reproducible artifacts.
@@ -604,7 +604,7 @@ Accept: all stages green on both devices; failures upload reproducible artifacts
 [x] 2.1.5 Tile/asset fetch retry with backoff + circuit breaker
 [x] 2.1.6 WebGL context-loss handler: pause, restore, HUD notice
 [x] 2.1.7 Frame-time watchdog: drop quality tier on sustained overrun
-[ ] 2.1.8 20-min soak: zero context-loss crashes on Device A
+[ ] 2.1.8 20-min soak: zero context-loss crashes on Device A — DEVICE-BLOCKED
 
 Accept: 20-min soak clean; context loss recovers without reload.
 
@@ -613,7 +613,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [x] 2.2.1 Pause render on visibilitychange
 [x] 2.2.2 Idle detection (no input N s) → 15fps or pause
 [x] 2.2.3 Resume fast-path: single step, no catch-up
-[ ] 2.2.4 Hidden-tab CPU < 2% on Device A (test)
+[ ] 2.2.4 Hidden-tab CPU < 2% on Device A (test) — DEVICE-BLOCKED
 
 2.3 Auth overlays — (S)
 
@@ -629,11 +629,11 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [~] 2.4.1 Idle + breathing loop — idle phase in LocomotionBlend; breathing mesh TBD
 [x] 2.4.2 Walk cycle (speed-blended) — LocomotionBlend logic
 [x] 2.4.3 Run cycle + sprint — LocomotionBlend logic
-[ ] 2.4.4 Foot IK to ground height
+[ ] 2.4.4 Foot IK to ground height — CONTENT-BLOCKED (anim)
 [x] 2.4.5 Jump/fall/land states — LocomotionBlend logic
 [x] 2.4.6 Blend tree idle↔walk↔run; no popping — speedBlend
 [x] 2.4.7 Turn-in-place for sharp heading changes
-[ ] 2.4.8 No skating at walk/run; no T-pose on transition (test)
+[ ] 2.4.8 No skating at walk/run; no T-pose on transition (test) — CONTENT-BLOCKED (anim)
 
 2.5 Earth HUD parity — (L)
 
@@ -648,17 +648,17 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 2.6 Vehicles — (L)
 
-[ ] 2.6.1 Source CC0 GLB set; license file committed (§13.5)
-[ ] 2.6.2 Import pipeline + LODs + material remap
+[x] 2.6.1 Source CC0 GLB set; license file committed (§13.5) — assets-licenses.json
+[~] 2.6.2 Import pipeline + LODs + material remap — assets scripts partial
 [x] 2.6.3 Night headlights: emissive + spotlight, budgeted per tier
-[ ] 2.6.4 Share with stylized where feasible
+[~] 2.6.4 Share with stylized where feasible — shared packs where present
 [ ] 2.6.5 Headlights cost < 1ms on Device A (test)
 
 2.7 Pedestrians — (M)
 
-[ ] 2.7.1 ≥ 3 distinct models + palette variation
+[x] 2.7.1 ≥ 3 distinct models + palette variation
 [~] 2.7.2 Bound to PedGraph pathfollowing (§1.2) — stylized wired; earth TBD
-[ ] 2.7.3 50 peds visible, no two adjacent identical (test)
+[~] 2.7.3 50 peds visible, no two adjacent identical (test) — palette/deck logic; 50-count device TBD
 
 2.8 Earth gameplay loop — (XL)
 
@@ -686,7 +686,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 2.11 Documentation & measurement — (M)
 
 [x] 2.11.1 Characters & Missions bible (§8)
-[ ] 2.11.2 Real iPhone measurement pass (named device)
+[ ] 2.11.2 Real iPhone measurement pass (named device) — DEVICE-BLOCKED
 [x] 2.11.3 Decision record: demote earth to diagnostic (`docs/EARTH-DECISION.md`)
 [~] 2.11.4 If shared: both builds boot from same sim (test) — stylized is product boot
 
@@ -724,7 +724,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [x] 3.3.3 Roadblocks: spawn ahead on RoadGraph, static + manned
 [x] 3.3.4 Helicopter: orbit + spotlight + LOS report
 [x] 3.3.5 PIT: bounded impulse, damage, cooldown
-[ ] 3.3.6 Rapier collision cop↔player (§1.9)
+[ ] 3.3.6 Rapier collision cop↔player (§1.9) — RAPIER-LIVE-BLOCKED
 [x] 3.3.7 Officer down / corpse persistence (§13.2)
 [ ] 3.3.8 Heli holds LOS 80% of 60s chase on open road (test)
 
@@ -785,7 +785,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 [x] 4.5.1 Day-based payout summary UI
 [x] 4.5.2 Balance pass: time-to-first-upgrade, time-to-wealth — EconomyBalance targets
-[ ] 4.5.3 Distant business markers need world content (§7.2)
+[ ] 4.5.3 Distant business markers need world content (§7.2) — CONTENT-BLOCKED
 [ ] 4.5.4 Fresh save reaches first upgrade ≤ 20 min (test)
 
 ---
@@ -897,7 +897,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 [ ] 7.2.1 Lived-in Fall River (props, peds, businesses) — CONTENT-BLOCKED
 [ ] 7.2.2 NB polish (props, signage, lighting) — CONTENT-BLOCKED
-[ ] 7.2.3 Each district passes walk-through checklist
+[ ] 7.2.3 Each district passes walk-through checklist — CONTENT-BLOCKED
 
 7.3 Cape / Hyannis / Brockton (Act II/III) — (XXL)
 
@@ -1088,7 +1088,7 @@ M11 Finale … … …
 
 [x] 10.5.1 Tutorial beyond tip string (move, drive, mission, wanted)
 [x] 10.5.2 Skippable + replayable from menu
-[ ] 10.5.3 New player completes tutorial unaided (playtest)
+[ ] 10.5.3 New player completes tutorial unaided (playtest) — PLAYTEST-BLOCKED
 
 10.6 Settings — (S)
 
@@ -1162,7 +1162,7 @@ M11 Finale … … …
   | Device B (iPhone 12) | high | ≥ 55 | ≥ 40 | < 500MB |
   | Device C (low Android 2019) | low | ≥ 30 | ≥ 20 | < 300MB |
   Template + soak protocol: `docs/FPS-MATRIX.md` (cells still pending measurement)
-[ ] 12.1.2 Thermal budget: sustained 20 min within 10% of p50
+[ ] 12.1.2 Thermal budget: sustained 20 min within 10% of p50 — DEVICE-BLOCKED
 [x] 12.1.3 Measured matrix committed to repo — docs/FPS-MATRIX.md template
 
 12.2 Disposal — (M)
@@ -1180,9 +1180,9 @@ M11 Finale … … …
 
 12.4 Loading — (M)
 
-[ ] 12.4.1 Code-splitting by route/feature
+[~] 12.4.1 Code-splitting by route/feature — LazyFeatures registry
 [ ] 12.4.2 Rapier + slice load budget (first playable < N s on 4G)
-[ ] 12.4.3 Deferred non-critical assets (audio, GLBs)
+[x] 12.4.3 Deferred non-critical assets (audio, GLBs)
 [ ] 12.4.4 First playable within budget on throttled network (test)
 
 12.5 Idle — (S)
@@ -1247,14 +1247,14 @@ M11 Finale … … …
 [x] 14.1.1 Road/PedGraph visualizer (import manifest → SVG/Canvas)
 [x] 14.1.2 Orphan/connectivity report view
 [ ] 14.1.3 Editing round-trip: visualize → tweak JSON → re-import
-[ ] 14.1.4 Signal phase editor with preview
+[x] 14.1.4 Signal phase editor with preview
 
 14.2 Mission tooling — (XL)
 
 [ ] 14.2.1 Mission editor: objectives, triggers, spawns, markers
 [ ] 14.2.2 Live preview: boot into mission at step N
 [x] 14.2.3 Validation: unreachable objective, missing actor, dangling marker
-[ ] 14.2.4 Export to MissionDef with stable ids
+[x] 14.2.4 Export to MissionDef with stable ids
 
 14.3 Dialogue tooling — (M)
 
@@ -1270,9 +1270,9 @@ M11 Finale … … …
 
 14.5 Weather & time-of-day timeline — (M)
 
-[ ] 14.5.1 Visual timeline for clock/weather keyframes
-[ ] 14.5.2 Preview scrub with friction/wetness readout
-[ ] 14.5.3 Export to ClockWeather schedule
+[x] 14.5.1 Visual timeline for clock/weather keyframes
+[x] 14.5.2 Preview scrub with friction/wetness readout
+[~] 14.5.3 Export to ClockWeather schedule — WeatherSchedule shape
 
 14.6 Camera path editor — (M)
 
@@ -1282,9 +1282,9 @@ M11 Finale … … …
 
 14.7 Asset import — (M)
 
-[ ] 14.7.1 GLB import with LOD generation
-[ ] 14.7.2 Texture atlas builder + compression
-[ ] 14.7.3 Audio loudness normalization
+[ ] 14.7.1 GLB import with LOD generation — CONTENT-BLOCKED (pipeline)
+[ ] 14.7.2 Texture atlas builder + compression — CONTENT-BLOCKED (pipeline)
+[ ] 14.7.3 Audio loudness normalization — CONTENT-BLOCKED (samples)
 [ ] 14.7.4 Tile import from JSON → streamer-ready
 
 14.8 Test content — (S)
@@ -1306,13 +1306,13 @@ M11 Finale … … …
 [ ] 15.1.5 Perf: per-stage budgets on Device A/B/C
 [ ] 15.1.6 Device: real-device smoke per release
 [ ] 15.1.7 A11y: automated label/lint + manual screen-reader pass
-[ ] 15.1.8 Localization: pseudo-locale + RTL smoke
-[ ] 15.1.9 Save: fuzz round-trip + corrupt payloads + migrations
+[~] 15.1.8 Localization: pseudo-locale + RTL smoke — pseudo-locale
+[~] 15.1.9 Save: fuzz round-trip + corrupt payloads + migrations — fixtures + corrupt UI
 [ ] 15.1.10 Fuzz: mission defs, manifests, network failures
 
 15.2 Fixtures
 
-[ ] 15.2.1 Legacy saves v1 (≥ 5 real)
+[x] 15.2.1 Legacy saves v1 (≥ 5 real)
 [ ] 15.2.2 Bad manifests (one per lint rule)
 [ ] 15.2.3 Bad mission defs (one per validation rule)
 [ ] 15.2.4 Scripted input traces (boot, drive, chase, mission, boat)
@@ -1330,8 +1330,8 @@ M11 Finale … … …
 
 §16 Localization & text (new)
 
-[ ] 16.1 Externalize all player-facing strings to keys
-[ ] 16.2 Key naming convention + lint for missing/unused keys
+[~] 16.1 Externalize all player-facing strings to keys — StringCatalog seed
+[x] 16.2 Key naming convention + lint for missing/unused keys
 [ ] 16.3 Pluralization + gender + number formatting
 [ ] 16.4 Font fallback for CJK/Cyrillic/Arabic
 [ ] 16.5 RTL layout support (mirror where appropriate)

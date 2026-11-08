@@ -458,3 +458,18 @@ export { subtitleWindows, exportVoManifest } from "./DialogueEditor";
 export type { DialogueLineEdit } from "./DialogueEditor";
 export { rubberBandRate, validateRaceEdit } from "./RaceEditor";
 export type { RaceEdit } from "./RaceEditor";
+export { sampleSchedule, frictionFromWetness } from "./WeatherTimeline";
+export type { WeatherKeyframe, WeatherSchedule } from "./WeatherTimeline";
+export { exportMissionDef } from "./MissionDefExport";
+export { previewSignalPhases } from "./SignalPhaseEditor";
+export type { PhasePreview } from "./SignalPhaseEditor";
+export {
+  markFeatureLoaded,
+  isFeatureLoaded,
+  DEFERRED_GROUPS,
+  bootCriticalOnly,
+} from "./LazyFeatures";
+export type { FeatureId } from "./LazyFeatures";
+export { toPseudoLocale, missingKeys } from "./PseudoLocale";
+export { STRINGS, t, unusedKeys } from "./StringCatalog";
+export { PED_PALETTES, paletteForIndex, adjacentDistinct } from "./PedPalette";

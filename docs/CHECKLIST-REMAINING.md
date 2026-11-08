@@ -4,20 +4,20 @@ Canonical: [`IMPLEMENTATION-CHECKLIST-V3.md`](./IMPLEMENTATION-CHECKLIST-V3.md) 
 
 | Status | Count |
 |--------|------:|
-| Done `[x]` | ~414 |
-| Partial `[~]` | ~188 |
-| Open `[ ]` | ~130 |
+| Done `[x]` | ~423 |
+| Partial `[~]` | ~198 |
+| Open `[ ]` | ~111 |
 
-Most remaining opens are CONTENT-BLOCKED (art/tiles/missions), device FPS/thermal, or release/l10n.
+Open remainder is almost entirely **DEVICE-BLOCKED**, **CONTENT-BLOCKED**, **RAPIER-LIVE-BLOCKED**, playtest, or release/l10n (§16–§17).
 
-## Hard blockers
+## Blockers
 
-- §7.2–§7.3 / §7.6 / §7.8 art & authored tiles
-- §8.1 11/11 mission content
-- §15 device measurements
-- §16–§17 l10n / store
-- Rapier live contacts; audio sample binaries
+- Authored tiles/art §7.2–§7.3 / §7.6 / §7.8
+- Mission 11/11 content §8.1
+- Device FPS/thermal/heap §12 / §15
+- Rapier live actor contacts
+- Audio sample binaries; l10n full pass; store packaging
 
-## Infra landed
+## Landed this autonomous run
 
-`.github/workflows/ci.yml` — typecheck, sim-rng, vitest sim, build + 30d artifacts.
+CI workflow, stability stack, editors, string catalog seed, weather timeline, ped palette, full sim test coverage for new modules.

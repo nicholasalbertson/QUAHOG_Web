@@ -96,6 +96,13 @@ import { displayName, namingConsistent } from "../../sim/PackageNaming";
 import { allocHit, allocReport, resetAllocAudit } from "../../sim/AllocAudit";
 import { subtitleWindows, exportVoManifest } from "../../sim/DialogueEditor";
 import { rubberBandRate, validateRaceEdit } from "../../sim/RaceEditor";
+import { sampleSchedule, frictionFromWetness } from "../../sim/WeatherTimeline";
+import { exportMissionDef } from "../../sim/MissionDefExport";
+import { previewSignalPhases } from "../../sim/SignalPhaseEditor";
+import { bootCriticalOnly, markFeatureLoaded, isFeatureLoaded } from "../../sim/LazyFeatures";
+import { toPseudoLocale, missingKeys } from "../../sim/PseudoLocale";
+import { t, STRINGS, unusedKeys } from "../../sim/StringCatalog";
+import { adjacentDistinct, paletteForIndex } from "../../sim/PedPalette";
 
 function sampleManifest(): WorldManifest {
   return {
@@ -656,5 +663,31 @@ describe("checklist stability + manifest deepen", () => {
     expect(exportVoManifest(lines)).toHaveLength(2);
     expect(validateRaceEdit({ id: "r", name: "R", classLock: "car", laps: 2, checkpoints: [{ x: 0, z: 0 }, { x: 1, z: 1 }], rubberCurve: [1, 0.8, 1.2] })).toEqual([]);
     expect(rubberBandRate([1, 1.2], 0.5)).toBeGreaterThan(0);
+  });
+
+  it("§14.5 weather timeline + §14.2 export + §16 strings + §2.7 palette", () => {
+    const sch = sampleSchedule(
+      { day: 1, keys: [{ hour: 6, weather: "clear", wetness: 0 }, { hour: 14, weather: "rain", wetness: 0.7 }] },
+      15,
+    );
+    expect(sch.weather).toBe("rain");
+    expect(frictionFromWetness(0.7)).toBeLessThan(1);
+    const ex = exportMissionDef({
+      id: "m1",
+      steps: [{ id: "s0", objective: "Go" }],
+      markers: [],
+      actors: [],
+    });
+    expect(ex.ok).toBe(true);
+    expect(previewSignalPhases(5).length).toBeGreaterThan(5);
+    markFeatureLoaded("radio");
+    expect(isFeatureLoaded("radio")).toBe(true);
+    expect(bootCriticalOnly()).toContain("hud-core");
+    expect(toPseudoLocale("Hello")).toMatch(/⟦/);
+    expect(missingKeys(["nope"], STRINGS)).toEqual(["nope"]);
+    expect(t("menu.pause")).toBe("Paused");
+    expect(unusedKeys(STRINGS, Object.keys(STRINGS))).toEqual([]);
+    expect(paletteForIndex(0).id).not.toBe(paletteForIndex(1).id);
+    expect(adjacentDistinct(9)).toBe(true);
   });
 });
