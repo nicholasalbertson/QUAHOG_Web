@@ -170,10 +170,46 @@ export class PedGraph {
 
   /** Mark highly-connected stitch nodes as crosswalks (§1.2.4). */
   private tagJunctionCrosswalks(): void {
+    let sig = 0;
     for (const n of this.nodes) {
       const deg = this.adjacency.get(n.id)?.length ?? 0;
-      if (deg >= 5) n.kind = "crosswalk";
+      if (deg >= 5) {
+        n.kind = "crosswalk";
+        // §1.2.5 Metadata placeholder until authored signal ids land.
+        n.signalId = n.signalId ?? `auto-sig-${sig++}`;
+      }
     }
+  }
+
+  /** §1.2.5 Attach signal ids from WorldManifest signals (nearest). */
+  bindSignals(signals: { id: string; x: number; z: number }[]): number {
+    let bound = 0;
+    for (const n of this.nodes) {
+      if (n.kind !== "crosswalk") continue;
+      let best: string | null = null;
+      let bestD = 40 * 40;
+      for (const s of signals) {
+        const d = (s.x - n.x) ** 2 + (s.z - n.z) ** 2;
+        if (d < bestD) {
+          bestD = d;
+          best = s.id;
+        }
+      }
+      if (best) {
+        n.signalId = best;
+        bound++;
+      }
+    }
+    return bound;
+  }
+
+  /** §1.2.8 Stairs/ramp edge when node y differs. */
+  addRampEdge(from: number, to: number, length: number, dy: number): void {
+    this.addEdge(from, to, length);
+    const e = this.edges[this.edges.length - 1];
+    if (e) e.dy = dy;
+    const rev = this.edges.find((x) => x.from === to && x.to === from);
+    if (rev) rev.dy = -dy;
   }
 
   /**

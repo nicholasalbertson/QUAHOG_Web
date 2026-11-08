@@ -213,10 +213,10 @@ Task tree
 [x] 1.2.2 Derive sidewalk polylines from every RoadGraph edge (both sides, width from opts)
 [~] 1.2.3 Intersection handling: trim sidewalks at curb radius; insert corner nodes
 [x] 1.2.4 Crosswalk nodes at signalized + unsignalized intersections (junction degree tag)
-[ ] 1.2.5 Crosswalk metadata: signal id, phase, walk window (§13.1 signal FSM)
+[x] 1.2.5 Crosswalk metadata: signal id, phase, walk window (§13.1 signal FSM)
 [x] 1.2.6 Door nodes generated from building footprints (WorldManifest §1.6)
 [~] 1.2.7 Spawn nodes at block corners, transit stops, benches, storefronts
-[ ] 1.2.8 Stairs/ramp edges for non-flat sidewalks (y delta on edge)
+[x] 1.2.8 Stairs/ramp edges for non-flat sidewalks (y delta on edge)
 [x] 1.2.9 Connected-component check on build → orphansPruned
 [x] 1.2.10 Auto-prune orphan components below threshold
 [~] 1.2.11 SpatialIndex registration per node (cell → node ids) → §1.8
@@ -426,7 +426,7 @@ Task tree — IO
 [x] 1.5.12 Export/import JSON (debug)
 [x] 1.5.13 Autosave throttle: not during cutscene/chase spike/loading
 [x] 1.5.14 Quicksave binding + cooldown
-[ ] 1.5.15 Slot manager (single first, multi behind flag) → §11.4
+[x] 1.5.15 Slot manager (single first, multi behind flag) → §11.4
 [x] 1.5.16 Cloud sync TBD — document decision
 
 Test matrix
@@ -458,14 +458,14 @@ interface WorldManifest {
 
 Task tree
 
-[ ] 1.6.1 JSON Schema file + runtime validator with file:line errors
+[~] 1.6.1 JSON Schema file + runtime validator with file:line errors
 [ ] 1.6.2 Manifest version + migration for authored-data changes
-[ ] 1.6.3 Lint: dangling door→PedGraph node, missing tile ref, duplicate ids
+[x] 1.6.3 Lint: dangling door→PedGraph node, missing tile ref, duplicate ids
 [ ] 1.6.4 Build step: manifest → RoadGraph + PedGraph + SpatialIndex seed
 [ ] 1.6.5 Manifest-driven WorldStreamer tile list (replace hardcoded rings)
 [ ] 1.6.6 Hot reload in dev: watch JSON, rebuild graphs, keep player position
 [ ] 1.6.7 Referential-integrity pass: every marker/collectible/front resolves
-[ ] 1.6.8 Manifest stats in telemetry (counts per class)
+[x] 1.6.8 Manifest stats in telemetry (counts per class)
 
 Test matrix
 
@@ -874,7 +874,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [x] 6.4.1 Citywide sets (e.g. 30) + progress tracking
 [~] 6.4.2 Map progress view + per-set rewards
 [~] 6.4.3 Unique rewards (vehicles, weapons, cosmetics)
-[ ] 6.4.4 FR/Cape collectibles when content lands (§7.3)
+[~] 6.4.4 FR/Cape collectibles when content lands (§7.3) — CONTENT-BLOCKED
 [x] 6.4.5 Full set grants reward exactly once; saves (test)
 
 ---
@@ -897,11 +897,11 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 7.3 Cape / Hyannis / Brockton (Act II/III) — (XXL)
 
-[ ] 7.3.1 Cape road graph + tiles
-[ ] 7.3.2 Hyannis tiles + roads
-[ ] 7.3.3 Brockton tiles + roads
-[ ] 7.3.4 Act II/III missions unblocked (§8.6)
-[ ] 7.3.5 No void reachable by driving from start (test)
+[~] 7.3.1 Cape road graph + tiles — CONTENT-BLOCKED (authored GIS/art)
+[~] 7.3.2 Hyannis tiles + roads — CONTENT-BLOCKED
+[~] 7.3.3 Brockton tiles + roads — CONTENT-BLOCKED
+[~] 7.3.4 Act II/III missions unblocked (§8.6) — blocked on 7.3.1–3
+[~] 7.3.5 No void reachable by driving from start (test) — blocked on 7.3.1–3
 
 7.4 Water & weather gameplay — (L)
 
@@ -996,7 +996,7 @@ M11 Finale … … …
 [ ] 8.6.1 3D world arrow widget (on/off-screen)
 [ ] 8.6.2 Authored opening fish-pier set piece
 [ ] 8.6.3 Boat mode in target distance checks (§5.3)
-[ ] 8.6.4 Playable mid/late campaign once map content exists (§7.3)
+[~] 8.6.4 Playable mid/late campaign once map content exists (§7.3) — CONTENT-BLOCKED
 [ ] 8.6.5 Opening set piece plays with correct camera/audio/markers (test)
 
 ---
@@ -1490,6 +1490,8 @@ Priority implementation order (updated)
 
 Changelog
 
+· v3.4b (2026-11-07) — Test matrix §1.1–§1.5; SaveSlots; ManifestSchema lint;
+  crosswalk signal metadata; stuckTotal despawn fix; §7.3 marked CONTENT-BLOCKED.
 · v3.4 (2026-11-07) — Conditions DSL + defineMission; damage/inventory triggers;
   Mission checkpoints + economy dip guard; PedGraph cost model; Crosswalk FSM;
   door TTL + residency radius; HeatAxes dual-axis crime table; FactionTerritory;

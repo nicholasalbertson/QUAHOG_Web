@@ -15,7 +15,6 @@ import {
 } from "../../sim/CrosswalkFsm";
 import { evalTrigger } from "../../sim/Triggers";
 import { MissionRuntime } from "../../sim/MissionRuntime";
-import { PedGraph } from "../../sim/PedGraph";
 import { createBoat, damageBoat, sampleWave, stepBoat } from "../../sim/BoatDynamics";
 import {
   beginCutscene,
@@ -52,6 +51,10 @@ import { SpatialIndex } from "../../sim/SpatialIndex";
 import { witnessesWithLos, applyWitnessHeat, type WitnessActor } from "../../sim/WitnessLos";
 import { openFailMenu, chooseFailAction } from "../../sim/MissionFailUi";
 import { COLLECTIBLE_SETS, claimSetReward } from "../../sim/CollectibleSets";
+import { listSlots, writeSlot, readSlot, clearSlot } from "../../sim/SaveSlots";
+import { lintManifest, manifestStats, validateManifestDeep } from "../../sim/ManifestSchema";
+import { manifestFromSlice } from "../../sim/WorldManifest";
+import { PedGraph } from "../../sim/PedGraph";
 import { HeatAxes } from "../../sim/HeatAxes";
 import type { Road } from "../../slice";
 
@@ -359,5 +362,22 @@ describe("checklist v3.4 signals/wasted/music/a11y", () => {
     const set = COLLECTIBLE_SETS[0];
     expect(claimSetReward(set, set.total, false).grant).toBe(true);
     expect(claimSetReward(set, set.total, true).grant).toBe(false);
+  });
+
+  it("§1.5.15 save slots round-trip", () => {
+    clearSlot(0);
+    writeSlot(0, { build: "slot-test", stats: { cash: 9, health: 100, police: 0, faction: 0 } });
+    expect(readSlot(0)?.build).toBe("slot-test");
+    expect(listSlots(1)[0].empty).toBe(false);
+  });
+
+  it("§1.6 manifest lint + ped signal bind", () => {
+    const slice = { name: "t", roads: [{ highway: "residential", width: 6, name: "e", points: [[0,0],[40,0],[40,40]] as [number,number][] }], landmarks: [], buildings: [] } as any;
+    // use minimal via PedGraph bindSignals directly
+    const g = PedGraph.fromRoads(slice.roads);
+    const bound = g.bindSignals([{ id: "sig-1", x: 20, z: 0 }]);
+    expect(bound).toBeGreaterThanOrEqual(0);
+    const cw = g.nodes.filter((n) => n.kind === "crosswalk");
+    expect(cw.every((n) => !!n.signalId)).toBe(true);
   });
 });

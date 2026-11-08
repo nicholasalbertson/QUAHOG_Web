@@ -113,6 +113,16 @@ export { openFailMenu, chooseFailAction } from "./MissionFailUi";
 export type { FailMenuAction, FailMenuState } from "./MissionFailUi";
 export { COLLECTIBLE_SETS, progressFor, claimSetReward } from "./CollectibleSets";
 export type { CollectibleSet, SetProgress } from "./CollectibleSets";
+export {
+  listSlots,
+  writeSlot,
+  readSlot,
+  clearSlot,
+  ensurePrimarySlot,
+} from "./SaveSlots";
+export type { SaveSlotMeta } from "./SaveSlots";
+export { lintManifest, validateManifestDeep, manifestStats } from "./ManifestSchema";
+export type { ManifestLintIssue } from "./ManifestSchema";
 export { GameLoop } from "./GameLoop";
 export type { LoopPhase, PauseSource, LoopStats } from "./GameLoop";
 export { Rng, RngService, rng } from "./Rng";
