@@ -75,13 +75,13 @@ parallel work.
 
 0.1 Repo & tooling — (M)
 
-[ ] tsconfig strict: strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes
+[~] tsconfig strict: strict on; noUncheckedIndexedAccess/exactOptionalPropertyTypes deferred (repo-wide blast radius)
 [ ] ESLint rules: no floating promises, no any in src/sim, import order
-[ ] Prettier + format-on-save config committed
+[x] Prettier + format-on-save config committed
 [ ] Pre-commit hook: typecheck + lint on staged files
 [ ] CI stages: install → typecheck → lint → unit → build → integration → perf-smoke
 [ ] CI artifact retention: test reports + perf traces on failure (30 days)
-[ ] Path aliases (@sim, @ui, @content) with single source of truth
+[x] Path aliases (@sim, @ui, @content) with single source of truth
 [ ] Dev server with HMR; HMR preserves sim state where safe
 [ ] Storybook-equivalent harness for HUD components (hud-harness.html)
 [ ] Accept: pnpm ci green on a clean clone; HMR reload < 300ms.

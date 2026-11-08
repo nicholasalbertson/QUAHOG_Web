@@ -15,7 +15,13 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@sim/*": ["src/sim/*"],
+      "@ui/*": ["src/ui/*"],
+      "@content/*": ["src/content/*"]
+    }
   },
   "include": ["src"]
 }
