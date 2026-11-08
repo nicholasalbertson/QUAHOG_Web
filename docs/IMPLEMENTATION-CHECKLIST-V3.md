@@ -520,12 +520,12 @@ Accept: unified index; LOS used by witnesses (§3.1), AI, and camera.
 [x] 1.9.2 Tire model: slip ratio/angle; longitudinal vs lateral grip split
 [~] 1.9.3 Surface friction table fed by ClockWeather.friction() (§1.4)
 [ ] 1.9.4 Per-wheel surface sample from WorldManifest polygons
-[ ] 1.9.5 Weight transfer under accel/brake/corner (visual + handling)
+[x] 1.9.5 Weight transfer under accel/brake/corner (visual + handling)
 [x] 1.9.6 Damage: panel/engine/wheel HP; steering pull; smoke → fire stages
 [ ] 1.9.7 Impact via Rapier contact events; threshold curve by relative speed
 [ ] 1.9.8 Visual deformation capped per quality tier
 [x] 1.9.9 Powertrain: gear ratios, torque curve, reverse, handbrake
-[~] 1.9.10 Brake/ABS tuning; handbrake drift model
+[x] 1.9.10 Brake/ABS tuning; handbrake drift model
 [ ] 1.9.11 Bike/motorcycle variant (if content exists; else TBD)
 [ ] 1.9.12 Boat coupling → §5.3
 [ ] 1.9.13 AI drivers share controller via TrafficDirector
@@ -719,7 +719,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [ ] 3.3.2 Road cops: polish ChaseController
 [ ] 3.3.3 Roadblocks: spawn ahead on RoadGraph, static + manned
 [ ] 3.3.4 Helicopter: orbit + spotlight + LOS report
-[ ] 3.3.5 PIT: bounded impulse, damage, cooldown
+[x] 3.3.5 PIT: bounded impulse, damage, cooldown
 [ ] 3.3.6 Rapier collision cop↔player (§1.9)
 [ ] 3.3.7 Officer down / corpse persistence (§13.2)
 [ ] 3.3.8 Heli holds LOS 80% of 60s chase on open road (test)
@@ -817,7 +817,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [x] 5.3.3 Damage + sinking state
 [ ] 5.3.4 ≥ 3 boats with distinct handling
 [x] 5.3.5 Boat in Continue save (§11.2)
-[ ] 5.3.6 Swim mode (§7.4)
+[x] 5.3.6 Swim mode (§7.4)
 [~] 5.3.7 Floats, bobs, damages, sinks, persists (test)
 
 5.4 Races — (L)
