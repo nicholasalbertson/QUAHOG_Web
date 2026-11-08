@@ -4,21 +4,20 @@ Canonical: [`IMPLEMENTATION-CHECKLIST-V3.md`](./IMPLEMENTATION-CHECKLIST-V3.md) 
 
 | Status | Count |
 |--------|------:|
-| Done `[x]` | ~396 |
-| Partial `[~]` | ~183 |
-| Open `[ ]` | ~153 |
+| Done `[x]` | ~414 |
+| Partial `[~]` | ~188 |
+| Open `[ ]` | ~130 |
 
-Autonomous deepen continues; remaining opens are mostly device/content/release or Earth photoreal.
+Most remaining opens are CONTENT-BLOCKED (art/tiles/missions), device FPS/thermal, or release/l10n.
 
 ## Hard blockers
 
-- §7.2–§7.3 authored district / Cape tiles (CONTENT-BLOCKED)
-- §15 Device A/B/C measured FPS + thermal matrix
-- §16–§17 l10n / store packaging
-- §2 Earth GLB packs / soaks / Rapier contacts
-- §9.1 audio binary sample packs
-- Mission 11/11 authored completion
+- §7.2–§7.3 / §7.6 / §7.8 art & authored tiles
+- §8.1 11/11 mission content
+- §15 device measurements
+- §16–§17 l10n / store
+- Rapier live contacts; audio sample binaries
 
-## Keep shipping
+## Infra landed
 
-Wire sim → StreetLife/HUD; CI stages; honest CONTENT-BLOCKED marks.
+`.github/workflows/ci.yml` — typecheck, sim-rng, vitest sim, build + 30d artifacts.

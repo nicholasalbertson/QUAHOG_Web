@@ -445,3 +445,16 @@ export type { WaterReflectionQuality, WaterReflectionSettings } from "./WaterRef
 export { headlightBudget, useSpotlight } from "./HeadlightBudget";
 export type { HeadlightBudget } from "./HeadlightBudget";
 export { swapSlots, safeLoadSlot } from "./SaveSlotSwap";
+export { enToWorld, worldToEn, distXZ, lerpXZ } from "./Coords";
+export { assertSinglePathSource } from "./PathSource";
+export type { PathSource } from "./PathSource";
+export { graphToSvg, orphanReport } from "./GraphVisualizer";
+export { validateEditorMission } from "./MissionEditorValidate";
+export type { EditorMission } from "./MissionEditorValidate";
+export { PACKAGE_NAMES, displayName, namingConsistent } from "./PackageNaming";
+export { allocHit, allocReport, resetAllocAudit } from "./AllocAudit";
+export type { AllocProbe } from "./AllocAudit";
+export { subtitleWindows, exportVoManifest } from "./DialogueEditor";
+export type { DialogueLineEdit } from "./DialogueEditor";
+export { rubberBandRate, validateRaceEdit } from "./RaceEditor";
+export type { RaceEdit } from "./RaceEditor";

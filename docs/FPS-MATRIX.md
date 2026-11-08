@@ -29,3 +29,8 @@ Open the main game with:
 Protocol: New Game → drive a loop across the NB tile ring for 30 minutes;
 sample streamer resident MB + evict count every 5 minutes (console `[soak]` lines);
 abort on OOM or sustained &lt; 20 FPS. Device measurement still owner/device gated.
+
+## Thermal (§12.1.2)
+
+Sustained 20 min within 10% of p50 — fill after on-device soak. Matrix above is the
+committed template (§12.1.3); measured cells remain `_pending_` until Device A/B/C runs.

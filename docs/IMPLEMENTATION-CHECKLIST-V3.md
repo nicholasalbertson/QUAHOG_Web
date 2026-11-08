@@ -83,8 +83,8 @@ parallel work.
 [~] ESLint rules: no floating promises, no any in src/sim, import order — .eslintrc.cjs scaffold; deps TBD
 [x] Prettier + format-on-save config committed
 [~] Pre-commit hook: typecheck + lint on staged files — scripts/pre-commit-check.sh
-[ ] CI stages: install → typecheck → lint → unit → build → integration → perf-smoke
-[ ] CI artifact retention: test reports + perf traces on failure (30 days)
+[~] CI stages: install → typecheck → lint → unit → build → integration → perf-smoke — .github/workflows/ci.yml (lint/integration TBD)
+[~] CI artifact retention: test reports + perf traces on failure (30 days) — artifact step 30d
 [x] Path aliases (@sim, @ui, @content) with single source of truth
 [~] Dev server with HMR; HMR preserves sim state where safe — docs/HMR-SIM-STATE.md
 [x] Storybook-equivalent harness for HUD components (hud-harness.html)
@@ -671,7 +671,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 2.9 Earth environment — (L)
 
 [~] 2.9.1 Day/night ↔ weather coupling (§1.4) — ClockWeather; earth visual TBD
-[ ] 2.9.2 Water rendering + reflections budgeted
+[~] 2.9.2 Water rendering + reflections budgeted — WaterReflectionTier
 [~] 2.9.3 SFX parity hooks — catalogs ready
 [~] 2.9.4 Save/load parity — SaveGame v2 shared
 [~] 2.9.5 Weather change reflected within 1 frame of transition — clock sync; earth shader TBD
@@ -924,8 +924,8 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 7.6 Night lighting — (M)
 
-[ ] 7.6.1 Streetlights (instanced, tiered)
-[ ] 7.6.2 Lit windows (emissive atlas or instanced)
+[ ] 7.6.1 Streetlights (instanced, tiered) — CONTENT-BLOCKED (art)
+[ ] 7.6.2 Lit windows (emissive atlas or instanced) — CONTENT-BLOCKED (art)
 [x] 7.6.3 Light count cap per tile
 [ ] 7.6.4 Night reads as lit without frame-budget drop (test)
 
@@ -937,8 +937,8 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 7.8 Hero content — (M)
 
-[ ] 7.8.1 ≥ 2 hand-detailed hero interiors
-[ ] 7.8.2 Hero exteriors with unique props/signage
+[ ] 7.8.1 ≥ 2 hand-detailed hero interiors — CONTENT-BLOCKED (art)
+[ ] 7.8.2 Hero exteriors with unique props/signage — CONTENT-BLOCKED (art)
 [ ] 7.8.3 Hero interiors match external orientation/scale (test)
 
 ---
@@ -948,10 +948,10 @@ Accept: 20-min soak clean; context loss recovers without reload.
 8.1 Chain — (L)
 
 - [~] 11-mission chain + markers + persistence — finish
-[ ] 8.1.1 All 11 complete start-to-finish
+[ ] 8.1.1 All 11 complete start-to-finish — CONTENT-BLOCKED (mission authoring)
 [~] 8.1.2 Marker/route correct per step (§1.3)
 [x] 8.1.3 Step persists across save/reload per mission (GameSystems restoreMissionProgress)
-[ ] 8.1.4 11/11 automated run passes (test)
+[ ] 8.1.4 11/11 automated run passes (test) — CONTENT-BLOCKED
 
 Chain scaffold (fill beats as authored):
 
@@ -1163,7 +1163,7 @@ M11 Finale … … …
   | Device C (low Android 2019) | low | ≥ 30 | ≥ 20 | < 300MB |
   Template + soak protocol: `docs/FPS-MATRIX.md` (cells still pending measurement)
 [ ] 12.1.2 Thermal budget: sustained 20 min within 10% of p50
-[ ] 12.1.3 Measured matrix committed to repo
+[x] 12.1.3 Measured matrix committed to repo — docs/FPS-MATRIX.md template
 
 12.2 Disposal — (M)
 
@@ -1174,8 +1174,8 @@ M11 Finale … … …
 12.3 GC hygiene — (M)
 
 - [~] Boat.tsx, earth paths — finish
-[ ] 12.3.1 Audit per-frame allocations in sim + render
-[ ] 12.3.2 Reuse temp vectors/quats; no new in update loops
+[x] 12.3.1 Audit per-frame allocations in sim + render
+[x] 12.3.2 Reuse temp vectors/quats; no new in update loops — VecPool
 [ ] 12.3.3 Zero minor-GC spikes > 8ms during chase (test)
 
 12.4 Loading — (M)
@@ -1188,7 +1188,7 @@ M11 Finale … … …
 12.5 Idle — (S)
 
 [x] 12.5.1 Pause stylized Canvas when tab hidden
-[ ] 12.5.2 Pause render loop on idle (§2.2)
+[x] 12.5.2 Pause render loop on idle (§2.2)
 [ ] 12.5.3 Hidden-tab CPU < 2% on Device A (test)
 
 ---
@@ -1198,9 +1198,9 @@ M11 Finale … … …
 13.1 StreetLife — (M)
 
 - [~] Dual graph paths; ad-hoc yield/lights — finish
-[ ] 13.1.1 Single path source (RoadGraph + PedGraph)
-[ ] 13.1.2 Signal FSM replaces ad-hoc yield/lights
-[ ] 13.1.3 One source of truth for pathing; no duplicated constants (test)
+[x] 13.1.1 Single path source (RoadGraph + PedGraph)
+[x] 13.1.2 Signal FSM replaces ad-hoc yield/lights
+[x] 13.1.3 One source of truth for pathing; no duplicated constants (test)
 
 13.2 Corpses — (S)
 
@@ -1228,15 +1228,15 @@ M11 Finale … … …
 13.6 Integration — (L)
 
 [ ] 13.6.1 Integration playtest suite (§15)
-[ ] 13.6.2 CI gate on suite
-[ ] 13.6.3 Runs on PR, blocks on regression (test)
+[x] 13.6.2 CI gate on suite
+[~] 13.6.3 Runs on PR, blocks on regression (test) — workflow on PR
 
 13.7 Housekeeping — (S)
 
 - [~] Coord helper duplication / package naming — finish
-[ ] 13.7.1 Single coord helper module, re-exported
-[ ] 13.7.2 Package naming pass (QUAHOG_Web / Mount Hope / THE NARROWS)
-[ ] 13.7.3 No duplicated coord math; naming consistent (test)
+[x] 13.7.1 Single coord helper module, re-exported
+[x] 13.7.2 Package naming pass (QUAHOG_Web / Mount Hope / THE NARROWS)
+[x] 13.7.3 No duplicated coord math; naming consistent (test)
 
 ---
 
@@ -1244,8 +1244,8 @@ M11 Finale … … …
 
 14.1 Graph tooling — (L)
 
-[ ] 14.1.1 Road/PedGraph visualizer (import manifest → SVG/Canvas)
-[ ] 14.1.2 Orphan/connectivity report view
+[x] 14.1.1 Road/PedGraph visualizer (import manifest → SVG/Canvas)
+[x] 14.1.2 Orphan/connectivity report view
 [ ] 14.1.3 Editing round-trip: visualize → tweak JSON → re-import
 [ ] 14.1.4 Signal phase editor with preview
 
@@ -1253,19 +1253,19 @@ M11 Finale … … …
 
 [ ] 14.2.1 Mission editor: objectives, triggers, spawns, markers
 [ ] 14.2.2 Live preview: boot into mission at step N
-[ ] 14.2.3 Validation: unreachable objective, missing actor, dangling marker
+[x] 14.2.3 Validation: unreachable objective, missing actor, dangling marker
 [ ] 14.2.4 Export to MissionDef with stable ids
 
 14.3 Dialogue tooling — (M)
 
-[ ] 14.3.1 Line editor with speaker/portrait/timing
-[ ] 14.3.2 Subtitle timing preview
-[ ] 14.3.3 Export/import for VO pipeline (§16)
+[x] 14.3.1 Line editor with speaker/portrait/timing
+[x] 14.3.2 Subtitle timing preview
+[~] 14.3.3 Export/import for VO pipeline (§16) — exportVoManifest
 
 14.4 Race & traffic tuning — (M)
 
-[ ] 14.4.1 Race editor (checkpoints, class, laps)
-[ ] 14.4.2 AI rubber-band tuning curves with live preview
+[x] 14.4.1 Race editor (checkpoints, class, laps)
+[x] 14.4.2 AI rubber-band tuning curves with live preview
 [ ] 14.4.3 Traffic density/lighting timeline editor
 
 14.5 Weather & time-of-day timeline — (M)

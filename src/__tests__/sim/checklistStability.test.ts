@@ -86,6 +86,16 @@ import { FISH_PIER_OPENING } from "../../sim/OpeningSetPiece";
 import { waterReflectionForQuality } from "../../sim/WaterReflectionTier";
 import { headlightBudget, useSpotlight } from "../../sim/HeadlightBudget";
 import { swapSlots, safeLoadSlot } from "../../sim/SaveSlotSwap";
+import { enToWorld, worldToEn, distXZ } from "../../sim/Coords";
+import { assertSinglePathSource } from "../../sim/PathSource";
+import { RoadGraph } from "../../sim/RoadGraph";
+import { PedGraph } from "../../sim/PedGraph";
+import { graphToSvg, orphanReport } from "../../sim/GraphVisualizer";
+import { validateEditorMission } from "../../sim/MissionEditorValidate";
+import { displayName, namingConsistent } from "../../sim/PackageNaming";
+import { allocHit, allocReport, resetAllocAudit } from "../../sim/AllocAudit";
+import { subtitleWindows, exportVoManifest } from "../../sim/DialogueEditor";
+import { rubberBandRate, validateRaceEdit } from "../../sim/RaceEditor";
 
 function sampleManifest(): WorldManifest {
   return {
@@ -609,5 +619,42 @@ describe("checklist stability + manifest deepen", () => {
     expect(safeLoadSlot(store2, "b").ok).toBe(false);
     swapSlots(store2, "a", "b");
     expect(safeLoadSlot(store2, "b").ok).toBe(true);
+  });
+
+  it("§13.1/§13.7/§14.1–14.2 pathing coords visualizer editor + §12.3 alloc", () => {
+    const w = enToWorld(10, 20);
+    expect(worldToEn(w.x, w.z).n).toBe(20);
+    expect(distXZ(0, 0, 3, 4)).toBeCloseTo(5);
+    expect(assertSinglePathSource({ roads: new RoadGraph(), peds: new PedGraph(), signals: null })).toEqual([]);
+    const svg = graphToSvg(
+      [
+        { id: 0, x: 0, z: 0 },
+        { id: 1, x: 10, z: 0 },
+      ],
+      [{ from: 0, to: 1 }],
+    );
+    expect(svg).toContain("<svg");
+    expect(orphanReport([{ id: 2 }, { id: 0 }], [{ from: 0, to: 0 }]).includes(2)).toBe(true);
+    expect(
+      validateEditorMission({
+        id: "m",
+        steps: [{ id: "s0", objective: "Go", markerId: "missing" }],
+        markers: [],
+        actors: [],
+      }).some((e) => e.includes("dangling")),
+    ).toBe(true);
+    expect(displayName()).toBe("The Narrows");
+    expect(namingConsistent(["QUAHOG_Web build"]).length).toBe(1);
+    resetAllocAudit();
+    allocHit("hot");
+    expect(allocReport()[0]?.hits).toBe(1);
+    const lines = [
+      { id: "l0", speaker: "A", text: "Hi", startMs: 0, durationMs: 1000 },
+      { id: "l1", speaker: "B", text: "Yo", startMs: 1000, durationMs: 800 },
+    ];
+    expect(subtitleWindows(lines)[1]?.from).toBe(1000);
+    expect(exportVoManifest(lines)).toHaveLength(2);
+    expect(validateRaceEdit({ id: "r", name: "R", classLock: "car", laps: 2, checkpoints: [{ x: 0, z: 0 }, { x: 1, z: 1 }], rubberCurve: [1, 0.8, 1.2] })).toEqual([]);
+    expect(rubberBandRate([1, 1.2], 0.5)).toBeGreaterThan(0);
   });
 });
