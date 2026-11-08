@@ -22,6 +22,8 @@ import { emitTelemetry } from "../telemetry/schema";
 import { HeatAxes } from "./HeatAxes";
 import { LoseHeatZones } from "./LoseHeatZone";
 import { SignalNetwork } from "./SignalFsm";
+import { createTierFlash, type TierFlashState } from "./TierFlash";
+import { createRecoil, type RecoilState } from "./RecoilBloom";
 import type { CameraMode, NavGuidance, Vec2, Vec3 } from "./types";
 
 class SimRuntime {
@@ -33,6 +35,9 @@ class SimRuntime {
   readonly heat = new HeatAxes();
   readonly loseHeat = new LoseHeatZones();
   readonly signals = new SignalNetwork();
+  readonly tierFlash: TierFlashState = createTierFlash();
+  readonly recoil: RecoilState = createRecoil();
+  lastHeatStars = 0;
   readonly loop = new GameLoop({
     onOverrun: () => emitTelemetry("sim.loop.overrun", { acc: this.loop.stats.accHighWater }),
   });

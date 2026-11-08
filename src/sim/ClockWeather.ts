@@ -21,7 +21,8 @@ export type WeatherKind = Weather;
 
 const CYCLE: WeatherKind[] = ["clear", "rain", "snow", "fog"];
 
-const BASE_FRICTION: Record<Surface, number> = {
+/** §1.9.3 Surface friction table (dry baseline; ClockWeather.friction applies weather). */
+export const SURFACE_FRICTION: Record<Surface, number> = {
   asphalt: 1,
   wetAsphalt: 0.72,
   cobble: 0.88,
@@ -31,6 +32,8 @@ const BASE_FRICTION: Record<Surface, number> = {
   planks: 0.85,
   water: 0.2,
 };
+
+const BASE_FRICTION = SURFACE_FRICTION;
 
 export interface ClockWeatherSave {
   day: number;

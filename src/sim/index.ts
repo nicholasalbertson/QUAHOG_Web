@@ -66,8 +66,17 @@ export {
   speakLine,
 } from "./DialogueStub";
 export type { DialogueLine, DialogueSession } from "./DialogueStub";
-export { RACE_TRACKS, startRace, stepRace, racePosition } from "./RaceStub";
-export type { RaceTrack, RaceState, RaceOpponent } from "./RaceStub";
+export {
+  RACE_TRACKS,
+  startRace,
+  stepRace,
+  racePosition,
+  loadRaceBests,
+  recordRaceBest,
+  finishRacePersist,
+  raceBestKey,
+} from "./RaceStub";
+export type { RaceTrack, RaceState, RaceOpponent, RaceClass, RaceBestsMap } from "./RaceStub";
 export {
   createSignal,
   stepSignal,
@@ -111,8 +120,24 @@ export { witnessesWithLos, applyWitnessHeat } from "./WitnessLos";
 export type { WitnessActor } from "./WitnessLos";
 export { openFailMenu, chooseFailAction } from "./MissionFailUi";
 export type { FailMenuAction, FailMenuState } from "./MissionFailUi";
-export { COLLECTIBLE_SETS, progressFor, claimSetReward } from "./CollectibleSets";
+export { COLLECTIBLE_SETS, progressFor, claimSetReward, mapProgressRows } from "./CollectibleSets";
 export type { CollectibleSet, SetProgress } from "./CollectibleSets";
+export { escalateHeat, deescalateHeat } from "./HeatEscalation";
+export type { EscalateReason, DeescalateReason } from "./HeatEscalation";
+export { createReload, startReload, cancelReload, interruptReload, stepReload } from "./ReloadFsm";
+export type { ReloadState, ReloadPhase } from "./ReloadFsm";
+export {
+  createPickup,
+  tryCollect,
+  stepPickup,
+  applyPickupKind,
+} from "./AmmoPickup";
+export type { AmmoPickupDef, AmmoPickupRuntime, PickupKind } from "./AmmoPickup";
+export { heatChipState, heatChipLabel } from "./HeatDisplay";
+export type { HeatChip } from "./HeatDisplay";
+export { FAIL_REASONS, normalizeFailReason, failReasonLabel } from "./FailReasons";
+export type { FailReason } from "./FailReasons";
+export { syncNavFromStep } from "./MissionNavSync";
 export {
   listSlots,
   writeSlot,
@@ -220,7 +245,8 @@ export { GameLoop } from "./GameLoop";
 export type { LoopPhase, PauseSource, LoopStats } from "./GameLoop";
 export { Rng, RngService, rng } from "./Rng";
 export type { RngStream } from "./Rng";
-export { ClockWeather } from "./ClockWeather";
+export { ClockWeather, SURFACE_FRICTION } from "./ClockWeather";
+export type { Surface } from "./ClockWeather";
 export { HEAT_TIERS, heatTier, desiredCops } from "./HeatTiers";
 export { manifestFromSlice, validateManifest } from "./WorldManifest";
 export type { WorldManifest } from "./WorldManifest";

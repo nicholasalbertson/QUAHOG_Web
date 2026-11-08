@@ -42,3 +42,22 @@ export function claimSetReward(
     unlock: set.reward.unlock,
   };
 }
+
+/** §6.4.2 Map progress row for big-map / HUD. */
+export function mapProgressRows(
+  foundBySet: Record<string, number>,
+  rewarded: Record<string, boolean> = {},
+): { id: string; name: string; found: number; total: number; rewardLabel: string }[] {
+  return COLLECTIBLE_SETS.map((set) => {
+    const found = Math.min(foundBySet[set.id] ?? 0, set.total);
+    const claim = claimSetReward(set, found, !!rewarded[set.id]);
+    const rewardLabel = claim.unlock
+      ? `Unlock ${claim.unlock}`
+      : claim.cash > 0
+        ? `$${claim.cash}`
+        : set.reward.unlock
+          ? `Unlock ${set.reward.unlock}`
+          : `$${set.reward.cash ?? 0}`;
+    return { id: set.id, name: set.name, found, total: set.total, rewardLabel };
+  });
+}

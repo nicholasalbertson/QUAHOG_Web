@@ -51,11 +51,17 @@ export function stepTimed(b: TimedBeat, dt: number): TimedBeat {
   return b;
 }
 
-export function stepEscort(b: EscortBeat, hp: number, sep: number): EscortBeat {
+export function stepEscort(
+  b: EscortBeat,
+  hp: number,
+  sep: number,
+  arrived = false,
+): EscortBeat {
   if (b.complete || b.failed) return b;
   b.targetHp = hp;
   b.sep = sep;
   if (hp <= 0 || sep > b.maxSep) b.failed = true;
+  else if (arrived && sep <= b.maxSep && hp > 0) b.complete = true;
   return b;
 }
 

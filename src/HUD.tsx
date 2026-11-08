@@ -55,6 +55,9 @@ export function HUD({ sliceName }: { sliceName: string }) {
   const [compass, setCompass] = useState("N");
   const [wrongWay, setWrongWay] = useState(false);
   const [edge, setEdge] = useState<{ side: "left" | "right"; dist: number } | null>(null);
+  const [reticleScale, setReticleScale] = useState(1);
+  const [tierFlash, setTierFlash] = useState(0);
+  const [heatChip, setHeatChip] = useState("Clear");
   // Live street + town label (wayfinding §B.3): street from the nearest
   // named road, town from the active district. Updated from the same
   // 200 ms interval, every 2nd tick (400 ms).
@@ -71,6 +74,9 @@ export function HUD({ sliceName }: { sliceName: string }) {
       setStamina(shared.stamina);
       setMph(Math.round(Math.abs(shared.carSpeed) * 2.237)); // m/s → mph
       setGear(gearForSpeed(shared.carSpeed));
+      setReticleScale(1 + shared.recoilBloom * 1.4);
+      setTierFlash(shared.tierFlashAlpha);
+      setHeatChip(shared.heatChip);
       // compass from the active heading (world north = -z)
       const hd = useGame.getState().mode === "car" ? shared.carYaw : shared.heading;
       const bearing = (Math.atan2(Math.sin(hd), -Math.cos(hd)) * 180 / Math.PI + 360) % 360;
@@ -131,7 +137,8 @@ export function HUD({ sliceName }: { sliceName: string }) {
   if (photo) return <div className="hud" data-compact={touch && !expanded}><div className="hud-photo">Photo mode · O to return</div></div>;
   return <div className="hud" data-compact={touch && !expanded}>
     {down && <div className="hud-down">{down === "wasted" ? "WASTED" : "BUSTED"}</div>}
-    {armed && !down && <div className="hud-reticle">+</div>}
+    {tierFlash > 0.02 && <div className="hud-tier-flash" style={{ opacity: tierFlash }} aria-hidden />}
+    {armed && !down && <div className="hud-reticle" style={{ transform: `translate(-50%,-50%) scale(${reticleScale})`, opacity: 0.75 + shared.recoilBloom * 0.25 }}>+</div>}
     {hurt > 0 && <div style={{position:"absolute",inset:0,boxShadow:`inset 0 0 ${120+hurt*140}px rgba(140,35,25,${hurt*0.5})`}} />}
     <button className="hud-menu" onClick={() => useGame.getState().togglePause()} aria-label="Open game menu">☰</button>
     <div className="hud-place"><strong>{(place.street ?? place.town).toUpperCase()}</strong><span>{place.street ? place.town.toUpperCase() : "SOUTHCOAST"}</span></div>
@@ -140,7 +147,12 @@ export function HUD({ sliceName }: { sliceName: string }) {
       <div className="hud-clock">{hhmm} · Day {day} · {compass}</div>
       <div className="hud-health" role="meter" aria-label="Health" aria-valuemin={0} aria-valuemax={100} aria-valuenow={health}><span style={{width:`${Math.max(0,Math.min(100,health))}%`,background:health<30?"#d79c87":undefined}} /></div>
       {stamina < 99.5 && <div className="hud-stamina" aria-label={`Stamina ${Math.round(stamina)} percent`}><span style={{width:`${stamina}%`}} /></div>}
-      {POLICE_ENABLED && police > 0 && <div className="hud-heat" aria-label={`Police heat ${police}`}>{stars(police)}</div>}
+      {(POLICE_ENABLED || police > 0) && police > 0 && (
+        <div className="hud-heat" aria-label={`Police heat ${police}, ${heatChip}`}>
+          {stars(police)}
+          <span className="hud-heat-chip">{heatChip}</span>
+        </div>
+      )}
       {faction > 0 && <div className="hud-heat faction" aria-label={`Faction heat ${faction}`}>{stars(faction)}</div>}
       {ownedCount > 0 && <div className="hud-inventory hud-secondary">{ownedCount}/{BUSINESSES.length} fronts</div>}
       {scrimshaw > 0 && <div className="hud-inventory hud-secondary">{scrimshaw}/{SCRIMSHAW_TOTAL} scrimshaw</div>}

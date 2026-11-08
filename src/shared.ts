@@ -166,6 +166,12 @@ export const shared = {
   navWrongWay: false,
   /** Current nav polyline in world XZ, or null. */
   navPath: null as { x: number; z: number }[] | null,
+  /** §5.2.8 Recoil bloom 0..1 for spread-aware reticle. */
+  recoilBloom: 0,
+  /** §3.5.4 Full-screen wanted tier flash opacity 0..1. */
+  tierFlashAlpha: 0,
+  /** §3.5.5 Heat chip label for HUD (Clear / Cooling / APB…). */
+  heatChip: "Clear",
 };
 
 /** Drop a cash pickup at a world point (capped so it can't grow unbounded). */

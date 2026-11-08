@@ -2,7 +2,43 @@
  * §5.4 Race stub — multi-track defs + rubber-band AI + bests.
  */
 
+import { loadJSON, saveJSON } from "../storage";
+import { SAVE_KEYS } from "../registries";
 import { rng } from "./Rng";
+
+export type RaceClass = "car" | "boat" | "any";
+
+/** Persist key: `${trackId}:${class}` → best seconds. */
+export type RaceBestsMap = Record<string, number>;
+
+export function raceBestKey(trackId: string, klass: RaceClass): string {
+  return `${trackId}:${klass}`;
+}
+
+export function loadRaceBests(): RaceBestsMap {
+  return loadJSON<RaceBestsMap>(SAVE_KEYS.raceBests, {}) ?? {};
+}
+
+export function recordRaceBest(
+  trackId: string,
+  klass: RaceClass,
+  timeSec: number,
+  store: RaceBestsMap = loadRaceBests(),
+): { improved: boolean; best: number; store: RaceBestsMap } {
+  const key = raceBestKey(trackId, klass);
+  const prev = store[key];
+  const improved = prev == null || timeSec < prev;
+  if (improved) store[key] = timeSec;
+  saveJSON(SAVE_KEYS.raceBests, store);
+  return { improved, best: store[key], store };
+}
+
+export function finishRacePersist(state: RaceState): RaceBestsMap | null {
+  if (!state.finished || state.best == null) return null;
+  const track = RACE_TRACKS.find((t) => t.id === state.trackId);
+  const klass = (track?.classLock ?? "any") as RaceClass;
+  return recordRaceBest(state.trackId, klass, state.best).store;
+}
 
 export interface RaceTrack {
   id: string;
@@ -102,6 +138,7 @@ export function stepRace(state: RaceState, dt: number, playerDelta: number, fail
   if (state.playerProgress >= 1) {
     state.finished = true;
     state.best = state.elapsed;
+    finishRacePersist(state);
   } else if (state.elapsed >= failSec) {
     state.dnf = true;
   }

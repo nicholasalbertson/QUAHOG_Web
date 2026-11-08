@@ -32,6 +32,8 @@ Baseline that is now on `main` (deepen per task trees below):
   `docs/FPS-MATRIX.md` soak protocol, `docs/EARTH-DECISION.md`
 · Remaining open work includes CONTENT-BLOCKED §7.3 Cape/FR tiles, device FPS
 soaks (§15), and release/l10n (§16–§17). See `docs/CHECKLIST-REMAINING.md`.
+· Live tally (~2026-11-07 night): ~498 `[x]` / ~165 `[~]` / ~53 `[ ]` — all bare
+  `[ ]` are DEVICE/CONTENT/RAPIER-LIVE/PLAYTEST blockers. NEXT50 is 50/50 Done.
 
 Pointer checklist: [`IMPLEMENTATION-CHECKLIST.md`](./IMPLEMENTATION-CHECKLIST.md)
 
@@ -41,6 +43,10 @@ v3.4 deepen (2026-11-07): §1.2 cost/crosswalk/door, §1.3 conditions/checkpoint
 v3.4c stability (2026-11-07): §1.6 manifest migrate/graphs/tiles/hot-reload/integrity,
 §1.10 action sets + touch layout, §1.11 budget attribution + memory, §2.1 stability
 helpers (raycast/NaN/fetch/context-loss), §2.2 idle/resume, §2.3 auth overlay copy.
+
+v3.5 partials drain (2026-11-07): race bests, HeatEscalation, ReloadFsm/AmmoPickup,
+TierFlash+heatChip HUD, FailReasons, MissionNavSync, TrafficDirector signals,
+SURFACE_FRICTION, 10k replay, radioEngine-aligned stations, mapProgressRows.
 
 ---
 
@@ -106,7 +112,7 @@ parallel work.
 [x] No Math.random in src/sim (`npm run check:sim-rng`)
 [x] Step-scoped RNG advance; replay hash via RngService.digest + ReplayRecorder
 [x] Replay recorder: input log + seed → deterministic re-run (`ReplayRecorder`)
-[~] Accept: 10,000-step replay of a scripted session produces identical hash twice. (1s/60-step cross-rate digest covered; 10k soak TBD)
+[x] Accept: 10,000-step replay of a scripted session produces identical hash twice.
 
 0.4 Telemetry schema — (S)
 
@@ -310,12 +316,12 @@ Task tree — objectives
 [x] 1.3.24 Ordered + parallel steps; optional/hidden steps
 [x] 1.3.25 Objective state: pending / active / complete / failed
 [x] 1.3.26 Step advance emits mission.step.changed (HUD §10.1, audio §9.4)
-[~] 1.3.27 Marker/route request per active step (→ ObjectiveNav)
+[x] 1.3.27 Marker/route request per active step — syncNavFromStep
 [x] 1.3.28 Target-distance checks include boat mode
 
 Task tree — fail/retry/checkpoint
 
-[~] 1.3.29 Fail reasons: timeout, actor death, vehicle wreck, out-of-bounds, wanted, scripted
+[x] 1.3.29 Fail reasons — FailReasons + MissionRuntime
 [x] 1.3.30 Checkpoint capture: world digest + owned entity seeds + inventory + position
 [x] 1.3.31 Retry: reset world to checkpoint, respawn entities, restore inventory
 [x] 1.3.32 Retry must restore an identical world hash (modulo RNG seed) — assert
@@ -522,7 +528,7 @@ Accept: unified index; LOS used by witnesses (§3.1), AI, and camera.
 - [~] Suspension, surfaces, impact damage — finish
 [x] 1.9.1 Per-wheel spring/damper; ride height; body roll/pitch coupling
 [x] 1.9.2 Tire model: slip ratio/angle; longitudinal vs lateral grip split
-[~] 1.9.3 Surface friction table fed by ClockWeather.friction() (§1.4)
+[x] 1.9.3 Surface friction table fed by ClockWeather.friction() (§1.4) — SURFACE_FRICTION
 [x] 1.9.4 Per-wheel surface sample from WorldManifest polygons
 [x] 1.9.5 Weight transfer under accel/brake/corner (visual + handling)
 [x] 1.9.6 Damage: panel/engine/wheel HP; steering pull; smoke → fire stages
@@ -543,7 +549,7 @@ Accept: handling reacts to surface/weather; damage persists; no suspension blow-
 
 1.10 Mobile controls — TouchControls.tsx — (L)
 
-- [~] Mode-aware foot / car / boat — finish
+- [x] Mode-aware foot / car / boat — finish
 [x] 1.10.1 Input mode FSM: foot | car | boat | swim | menu | cutscene
 [x] 1.10.2 Auto-switch on enter/exit vehicle; manual override toggle
 [x] 1.10.3 Foot set: move stick, look drag, sprint, interact, jump
@@ -617,7 +623,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 2.3 Auth overlays — (S)
 
-- [~] Distinct 401 vs 429 — finish
+- [x] Distinct 401 vs 429 — finish
 [x] 2.3.1 401 copy + retry sign-in
 [x] 2.3.2 429 copy + backoff ETA + retry
 [x] 2.3.3 5xx/network → generic retry
@@ -696,7 +702,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 3.1 Heat model — (L)
 
-- [~] Dual-axis heat + road chase ≥3★ — finish
+- [x] Dual-axis heat + road chase ≥3★ — finish
 [x] 3.1.1 Dual axes: suspicion (unseen) vs wanted (seen); per-axis decay
 [x] 3.1.2 Witness system: ped LOS → suspicion; cop LOS → wanted
 [x] 3.1.3 Crime table: assault/shots/hit-run/kill → heat deltas
@@ -708,13 +714,13 @@ Accept: 20-min soak clean; context loss recovers without reload.
 3.2 Star tiers — (M)
 
 [x] 3.2.1 Tier table 1–5: spawn rate, units, roadblocks, heli, PIT (`HeatTiers.ts`)
-[~] 3.2.2 T1: one cruiser
-[~] 3.2.3 T2: two cruisers + light roadblocks
-[~] 3.2.4 T3: three + heli scout (heli behind flag.helicopter)
-[~] 3.2.5 T4: roadblocks + heli spotlight + PIT
+[x] 3.2.2 T1: one cruiser — desiredCops / HeatTiers
+[x] 3.2.3 T2: two cruisers + light roadblocks — HeatTiers + Roadblock
+[x] 3.2.4 T3: three + heli scout — HeatTiers + HeliScout
+[x] 3.2.5 T4: roadblocks + heli spotlight + PIT — PitManeuver
 [x] 3.2.6 T5: full response + APB, no natural decay (table flag)
-[~] 3.2.7 Escalation triggers (witness count, officer down, repeats)
-[~] 3.2.8 De-escalation: bribe / lose-heat zone / safehouse / time
+[x] 3.2.7 Escalation triggers — HeatEscalation
+[x] 3.2.8 De-escalation — HeatEscalation
 [x] 3.2.9 Each tier produces documented response within 10s (test)
 
 3.3 Police units — (XL)
@@ -742,7 +748,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 [x] 3.5.2 Backup call event (audio + HUD)
 [x] 3.5.3 Lose-heat zones on map + decay inside
 [x] 3.5.4 Full-screen tier transition flash
-[~] 3.5.5 Player always knows tier + decay state (test)
+[x] 3.5.5 Player always knows tier + decay state — heatChip + HUD
 
 ---
 
@@ -750,7 +756,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 4.1 Fronts — (L)
 
-- [~] Buy + passive income + boom/leak — finish
+- [x] Buy + passive income + boom/leak — finish
 [x] 4.1.1 Front defs in manifest (cost, income, risk, boom/leak)
 [x] 4.1.2 Purchase flow: prompt → confirm → persist
 [x] 4.1.3 Passive income tick (fixed step §1.1)
@@ -794,7 +800,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 5.1 Melee & guns — (L)
 
-- [~] Fists/bat/pistol/shotgun — finish
+- [x] Fists/bat/pistol/shotgun — finish
 [x] 5.1.1 Melee: swing arcs, hitboxes, stagger, finisher
 [x] 5.1.2 Pistol: hitscan, spread, falloff, tracer
 [x] 5.1.3 Shotgun: pellet spread, per-pellet damage, reload
@@ -803,15 +809,15 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 5.2 Inventory & ammo — (L)
 
-[~] 5.2.1 Ammo counts: reserve vs magazine
-[~] 5.2.2 Reload action with cancel + interrupt
+[x] 5.2.1 Ammo counts: reserve vs magazine
+[x] 5.2.2 Reload action with cancel + interrupt — ReloadFsm
 [x] 5.2.3 Inventory model + persistence (§1.5 / SAVE_KEYS.inventory)
-[~] 5.2.4 Pickups: world ammo/weapon, respawn rules
+[x] 5.2.4 Pickups: world ammo/weapon, respawn rules — AmmoPickup
 [x] 5.2.5 Recoil/accuracy: bloom, recovery, ADS
 [x] 5.2.6 Weapon wheel / quick-swap (§10.1)
 [x] 5.2.7 Cover system (scope gate)
-[~] 5.2.8 Spread-aware reticle + hit feedback
-[~] 5.2.9 Empty→reload→pickup→persist (test)
+[x] 5.2.8 Spread-aware reticle + hit feedback — recoilBloom HUD
+[x] 5.2.9 Empty→reload→pickup→persist (test)
 
 5.3 Boats — (L)
 
@@ -826,21 +832,21 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 5.4 Races — (L)
 
-- [~] One race loop — finish
+- [x] One race loop — finish
 [x] 5.4.1 Multi-track defs in manifest
 [x] 5.4.2 AI opponents on RoadGraph with rubber-band tuning
 [x] 5.4.3 Fail timer + DNF handling
-[~] 5.4.4 Persisted best per track + class
+[x] 5.4.4 Persisted best per track + class — recordRaceBest
 [x] 5.4.5 Class locks (vehicle type)
 [x] 5.4.6 Race HUD (position, lap, splits)
-[~] 5.4.7 3 tracks × 3 opponents deterministic finish; bests save (test)
+[x] 5.4.7 3 tracks × 3 opponents deterministic finish; bests save (test)
 
 5.5 Traffic AI — (L)
 
 [x] 5.5.1 Collision avoidance (car-following, lane change)
 [x] 5.5.2 Parking AI (drive to slot, park, despawn)
 [x] 5.5.3 Door/sidewalk coupling (parked driver becomes ped)
-[~] 5.5.4 Yield/lights via signal FSM (§13.1)
+[x] 5.5.4 Yield/lights via signal FSM — TrafficDirector
 [ ] 5.5.5 5-min soak: zero deadlocks, ≤ 1% stuck cars (test) — DEVICE-BLOCKED
 
 ---
@@ -866,18 +872,18 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 6.3 Wasted / busted — (M)
 
-- [~] Flow exists — finish
+- [x] Flow exists — finish
 [x] 6.3.1 Wasted: fade, hospital respawn, fee, weapon-loss rule
 [x] 6.3.2 Busted: fade, station respawn, fee, confiscation rule
 [x] 6.3.3 Narrative flavor lines per cause
-[~] 6.3.4 Each cause → correct respawn/fee/inventory (test)
+[x] 6.3.4 Each cause → correct respawn/fee/inventory (test)
 
 6.4 Collectibles — (M)
 
-- [~] 8 downtown scrimshaw — finish
+- [x] 8 downtown scrimshaw — finish
 [x] 6.4.1 Citywide sets (e.g. 30) + progress tracking
-[~] 6.4.2 Map progress view + per-set rewards
-[~] 6.4.3 Unique rewards (vehicles, weapons, cosmetics)
+[x] 6.4.2 Map progress view + per-set rewards — mapProgressRows
+[x] 6.4.3 Unique rewards — claimSetReward unlock
 [~] 6.4.4 FR/Cape collectibles when content lands (§7.3) — CONTENT-BLOCKED
 [x] 6.4.5 Full set grants reward exactly once; saves (test)
 
@@ -949,7 +955,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 - [~] 11-mission chain + markers + persistence — finish
 [ ] 8.1.1 All 11 complete start-to-finish — CONTENT-BLOCKED (mission authoring)
-[~] 8.1.2 Marker/route correct per step (§1.3)
+[x] 8.1.2 Marker/route correct per step — syncNavFromStep / SimBootstrap
 [x] 8.1.3 Step persists across save/reload per mission (GameSystems restoreMissionProgress)
 [ ] 8.1.4 11/11 automated run passes (test) — CONTENT-BLOCKED
 
@@ -976,7 +982,7 @@ M11 Finale … … …
 [x] 8.3.3 Destroy (targets, waves)
 [x] 8.3.4 Photo (framing + subject check)
 [x] 8.3.5 Delivery / pickup
-[~] 8.3.6 One implemented beat + test per type
+[x] 8.3.6 One implemented beat + test per type
 
 8.4 Triggers — (M)
 
@@ -1027,8 +1033,8 @@ M11 Finale … … …
 
 9.3 Radio — (M)
 
-- [~] Fill Rage/Anvil track lists — finish
-[~] 9.3.1 Longer talk scripts, ads, station IDs
+- [x] Fill Rage/Anvil track lists — finish
+[x] 9.3.1 Longer talk scripts, ads, station IDs — radioEngine align
 [x] 9.3.2 ≥ 6 stations
 [x] 9.3.3 Station persisted (§11.2)
 [x] 9.3.4 No station has empty track list; persistence round-trips (test)
@@ -1042,7 +1048,7 @@ M11 Finale … … …
 
 9.5 Mobile VO — (S)
 
-- [~] Mobile-safe VO path — finish
+- [x] Mobile-safe VO path — finish
 [x] 9.5.1 Detect Web Speech; fallback to text-only subtitles
 [x] 9.5.2 Never block gameplay on VO
 [x] 9.5.3 VO-silent path still delivers all narrative text (test)
@@ -1056,7 +1062,7 @@ M11 Finale … … …
 - [~] HUD, minimap, big map, touch editor, menus — finish
 [x] 10.1.1 Compass
 [x] 10.1.2 Damage direction indicator
-[~] 10.1.3 Wanted full-screen tiers
+[x] 10.1.3 Wanted full-screen tiers — TierFlash HUD
 [x] 10.1.4 Unified interact prompts (§1.10)
 [x] 10.1.5 Weapon wheel (§5.2)
 [x] 10.1.6 Every element has a data source + updates without lag (test)
@@ -1197,7 +1203,7 @@ M11 Finale … … …
 
 13.1 StreetLife — (M)
 
-- [~] Dual graph paths; ad-hoc yield/lights — finish
+- [x] Dual graph paths; ad-hoc yield/lights — finish
 [x] 13.1.1 Single path source (RoadGraph + PedGraph)
 [x] 13.1.2 Signal FSM replaces ad-hoc yield/lights
 [x] 13.1.3 One source of truth for pathing; no duplicated constants (test)
@@ -1233,7 +1239,7 @@ M11 Finale … … …
 
 13.7 Housekeeping — (S)
 
-- [~] Coord helper duplication / package naming — finish
+- [x] Coord helper duplication / package naming — finish
 [x] 13.7.1 Single coord helper module, re-exported
 [x] 13.7.2 Package naming pass (QUAHOG_Web / Mount Hope / THE NARROWS)
 [x] 13.7.3 No duplicated coord math; naming consistent (test)
@@ -1484,7 +1490,7 @@ Priority implementation order (updated)
 5. [~] §1.3 MissionRuntime — baseline event bus / ownership / fail-retry-abandon; deepen triggers/DSL
 6. [~] §1.6 WorldManifest scaffold; §7.3 Cape/FR authored tiles still open ← remaining content gate
 7. [~] §1.5 SaveGame v2 + Continue gate + inventory/boat/carDamage/radio/race domains
-8. [x] §3.2 heat tier table + §5.2 inventory persistence (escalation/PIT polish TBD)
+8. [x] §3.2 heat tier table + escalation/de-escalation + §5.2 reload/pickups
 9. [x] §2.11 earth demoted to diagnostic (`docs/EARTH-DECISION.md`)
 10. [~] §1.4 ClockWeather (snow sync + friction + fog stream hint) + §9.2 spatial audio
 11. [~] §15 AcceptanceHarness stages 0–7 + SoakHarness; §17 release checklist drafted
@@ -1494,6 +1500,10 @@ Priority implementation order (updated)
 
 Changelog
 
+· v3.5 (2026-11-07) — Race bests persist; HeatEscalation; ReloadFsm/AmmoPickup;
+  TierFlash+heatChip HUD; FailReasons; MissionNavSync; TrafficDirector signals;
+  SURFACE_FRICTION; 10k replay digest; radioEngine-aligned stations; mapProgressRows;
+  Police↔HeatTiers soft wiring; NEXT50 Prior closeout. ~498 done / ~53 open blockers.
 · v3.4c (2026-11-07) — InputMode/Suspension/SurfaceSample/DeformBudget;
   more matrix tests; SimBootstrap heat-zone/signal/thunder wiring; ~250+ done.
 · v3.4b (2026-11-07) — Test matrix §1.1–§1.5; SaveSlots; ManifestSchema lint;

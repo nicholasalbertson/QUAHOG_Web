@@ -416,7 +416,7 @@ describe("checklist v3.4 signals/wasted/music/a11y", () => {
     expect(radarBlips({ x: 0, z: 0, yaw: 0 }, [{ id: "c", x: 0, z: 40, kind: "cop" }])).toHaveLength(1);
     expect(RADIO_STATIONS.length).toBeGreaterThanOrEqual(6);
     expect(assertStationsNonEmpty()).toEqual([]);
-    expect(restoreStation({ station: "pier" })).toBe("pier");
+    expect(restoreStation({ station: "rage" })).toBe("rage");
     expect(sampleTire(0.1, 0.05, 4000, 1).longForce).not.toBe(0);
     const pt = stepRpm(createPowertrain(), 1, 10, 0.05);
     expect(driveForce(pt, 1)).not.toBe(0);

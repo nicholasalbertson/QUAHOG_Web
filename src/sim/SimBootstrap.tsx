@@ -20,6 +20,9 @@ import { IdleDetect } from "./IdleDetect";
 import { webGlContextLoss } from "./WebGlContextLoss";
 import { clampAccumulator } from "./ResumeFastPath";
 import { readMemory } from "./PerfMemory";
+import { heatChipLabel, heatChipState } from "./HeatDisplay";
+import { stepRecoil } from "./RecoilBloom";
+import { stepTierFlash, triggerTierFlash } from "./TierFlash";
 
 /**
  * Boots the clean-room simulation layer once the slice is ready and keeps
@@ -91,6 +94,26 @@ export function SimBootstrap() {
         const mul = p ? sim.loseHeat.mulAt(p.x, p.z) : 1;
         if (st.police > 0 || st.faction > 0) st.heat(-dt * 0.02 * mul, -dt * 0.015 * mul);
         sim.heat.decay(dt * mul, true, mul > 1);
+      }
+
+      // §3.5.4–5 Tier flash + heat chip + recoil recovery on fixed step.
+      {
+        const st = useStats.getState();
+        const stars = Math.max(0, Math.min(5, Math.floor(st.police)));
+        if (stars !== sim.lastHeatStars) {
+          triggerTierFlash(sim.tierFlash, sim.lastHeatStars, stars);
+          sim.lastHeatStars = stars;
+        }
+        shared.tierFlashAlpha = stepTierFlash(sim.tierFlash, dt);
+        stepRecoil(sim.recoil, dt);
+        shared.recoilBloom = sim.recoil.bloom;
+        const body = useGame.getState().mode === "car" ? shared.car
+          : useGame.getState().mode === "boat" ? shared.boat : shared.player;
+        const p = body?.translation();
+        const inZone = !!(p && sim.loseHeat.inZone(p.x, p.z));
+        shared.heatChip = heatChipLabel(
+          heatChipState({ stars, unseen: shared.alarm.t <= 0, inLoseHeatZone: inZone }),
+        );
       }
 
       // §1.4.10 Thunder when lightning just flashed.

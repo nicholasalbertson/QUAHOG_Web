@@ -4,6 +4,7 @@
  * Independent Mount Hope design — not a port of proprietary mission scripts.
  */
 
+import { failReasonLabel, normalizeFailReason, type FailReason } from "./FailReasons";
 import { rng } from "./Rng";
 import { evalTrigger, type Trigger } from "./Triggers";
 
@@ -303,7 +304,7 @@ export class MissionRuntime {
     }
 
     if (this.stepFailSec != null && this.stepElapsed >= this.stepFailSec) {
-      this.fail("Time's up");
+      this.fail("timeout");
       return true;
     }
     return false;
@@ -331,13 +332,17 @@ export class MissionRuntime {
     this.assertNoLeaks("complete");
   }
 
-  fail(reason: string): void {
+  fail(reason: string | FailReason): void {
     if (this.phase !== "active") return;
     this.cleanupOwned();
     this.phase = "failed";
-    this.failReason = reason;
+    const normalized = normalizeFailReason(String(reason));
+    this.failReason = failReasonLabel(normalized);
     this.objectiveState = "failed";
-    this.emit({ type: "mission.fail", payload: { reason } });
+    this.emit({
+      type: "mission.fail",
+      payload: { reason: this.failReason, code: normalized },
+    });
     this.assertNoLeaks("fail");
   }
 

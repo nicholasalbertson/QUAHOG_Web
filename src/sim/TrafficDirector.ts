@@ -8,6 +8,7 @@ import type { RoadGraph } from "./RoadGraph";
 import type { Vec2 } from "./types";
 import { dist } from "./math";
 import { rng } from "./Rng";
+import type { SignalNetwork } from "./SignalFsm";
 
 export interface TrafficAgent {
   id: number;
@@ -31,6 +32,9 @@ export interface TrafficDirectorOptions {
   respawnDelay?: number;
   spawnMin?: number;
   spawnMax?: number;
+  /** Optional signal network — hold agents near red phases (§5.5.4). */
+  signals?: SignalNetwork | null;
+  signalPositions?: { id: string; x: number; z: number }[];
 }
 
 export class TrafficDirector {
@@ -42,6 +46,8 @@ export class TrafficDirector {
   private respawnDelay: number;
   private spawnMin: number;
   private spawnMax: number;
+  private signals: SignalNetwork | null;
+  private signalPositions: { id: string; x: number; z: number }[];
 
   constructor(graph: RoadGraph, opts: TrafficDirectorOptions = {}) {
     this.graph = graph;
@@ -52,6 +58,16 @@ export class TrafficDirector {
     this.respawnDelay = opts.respawnDelay ?? 8;
     this.spawnMin = opts.spawnMin ?? 55;
     this.spawnMax = opts.spawnMax ?? 160;
+    this.signals = opts.signals ?? null;
+    this.signalPositions = opts.signalPositions ?? [];
+  }
+
+  setSignals(
+    signals: SignalNetwork | null,
+    positions: { id: string; x: number; z: number }[] = [],
+  ): void {
+    this.signals = signals;
+    this.signalPositions = positions;
   }
 
   setGraph(graph: RoadGraph): void {
@@ -128,6 +144,17 @@ export class TrafficDirector {
 
       if (a.path.length < 2 || a.cursor >= a.path.length) {
         if (!this.assignRoute(a, player)) continue;
+      }
+
+      // §5.5.4 Yield at red: hold when a nearby signal is green/yellow for vehicles
+      // (ped walk window = red). Invert pedWalkAllowed → vehicle should stop.
+      if (this.signals && this.signalPositions.length > 0) {
+        const walk = this.signals.walkNear(a.x, a.z, this.signalPositions, 22);
+        if (walk) {
+          // Ped walk window ⇒ vehicles hold briefly at stop line.
+          a.stop = Math.max(a.stop, 0.35);
+          continue;
+        }
       }
 
       const target = a.path[Math.min(a.cursor, a.path.length - 1)];

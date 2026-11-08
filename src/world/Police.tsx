@@ -8,6 +8,7 @@ import { useStats } from "../game";
 import { useGame } from "../store";
 import { sfx } from "../audio/sfx";
 import { POLICE_STATION } from "../places";
+import { desiredCops, heatTier } from "../sim/HeatTiers";
 
 // Police pursuit (§14): REMOVED 2026-11-02 per Nic — the pursuit homed
 // straight onto the player with no standoff distance and no colliders, so
@@ -71,8 +72,11 @@ export function Police() {
     const police = stats.police;
     const target = (game.mode === "car" ? shared.car : shared.player)?.translation();
 
-    // chase only at 3+ stars, and fewer units than the star count
-    const desired = police >= 3 ? Math.min(MAX_COPS, Math.floor(police) - 1) : 0;
+    // §3.2 T1–T4: spawn counts from HeatTiers (soft chase; Rapier collision still blocked).
+    // POLICE_ENABLED gates live pursuit until standoff/ram rewrite lands.
+    const tier = heatTier(police);
+    const desired = POLICE_ENABLED ? Math.min(MAX_COPS, desiredCops(police, MAX_COPS)) : 0;
+    void tier; // heli/roadblock/PIT flags consumed by HeliScout/Roadblock/Pit when enabled
     let activeCount = units.current.filter((u) => u.active && u.hp > 0).length;
     sfx.siren(activeCount > 0);
 
