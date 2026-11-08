@@ -154,15 +154,16 @@ export function Car() {
     steerSmooth.current = THREE.MathUtils.lerp(steerSmooth.current, ax.x, 1 - Math.exp(-dt * 10));
     yaw -= steerSmooth.current * 1.3 * handling.steer * dt * authority * traction.steer * grip * (vForward < -0.1 ? -1 : 1);
 
-    // publish driving signals (§13): speed for camera FOV, skid for tire marks
-    shared.carSpeed = vForward;
-    shared.skid = (handbrake && Math.abs(vForward) > 6) || (Math.abs(ax.x) > 0.6 && Math.abs(vForward) > 18);
-
     // throttle / brake / coast — smoothed for a gentle, drift-free ramp.
     // NB slice improvements (2026-11-03, T5/T6): eager launch (2.6/s),
     // faster coast decay (1.5/s), and a real brake — S brakes to 0 while
     // moving forward instead of instantly targeting reverse.
     const braking = ax.y < 0 && vForward > 2;
+
+    // publish driving signals (§13): speed for camera FOV, skid for tire marks
+    shared.carSpeed = vForward;
+    shared.skid = (handbrake && Math.abs(vForward) > 6) || (Math.abs(ax.x) > 0.6 && Math.abs(vForward) > 18);
+    shared.carBraking = handbrake || braking;
     const target =
       handbrake ? 0 : ax.y > 0 ? traction.forward * ax.y * grip : braking ? 0 : ax.y < 0 ? -traction.reverse * -ax.y * grip : 0;
     const rate = handbrake ? 4.5 * traction.handbrakeResponse : ax.y !== 0 ? 2.6 * traction.throttleResponse * handling.accel : 1.5 * traction.throttleResponse;

@@ -140,6 +140,8 @@ export const shared = {
   steerVisual: 0,
   /** True while the car is cornering hard at speed (lays skid marks). */
   skid: false,
+  /** True while braking or handbrake (brake-lamp cue #38). */
+  carBraking: false,
   /** Decaying camera-shake impulse; bump it to jolt the chase camera. */
   shake: 0,
   /** Sprint stamina 0..100 (on foot). */

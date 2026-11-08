@@ -86,10 +86,14 @@ export function PackGLB({ path }: { path: string }) {
 
   const cloned = useMemo(() => (scene ? scene.clone(true) : null), [scene]);
 
+  // #37 BlenderKit / pack shadows: cast + receive so night headlights read on hulls.
   useEffect(() => {
     if (!cloned) return;
     cloned.traverse((child) => {
-      if ((child as THREE.Mesh).isMesh) child.castShadow = true;
+      const mesh = child as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
     });
   }, [cloned]);
 

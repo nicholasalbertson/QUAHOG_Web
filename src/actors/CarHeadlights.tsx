@@ -37,11 +37,14 @@ const BEAM_PEAK = 6; // decay 1: ~0.6 at 10 m, ~0.2 at 30 m — a readable pool,
 export function CarHeadlights({ type }: { type: VehicleType }) {
   const p = useMemo(() => carProfile(type), [type]);
   const zFront = p.length / 2 + 0.015;
+  const zRear = -p.length / 2 - 0.02;
   const lampY = p.belt - 0.27;
   const left = useRef<THREE.SpotLight>(null);
   const right = useRef<THREE.SpotLight>(null);
   const leftTarget = useRef<THREE.Object3D>(null);
   const rightTarget = useRef<THREE.Object3D>(null);
+  const brakeLeft = useRef<THREE.MeshStandardMaterial>(null);
+  const brakeRight = useRef<THREE.MeshStandardMaterial>(null);
 
   // A spotlight's target must be an object in the scene graph; wiring it
   // here (rather than target-position props) keeps the target parented to
@@ -53,9 +56,20 @@ export function CarHeadlights({ type }: { type: VehicleType }) {
 
   useFrame(() => {
     const driving = useGame.getState().mode === "car";
-    const level = driving ? headlightNightFactor(shared.dayT) * BEAM_PEAK : 0;
+    const night = headlightNightFactor(shared.dayT);
+    const level = driving ? night * BEAM_PEAK : 0;
     if (left.current) left.current.intensity = level;
     if (right.current) right.current.intensity = level;
+    // #38 Brake lamps: bright on brake/handbrake; dim running lights at night.
+    const intensity = !driving
+      ? 0
+      : shared.carBraking
+        ? 2.6
+        : night > 0.4
+          ? 0.35
+          : 0.08;
+    if (brakeLeft.current) brakeLeft.current.emissiveIntensity = intensity;
+    if (brakeRight.current) brakeRight.current.emissiveIntensity = intensity;
   });
 
   return (
@@ -78,6 +92,19 @@ export function CarHeadlights({ type }: { type: VehicleType }) {
             position={[side * p.width * 0.36, lampY - 1.2, zFront + 30]}
           />
         </group>
+      ))}
+      {/* #38 Rear brake lamps (emissive discs — cheap, no extra shadow maps). */}
+      {[-1, 1].map((side) => (
+        <mesh key={`brake${side}`} position={[side * p.width * 0.34, lampY - 0.05, zRear]}>
+          <boxGeometry args={[0.12, 0.06, 0.04]} />
+          <meshStandardMaterial
+            ref={side === -1 ? brakeLeft : brakeRight}
+            color="#2a0505"
+            emissive="#ff2020"
+            emissiveIntensity={0.08}
+            roughness={0.55}
+          />
+        </mesh>
       ))}
     </>
   );

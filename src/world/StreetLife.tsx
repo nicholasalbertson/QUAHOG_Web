@@ -239,8 +239,8 @@ function skinForPlayerTint(tint: string): string {
       best = s;
     }
   }
-  // Keep some variety: 55% use the player's matched skin, else random palette.
-  return Math.random() < 0.55 ? best : pick(PED_SKINS);
+  // #34 Ped skin variety: bias hard toward the player's tint (75%), rest random.
+  return Math.random() < 0.75 ? best : pick(PED_SKINS);
 }
 
 const PED_MIN_SPACING = 3.2;
