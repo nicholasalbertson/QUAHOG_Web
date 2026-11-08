@@ -545,10 +545,10 @@ Accept: handling reacts to surface/weather; damage persists; no suspension blow-
 [ ] 1.10.3 Foot set: move stick, look drag, sprint, interact, jump
 [ ] 1.10.4 Car set: throttle/brake, steer (tilt/thumb toggle), handbrake, horn, camera
 [ ] 1.10.5 Boat set: throttle, rudder, camera, anchor
-[ ] 1.10.6 Context-sensitive action button (enter/exit/interact/pickup)
+[x] 1.10.6 Context-sensitive action button (enter/exit/interact/pickup)
 [ ] 1.10.7 Layout editor: drag/resize, save to settings, reset to default
 [ ] 1.10.8 Safe-area insets (notch) + landscape/portrait
-[ ] 1.10.9 Haptics hooks (no-op where unsupported)
+[x] 1.10.9 Haptics hooks (no-op where unsupported)
 [ ] 1.10.10 Desktop parity map documented per mode → §10.3
 [ ] 1.10.11 Tests: every sim action reachable per mode; no dead zones
 [ ] 1.10.12 Tests: layout persists through save (§11.1)
@@ -735,9 +735,9 @@ Accept: 20-min soak clean; context loss recovers without reload.
 3.5 Wanted UX — (M)
 
 [x] 3.5.1 Wanted radar (unit blips)
-[ ] 3.5.2 Backup call event (audio + HUD)
+[x] 3.5.2 Backup call event (audio + HUD)
 [x] 3.5.3 Lose-heat zones on map + decay inside
-[ ] 3.5.4 Full-screen tier transition flash
+[x] 3.5.4 Full-screen tier transition flash
 [ ] 3.5.5 Player always knows tier + decay state (test)
 
 ---
