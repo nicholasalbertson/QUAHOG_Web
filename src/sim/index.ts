@@ -123,6 +123,26 @@ export {
 export type { SaveSlotMeta } from "./SaveSlots";
 export { lintManifest, validateManifestDeep, manifestStats } from "./ManifestSchema";
 export type { ManifestLintIssue } from "./ManifestSchema";
+export {
+  createCarDamage,
+  applyImpact,
+  stageOf,
+  steeringPull,
+  powerMul,
+} from "./CarDamage";
+export type { DamageStage, CarDamageState } from "./CarDamage";
+export { footstepFor, footstepInterval, FOOTSTEP_SURFACES } from "./Footsteps";
+export type { FootstepKey } from "./Footsteps";
+export { radarBlips } from "./WantedRadar";
+export type { RadarBlip } from "./WantedRadar";
+export {
+  RADIO_STATIONS,
+  stationById,
+  assertStationsNonEmpty,
+  persistStation,
+  restoreStation,
+} from "./RadioStations";
+export type { RadioStationDef } from "./RadioStations";
 export { GameLoop } from "./GameLoop";
 export type { LoopPhase, PauseSource, LoopStats } from "./GameLoop";
 export { Rng, RngService, rng } from "./Rng";

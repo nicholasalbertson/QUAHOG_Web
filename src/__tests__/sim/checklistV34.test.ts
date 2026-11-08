@@ -53,6 +53,10 @@ import { openFailMenu, chooseFailAction } from "../../sim/MissionFailUi";
 import { COLLECTIBLE_SETS, claimSetReward } from "../../sim/CollectibleSets";
 import { listSlots, writeSlot, readSlot, clearSlot } from "../../sim/SaveSlots";
 import { lintManifest, manifestStats, validateManifestDeep } from "../../sim/ManifestSchema";
+import { createCarDamage, applyImpact, steeringPull } from "../../sim/CarDamage";
+import { footstepFor, FOOTSTEP_SURFACES } from "../../sim/Footsteps";
+import { radarBlips } from "../../sim/WantedRadar";
+import { RADIO_STATIONS, assertStationsNonEmpty, restoreStation } from "../../sim/RadioStations";
 import { manifestFromSlice } from "../../sim/WorldManifest";
 import { PedGraph } from "../../sim/PedGraph";
 import { HeatAxes } from "../../sim/HeatAxes";
@@ -373,11 +377,21 @@ describe("checklist v3.4 signals/wasted/music/a11y", () => {
 
   it("§1.6 manifest lint + ped signal bind", () => {
     const slice = { name: "t", roads: [{ highway: "residential", width: 6, name: "e", points: [[0,0],[40,0],[40,40]] as [number,number][] }], landmarks: [], buildings: [] } as any;
-    // use minimal via PedGraph bindSignals directly
     const g = PedGraph.fromRoads(slice.roads);
     const bound = g.bindSignals([{ id: "sig-1", x: 20, z: 0 }]);
     expect(bound).toBeGreaterThanOrEqual(0);
     const cw = g.nodes.filter((n) => n.kind === "crosswalk");
     expect(cw.every((n) => !!n.signalId)).toBe(true);
+  });
+
+  it("§1.9.6 / §9.1.1 / §3.5.1 / §9.3 damage footsteps radar radio", () => {
+    const d = applyImpact(createCarDamage(), 15, true);
+    expect(d.body).toBeLessThan(100);
+    expect(typeof steeringPull(d)).toBe("number");
+    expect(FOOTSTEP_SURFACES).toContain(footstepFor("grass"));
+    expect(radarBlips({ x: 0, z: 0, yaw: 0 }, [{ id: "c", x: 0, z: 40, kind: "cop" }])).toHaveLength(1);
+    expect(RADIO_STATIONS.length).toBeGreaterThanOrEqual(6);
+    expect(assertStationsNonEmpty()).toEqual([]);
+    expect(restoreStation({ station: "pier" })).toBe("pier");
   });
 });

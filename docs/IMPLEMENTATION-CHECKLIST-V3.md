@@ -521,7 +521,7 @@ Accept: unified index; LOS used by witnesses (§3.1), AI, and camera.
 [ ] 1.9.3 Surface friction table fed by ClockWeather.friction() (§1.4)
 [ ] 1.9.4 Per-wheel surface sample from WorldManifest polygons
 [ ] 1.9.5 Weight transfer under accel/brake/corner (visual + handling)
-[ ] 1.9.6 Damage: panel/engine/wheel HP; steering pull; smoke → fire stages
+[x] 1.9.6 Damage: panel/engine/wheel HP; steering pull; smoke → fire stages
 [ ] 1.9.7 Impact via Rapier contact events; threshold curve by relative speed
 [ ] 1.9.8 Visual deformation capped per quality tier
 [ ] 1.9.9 Powertrain: gear ratios, torque curve, reverse, handbrake
@@ -734,7 +734,7 @@ Accept: 20-min soak clean; context loss recovers without reload.
 
 3.5 Wanted UX — (M)
 
-[ ] 3.5.1 Wanted radar (unit blips)
+[x] 3.5.1 Wanted radar (unit blips)
 [ ] 3.5.2 Backup call event (audio + HUD)
 [ ] 3.5.3 Lose-heat zones on map + decay inside
 [ ] 3.5.4 Full-screen tier transition flash
@@ -1006,12 +1006,12 @@ M11 Finale … … …
 9.1 SFX — (L)
 
 - [~] Procedural SFX + 4 stations — finish
-[ ] 9.1.1 Surface footsteps (asphalt/grass/wood/water)
+[x] 9.1.1 Surface footsteps (asphalt/grass/wood/water)
 [ ] 9.1.2 Door/UI packs
 [ ] 9.1.3 Ped VO barks (greeting/panic/hit)
 [ ] 9.1.4 Impact variety (material × intensity matrix)
 [ ] 9.1.5 Weapon SFX per weapon
-[ ] 9.1.6 Every friction surface has footstep + impact (test)
+[~] 9.1.6 Every friction surface has footstep + impact (test)
 
 9.2 Spatial audio — (L)
 
@@ -1024,10 +1024,10 @@ M11 Finale … … …
 9.3 Radio — (M)
 
 - [~] Fill Rage/Anvil track lists — finish
-[ ] 9.3.1 Longer talk scripts, ads, station IDs
-[ ] 9.3.2 ≥ 6 stations
-[ ] 9.3.3 Station persisted (§11.2)
-[ ] 9.3.4 No station has empty track list; persistence round-trips (test)
+[~] 9.3.1 Longer talk scripts, ads, station IDs
+[x] 9.3.2 ≥ 6 stations
+[x] 9.3.3 Station persisted (§11.2)
+[x] 9.3.4 No station has empty track list; persistence round-trips (test)
 
 9.4 Music — (M)
 
