@@ -5,10 +5,12 @@ const taps = new Set<string>();
 const vheld = new Set<string>();    // virtual (touch) held keys, e.g. sprint/handbrake
 const virtual = { x: 0, y: 0 };     // touch joystick, each axis -1..1
 const gamepadMove = { x: 0, y: 0 }; // gamepad left stick
+const triggers = { accel: 0, brake: 0 }; // RT / LT, 0..1
 
 export function releaseInput() {
   pressed.clear(); taps.clear(); vheld.clear();
   virtual.x = virtual.y = gamepadMove.x = gamepadMove.y = 0;
+  triggers.accel = triggers.brake = 0;
 }
 
 let installed = false;
@@ -49,6 +51,8 @@ export function installInput() {
     if (gp) {
       gamepadMove.x = dz(gp.axes[0] ?? 0);
       gamepadMove.y = -dz(gp.axes[1] ?? 0); // stick up = forward
+      triggers.accel = gp.buttons[7]?.value ?? (gp.buttons[7]?.pressed ? 1 : 0);
+      triggers.brake = gp.buttons[6]?.value ?? (gp.buttons[6]?.pressed ? 1 : 0);
       gp.buttons.forEach((b, i) => {
         const code = BTN_TAP[i];
         if (code && b.pressed && !prevBtn[i]) taps.add(code);
@@ -56,6 +60,7 @@ export function installInput() {
       });
     } else {
       gamepadMove.x = 0; gamepadMove.y = 0;
+      triggers.accel = 0; triggers.brake = 0;
     }
     requestAnimationFrame(poll);
   };
@@ -63,6 +68,9 @@ export function installInput() {
 }
 
 export const isDown = (code: string) => pressed.has(code) || vheld.has(code);
+
+/** True when any physical or virtual key is held. Used so a rebound key still counts as activity. */
+export const anyHeld = () => pressed.size > 0 || vheld.size > 0;
 
 /** Hold/release a virtual key from an on-screen (touch) button (sprint, brake). */
 export const setVirtualHold = (code: string, down: boolean) => { if (down) vheld.add(code); else vheld.delete(code); };
@@ -77,6 +85,11 @@ export const virtualTap = (code: string) => taps.add(code);
 export const setVirtualMove = (x: number, y: number) => { virtual.x = x; virtual.y = y; };
 
 const clamp1 = (n: number) => Math.max(-1, Math.min(1, n));
+
+/** Right trigger accelerates, left trigger brakes. Added to the stick in the car. */
+export function gamepadDrive(): { x: number; y: number } {
+  return { x: 0, y: clamp1(triggers.accel - triggers.brake) };
+}
 
 /** Read a WASD/arrow + touch movement vector. x = right, y = forward. */
 export function moveAxis(): { x: number; y: number } {

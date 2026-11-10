@@ -17,7 +17,7 @@ import {
 import { installTileLogGuard } from "./tileLog";
 import { guardPluginLifecycle } from "./googleAuth";
 import { IDLE_PAUSE_MS, advanceIdle, shouldDegrade, tileActivityFor } from "./frameLoop";
-import { followCam, forwardHit, groundY, sanitizePosition } from "./follow";
+import { chooseGround, followCam, forwardHit, groundY, sanitizePosition } from "./follow";
 
 describe("collision budget", () => {
   it("samples ground at 10 Hz and eases between hits", () => {
@@ -122,7 +122,7 @@ describe("tile memory caps", () => {
     expect(TILE_MEMORY.minBytes).toBeLessThan(TILE_MEMORY.maxBytes);
     expect(TILE_MEMORY.minCount).toBeLessThan(TILE_MEMORY.maxCount);
     expect(TILE_MEMORY.maxDepth).toBeGreaterThan(1);
-    expect(TILE_MEMORY.errorTarget).toBe(32);
+    expect(TILE_MEMORY.errorTarget).toBe(8);
     const host: {
       errorTarget?: number;
       maxDepth?: number;
@@ -136,15 +136,15 @@ describe("tile memory caps", () => {
     };
     applyTileMemoryCaps(host);
     expect(host.maxDepth).toBe(TILE_MEMORY.maxDepth);
-    expect(host.errorTarget).toBe(32);
+    expect(host.errorTarget).toBe(8);
     expect(host.lruCache).toMatchObject({
       minBytesSize: TILE_MEMORY.minBytes,
       maxBytesSize: TILE_MEMORY.maxBytes,
       minSize: TILE_MEMORY.minCount,
       maxSize: TILE_MEMORY.maxCount,
     });
-    expect(host.downloadQueue.maxJobs).toBe(6);
-    expect(host.parseQueue.maxJobs).toBe(3);
+    expect(host.downloadQueue.maxJobs).toBe(14);
+    expect(host.parseQueue.maxJobs).toBe(6);
   });
 
   it("still sets depth when the cache objects are absent", () => {
@@ -174,6 +174,12 @@ describe("google tile faults", () => {
     expect(denied.kind).toBe("unauthorized");
     expect(JSON.stringify(denied)).not.toContain(key);
     expect(classifyTileError({ status: 403 }).kind).toBe("unauthorized");
+    expect(classifyTileError({ status: 400, message: "API key not valid. Please pass a valid API key." }).kind).toBe("unauthorized");
+    expect(classifyTileError({ status: 400, message: "malformed tile url" }).kind).toBe("unknown");
+    const missingSession = classifyTileError({ status: 400, message: "Request contains an invalid argument." });
+    expect(faultCopy(missingSession).body).toContain("400");
+    expect(faultCopy(missingSession).body.toLowerCase()).toContain("session");
+    expect(faultCopy(missingSession).body).not.toContain("No Google status");
     expect(classifyTileError({ code: 429 }).kind).toBe("quota");
     expect(classifyTileEvent({ error: { status: 503 }, url: `https://tile.googleapis.com/x?key=${key}` }).kind).toBe("unavailable");
     expect(classifyTileError(new Error("Failed to fetch")).kind).toBe("unavailable");
@@ -219,6 +225,15 @@ describe("google tile faults", () => {
     await quiet("https://tile.googleapis.com/ok");
     expect(other).toEqual([]);
     expect(isGoogleTileUrl("/root.json")).toBe(false);
+    expect(isGoogleTileUrl("/v1/3dtiles/datasets/abc/files/tile.glb")).toBe(true);
+    const relative: string[] = [];
+    const relativeFetch = observeTileFetch(async () => new Response("bad session", { status: 400 }), (fault) => {
+      relative.push(faultCopy(fault).body);
+    });
+    await relativeFetch("/v1/3dtiles/datasets/abc/files/tile.glb?key=AIzaSyTHISKEYMUSTNOTLEAK");
+    expect(relative).toHaveLength(1);
+    expect(relative[0]).toContain("400");
+    expect(relative[0]).not.toContain("AIza");
   });
 
   it("ignores dispose before init and a dispose that throws", () => {
@@ -304,6 +319,11 @@ describe("scratch-vector helpers", () => {
     const camera = new THREE.PerspectiveCamera();
     followCam(camera, parent, up, new THREE.Vector3(1, 2, 3), 0.4, 7, 4, 1);
     expect(Number.isFinite(camera.position.x)).toBe(true);
+    // Street under the feet wins over a bridge deck above, and a deck wins
+    // when the actor has not landed yet.
+    expect(chooseGround([1, 18], 0)).toBe(1);
+    expect(chooseGround([0, 12], 12)).toBe(12);
+    expect(chooseGround([18], 0)).toBe(18);
   });
 
   it("§2.1.4 resets a non-finite position to spawn and leaves good ones alone", () => {

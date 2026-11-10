@@ -22,6 +22,14 @@ const _c = new THREE.Vector3();
 // frame (it runs every frame in the photoreal build's hot loop).
 const _off = new THREE.Vector3();
 const _look = new THREE.Vector3();
+const _n = new THREE.Vector3();
+const _samples: number[] = [];
+
+/** A hit is a wall when its normal is mostly horizontal. Road, slope, and
+ *  overpass soffit hits are not walls — those were the I-195 stalls. */
+export function isWallNormal(normalY: number): boolean {
+  return Math.abs(normalY) < 0.45;
+}
 
 /** ENU "up" direction in world space, from the content group's orientation.
  *  Returns a shared scratch vector — use it immediately, don't store across frames. */
@@ -30,8 +38,28 @@ export function frameUp(parent: THREE.Object3D): THREE.Vector3 {
   return _up.set(0, 1, 0).applyQuaternion(_q);
 }
 
+/**
+ * Which surface the actor should stand on.
+ * Prefer a hit just under the current height so a bridge deck is not swapped
+ * for the gorge, and a roof is not swapped for the street. If nothing is
+ * under the feet, take an elevated deck within 40 m (the first landing on
+ * I-195, where the road sits above the anchor).
+ */
+export function chooseGround(samples: readonly number[], prefer: number): number | null {
+  let under: number | null = null;
+  let deck: number | null = null;
+  for (const h of samples) {
+    if (!Number.isFinite(h)) continue;
+    const drop = prefer - h;
+    if (drop >= -1.2 && drop <= 8 && (under == null || h > under)) under = h;
+    const rise = h - prefer;
+    if (rise >= -2 && rise <= 40 && (deck == null || h > deck)) deck = h;
+  }
+  return under ?? deck;
+}
+
 /** Surface height (content-space y) at content (x,z), or null if no tile yet.
- *  Allocation-free hot path (raycast accelerated by the tile BVH). */
+ *  The ray starts above `preferY` and keeps the surface under the actor. */
 export function groundY(
   parent: THREE.Object3D,
   group: THREE.Object3D | null | undefined,
@@ -39,13 +67,19 @@ export function groundY(
   x: number,
   z: number,
   up: THREE.Vector3,
+  preferY = 0,
 ): number | null {
   if (!group) return null;
-  parent.localToWorld(_a.set(x, 0, z));
-  ray.set(_a.addScaledVector(up, 180), _b.copy(up).negate());
-  (ray as RayBVH).firstHitOnly = true;
+  parent.localToWorld(_a.set(x, preferY + 45, z));
+  ray.set(_a, _b.copy(up).negate());
+  (ray as RayBVH).firstHitOnly = false;
+  ray.far = 55;
   const hits = ray.intersectObject(group, true);
-  return hits.length ? parent.worldToLocal(_c.copy(hits[0].point)).y : null;
+  ray.far = Infinity;
+  if (!hits.length) return null;
+  _samples.length = 0;
+  for (const hit of hits) _samples.push(parent.worldToLocal(_c.copy(hit.point)).y);
+  return chooseGround(_samples, preferY);
 }
 
 /** Distance to the nearest wall ahead (content-space dir), or Infinity. Used to
@@ -63,11 +97,17 @@ export function forwardHit(
   parent.localToWorld(_a.copy(originLocal));
   _b.set(dirContent.x, 0, dirContent.z).applyQuaternion(_q).normalize();
   ray.set(_a, _b);
-  (ray as RayBVH).firstHitOnly = true;
+  (ray as RayBVH).firstHitOnly = false;
   ray.far = maxDist;
   const hits = ray.intersectObject(group, true);
   ray.far = Infinity;
-  return hits.length ? hits[0].distance : Infinity;
+  for (const hit of hits) {
+    const face = hit.face;
+    if (!face) return hit.distance;
+    _n.copy(face.normal).transformDirection(hit.object.matrixWorld);
+    if (isWallNormal(_n.y)) return hit.distance;
+  }
+  return Infinity;
 }
 
 export function lerpAngle(a: number, b: number, t: number): number {

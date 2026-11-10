@@ -16,6 +16,10 @@ class Sfx {
   private sirenGain?: GainNode;
   private sirenLfo?: OscillatorNode;
   private ambGain?: GainNode;
+  private windFilter?: BiquadFilterNode;
+  private waveFilter?: BiquadFilterNode;
+  private waveGain?: GainNode;
+  private bed = "";
   private started = false;
 
   /** Lazily create the context + persistent nodes; attach gesture resume. */
@@ -192,6 +196,7 @@ class Sfx {
     src.buffer = this.noise!; src.loop = true;
     const f = ctx.createBiquadFilter();
     f.type = "lowpass"; f.frequency.value = 320;
+    this.windFilter = f;
     src.connect(f).connect(this.ambGain!);
     src.start();
     this.ambGain!.gain.setTargetAtTime(0.04, ctx.currentTime, 2);
@@ -201,12 +206,33 @@ class Sfx {
     wsrc.buffer = this.noise!; wsrc.loop = true;
     const wf = ctx.createBiquadFilter();
     wf.type = "bandpass"; wf.frequency.value = 520; wf.Q.value = 0.5;
+    this.waveFilter = wf;
     const wg = ctx.createGain(); wg.gain.value = 0.05;
+    this.waveGain = wg;
     const lfo = ctx.createOscillator(); lfo.frequency.value = 0.16; // ~6s swell
     const lfoG = ctx.createGain(); lfoG.gain.value = 0.035;
     lfo.connect(lfoG).connect(wg.gain);
     wsrc.connect(wf).connect(wg).connect(this.ambGain!);
     wsrc.start(); lfo.start();
+  }
+
+  /** Retune the existing wind and wave bed. No new audio files. */
+  setBed(name: "harbor" | "mill" | "city" | "highway" | "cape") {
+    this.startAmbience();
+    if (!this.ctx || !this.windFilter || !this.waveFilter || !this.waveGain || this.bed === name) return;
+    this.bed = name;
+    const preset = {
+      harbor: { wind: 320, waveHz: 520, wave: 0.05, gain: 0.04 },
+      mill: { wind: 180, waveHz: 240, wave: 0.012, gain: 0.035 },
+      city: { wind: 480, waveHz: 300, wave: 0.01, gain: 0.03 },
+      highway: { wind: 900, waveHz: 180, wave: 0.004, gain: 0.05 },
+      cape: { wind: 260, waveHz: 480, wave: 0.08, gain: 0.045 },
+    }[name];
+    const t = this.ctx.currentTime;
+    this.windFilter.frequency.setTargetAtTime(preset.wind, t, 0.8);
+    this.waveFilter.frequency.setTargetAtTime(preset.waveHz, t, 0.8);
+    this.waveGain.gain.setTargetAtTime(preset.wave, t, 0.8);
+    this.ambGain?.gain.setTargetAtTime(preset.gain, t, 0.8);
   }
 }
 

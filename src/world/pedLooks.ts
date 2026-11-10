@@ -18,11 +18,20 @@ export const PED_SHIRTS = ["#c0563f", "#3f6cc0", "#4a8c52", "#b8a23a", "#7a4a8c"
 export const PED_PANTS = ["#2c2f3a", "#3a3326", "#23344f", "#4a4a4a"];
 export const PED_SKINS = ["#caa07a", "#e0b48c", "#a87a52", "#8a5a36"];
 
+export const PED_HAIR = ["#2a2018", "#1a1a1a", "#6b4a2a", "#c4b49a", "#3a2418"];
+export const PED_HATS = ["", "#1c1c1c", "#6b2d2d", "#1d3d2f", "#d8d2c4"];
+export const PED_COATS = ["", "#2a2e38", "#5a3a28", "#1e3a4a"];
+
 export interface PedLook {
   build: PedBuild;
   shirt: string;
   pants: string;
   skin: string;
+  hair: string;
+  /** Empty string means no hat. */
+  hat: string;
+  /** Empty string means the shirt is the outer layer. */
+  coat: string;
 }
 
 const pick = <T,>(a: T[], rand: () => number): T => a[Math.floor(rand() * a.length)];
@@ -33,12 +42,15 @@ export function assignPedLooks(n: number, rand: () => number = Math.random): Ped
     shirt: pick(PED_SHIRTS, rand),
     pants: pick(PED_PANTS, rand),
     skin: pick(PED_SKINS, rand),
+    hair: pick(PED_HAIR, rand),
+    hat: PED_HATS[i % PED_HATS.length],
+    coat: PED_COATS[(i + 1) % PED_COATS.length],
   }));
 }
 
 /** Two looks are identical only if build + all palette entries match. */
 export function looksIdentical(a: PedLook, b: PedLook): boolean {
-  return a.build === b.build && a.shirt === b.shirt && a.pants === b.pants && a.skin === b.skin;
+  return a.build === b.build && a.shirt === b.shirt && a.pants === b.pants && a.skin === b.skin && a.hair === b.hair && a.hat === b.hat && a.coat === b.coat;
 }
 
 /** §2.7.3 — no two adjacent looks in the list are identical. */

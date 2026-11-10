@@ -48,19 +48,20 @@ Most likely causes, in order of probability:
   browser can *restore* instead of dying, with logging.
 - **Fewer NPCs** (6 peds / 3 cars) — fewer per-frame tile raycasts + skinned clones.
 
-### ▶️ Next stability pass (recommended, not yet done)
-- **Throttle + cache collision raycasts**: ground-follow at ~10 Hz with height
-  interpolation instead of every frame; reuse one shared `Raycaster`.
-- **Reuse scratch vectors** in `follow.ts` / `PlayWorld.tsx` hot paths (kill
-  per-frame allocations).
-- **Cap the tiles LRU cache** (`lruCache.maxBytesSize`) and **`maxDepth`** to hard-
-  bound memory.
-- **Add a BVH** (`three-mesh-bvh` + the tiles `TileCompressionPlugin` /
-  `MeshBVH`) so raycasts are O(log n) instead of scanning every triangle.
-- **Pause rendering when the tab is hidden** and after the player is idle
-  (on-demand `invalidate()` / `frameloop="demand"`).
-- **Graceful key/quota errors**: surface Google 401/429 (bad key / over quota) as
-  a friendly overlay instead of a console explosion.
+### ✅ Stability pass (phase 1 — see `docs/REBUILD_PLAN.md`)
+- **Throttle + cache collision raycasts**: `src/earth/raycastBudget.ts` samples
+  ground at ~10 Hz (NPCs slower), eases between hits, and shares one `Raycaster`.
+- **Scratch vectors** in `follow.ts` / `PlayWorld.tsx` (camera, probes, wall
+  push, first person, traffic sampling).
+- **Tile memory caps**: `src/earth/tileCaps.ts` sets the LRU byte/count window,
+  `maxDepth`, and download/parse job limits. `errorTarget` stays the detail knob.
+- **BVH** on each loaded tile mesh (`src/earth/bvh.ts`, `three-mesh-bvh`) so
+  ground and wall rays are not a full triangle scan.
+- **Pause when hidden**: the canvas drops to `frameloop="demand"` and the tiles
+  renderer is `enabled={false}` so a background tab stops streaming. Idle play
+  also drops to on-demand frames.
+- **Key / quota errors**: 401/403/429 become a retry overlay (`src/earth/tileFault.ts`)
+  instead of a console dump, and the fallback ground keeps you from falling.
 
 > If it still crashes after the applied fixes, raise `errorTarget` to 24 first —
 > that's the fastest knob.

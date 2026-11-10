@@ -37,6 +37,7 @@ export function earthFallbackNotice(
   }
   if (fault?.kind === "unauthorized") return fallbackNotice("auth");
   if (fault?.kind === "unavailable" || tilesProblem) return fallbackNotice("network");
-  if (fault) return fallbackNotice("env");
+  // A 400 with no API-key text is a tile/session failure, not a missing sky map.
+  if (fault) return fallbackNotice("network");
   return fallbackNotice("tile-500");
 }

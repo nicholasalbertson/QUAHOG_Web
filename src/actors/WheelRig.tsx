@@ -85,7 +85,9 @@ export const WheelRig: React.FC<WheelRigProps> = ({ scene, wheelR = 0.41, getSpe
         mesh.updateWorldMatrix(true, false);
         const worldCentre = mesh.localToWorld(centre.clone());
         const localCentre = wheel.worldToLocal(worldCentre);
-        worst = Math.max(worst, localCentre.length());
+        // Hubs sit outboard along the axle (local X). That offset must not
+        // fail the check — only a centre that is off the axle spins into an orbit.
+        worst = Math.max(worst, Math.hypot(localCentre.y, localCentre.z));
       }
       if (worst > PIVOT_TOLERANCE_M) {
         console.warn(

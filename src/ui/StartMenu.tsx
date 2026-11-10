@@ -24,7 +24,7 @@ const hasSave = () => !!getItem("mounthope.save.v1") || !!getItem("mounthope.pos
 // presses Play; doubles as the first user gesture that unlocks audio.
 // Tips live in the §16.1 string catalog (src/i18n/strings.ts, menu.tips).
 
-export function StartMenu({ sliceName, progress = 0 }: { sliceName: string; progress?: number }) {
+export function StartMenu({ sliceName, progress = 0, canPlay = false }: { sliceName: string; progress?: number; canPlay?: boolean }) {
   const started = useGame((s) => s.started);
   const [tip] = useState(() => STRINGS.menu.tips[Math.floor(Math.random() * STRINGS.menu.tips.length)]);
   const [save, setSave] = useState(hasSave);
@@ -36,7 +36,7 @@ export function StartMenu({ sliceName, progress = 0 }: { sliceName: string; prog
   useEffect(() => {
     if (!started) setSave(hasSave());
   }, [started]);
-  const loaded = sliceName !== "loading…";
+  const loaded = canPlay || sliceName !== "loading…";
   if (started) return null;
   const pct = Math.round(progress * 100);
 

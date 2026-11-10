@@ -42,11 +42,22 @@ export default defineConfig({
         // they cache across deploys and don't bloat the main app chunk. Each only
         // re-downloads when that library actually changes, not on every game edit.
         manualChunks(id) {
-          if (!id.includes("node_modules")) return;
+          if (id.includes("postprocessing") || id.includes("/n8ao")) return "vendor-post";
+          if (!id.includes("node_modules")) {
+            // Keep Vite's shared import helper out of the three.js chunk.
+            // Otherwise the title screen downloads the renderer before Play.
+            if (id.includes("preload-helper")) return "preload";
+            return;
+          }
           // order matters: match the more specific scoped packages before the
           // bare "three"/"react" substrings (which they also contain).
           if (id.includes("rapier")) return "vendor-rapier";
-          if (id.includes("@react-three")) return "vendor-r3f";
+          if (
+            id.includes("@react-three")
+            || id.includes("@react-spring/three")
+            || id.includes("@use-gesture")
+          ) return "vendor-r3f";
+          if (id.includes("3d-tiles-renderer")) return "vendor-tiles";
           if (id.includes("node_modules/three")) return "vendor-three";
           if (id.includes("node_modules/react") || id.includes("react-dom") || id.includes("/scheduler/")) return "vendor-react";
           return "vendor";

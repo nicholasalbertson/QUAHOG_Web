@@ -3,13 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>The Narrows — Photoreal 3D Tiles (test)</title>
+    <meta name="theme-color" content="#05070d" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <title>The Narrows — 3D Tiles</title>
     <style>
       html, body, #root { margin: 0; height: 100%; background: #05070d; overflow: hidden; }
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div style="min-height:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:#e7e0ff;font-family:Georgia,serif">
+        <div>
+          <div style="letter-spacing:6px;color:#7ad9ff;font-size:12px">SOUTHCOAST</div>
+          <h1 style="font-size:48px;margin:8px 0">The Narrows</h1>
+          <p><a href="./earth.html" style="color:#7ad9ff">3D Tiles</a> · <a href="./index.html" style="color:#d2b782">Street map</a></p>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/earth.tsx"></script>
   </body>
 </html>
