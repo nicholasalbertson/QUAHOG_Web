@@ -2,9 +2,18 @@
 // A car that reaches the end of a road joins another road whose endpoint is
 // close, or turns around. A car yields when someone else is closer to that join.
 
+import { laneCount, signalOpen, type ControlKind, type Junction } from "./signals";
+
 export interface PolyPoint { x: number; z: number }
-export interface PolyRoute { pts: readonly PolyPoint[]; total: number }
-export interface LaneState { route: number; dist: number; dir: 1 | -1; hold: number }
+export interface PolyRoute {
+  pts: readonly PolyPoint[];
+  total: number;
+  highway?: string;
+  lanes?: number;
+  ref?: string;
+  control?: ControlKind;
+}
+export interface LaneState { route: number; dist: number; dir: 1 | -1; hold: number; lane?: number }
 
 function endPoint(route: PolyRoute, dir: 1 | -1): PolyPoint {
   return dir === 1 ? route.pts[route.pts.length - 1] : route.pts[0];
@@ -14,8 +23,25 @@ function near(a: PolyPoint, b: PolyPoint, radius: number): boolean {
   return Math.hypot(a.x - b.x, a.z - b.z) <= radius;
 }
 
+function nearestJunction(point: PolyPoint, junctions: readonly Junction[]): Junction | null {
+  let best: Junction | null = null;
+  let bestD = 18;
+  for (const junction of junctions) {
+    const d = Math.hypot(junction.x - point.x, junction.z - point.z);
+    if (d < bestD) { best = junction; bestD = d; }
+  }
+  return best;
+}
+
 /** Advance every car. Mutates `cars`. Empty routes leave them where they are. */
-export function stepLanes(cars: LaneState[], routes: readonly PolyRoute[], dt: number, speed: number): void {
+export function stepLanes(
+  cars: LaneState[],
+  routes: readonly PolyRoute[],
+  dt: number,
+  speed: number,
+  now = 0,
+  junctions: readonly Junction[] = [],
+): void {
   if (!routes.length || dt <= 0) return;
   const snap = cars.map((car) => ({ ...car }));
   const remainAt = snap.map((car) => {
@@ -30,10 +56,32 @@ export function stepLanes(cars: LaneState[], routes: readonly PolyRoute[], dt: n
       car.hold = Math.max(0, car.hold - dt);
       continue;
     }
+    const lanes = laneCount(route);
+    car.lane = Math.max(0, Math.min(lanes - 1, car.lane ?? 0));
+    if (lanes > 1) {
+      const ahead = snap.some((other, j) => {
+        if (j === i) return false;
+        return other.route === car.route && (other.lane ?? 0) === car.lane && other.dist > car.dist && other.dist - car.dist < 16;
+      });
+      const occupied = (lane: number) => snap.some((other, j) => j !== i && other.route === car.route && (other.lane ?? 0) === lane && Math.abs(other.dist - car.dist) < 10);
+      if (ahead && car.lane > 0 && !occupied(car.lane - 1)) car.lane -= 1;
+      else if (ahead && car.lane < lanes - 1 && !occupied(car.lane + 1)) car.lane += 1;
+    }
     car.dist += speed * dt;
     const remain = route.total - car.dist;
-    if (remain > 8) continue;
     const exit = endPoint(route, car.dir);
+    const junction = nearestJunction(exit, junctions);
+    const kind = junction?.kind ?? route.control;
+    if (kind === "stop" && remainAt[i] > 12 && remain <= 12) {
+      car.hold = 0.7;
+      car.dist = Math.max(0, route.total - 12);
+      continue;
+    }
+    if (kind === "signal" && junction && remain < 16 && !signalOpen(junction.id, now, car.dir === 1 ? 0 : 1)) {
+      car.dist = Math.max(0, route.total - 12);
+      continue;
+    }
+    if (remain > 8) continue;
     let blocked = false;
     for (let j = 0; j < cars.length; j++) {
       if (j === i) continue;

@@ -20,6 +20,8 @@ import { NPC_GROUND_INTERVAL_S, WALL_INTERVAL_S, tileCollision } from "./raycast
 import { noteCrime, playState, resetBodies, type Body } from "./playState";
 import { lampsFromRoutes, planRebase, registerShift, scanRoutes, shiftLocals, type LocalRoute } from "./rebase";
 import { stepLanes, followRoad, roadblockPoint, type LaneState } from "./traffic";
+import { junctionsFromRoutes, laneOffset, laneShift, pedReaction, signalOpen } from "./signals";
+import { ProceduralCar } from "./ProceduralCar";
 import { applyImpact, powerFor, repairBill } from "./damage";
 import { writeEastNorthUp } from "./enuFrame";
 import { SLICE_ORIGIN, latLonToLocal, localToLatLon, type LatLon } from "./geo";
@@ -235,6 +237,7 @@ export function PlayerRig({ spawn, view, onReady, onAnchor, roads, wet }: {
       // movement heading, speed is the gait speed (0 when idle).
       playState.player.heading = st.heading;
       playState.player.speed = st.moving ? (st.speed >= 2 ? 9 : 4.5) : 0;
+      if (st.moving) playState.tutorial.moved = true;
       // §2.5.5 — distance to the car, for the "E — Enter car" prompt.
       playState.player.carDist = planar(st.pos, st.carPos);
     } else {
@@ -297,6 +300,7 @@ export function PlayerRig({ spawn, view, onReady, onAnchor, roads, wet }: {
           if (stats.cash >= bill) {
             stats.addCash(-bill);
             playState.condition = { body: 100, engine: 100 };
+            playState.career.repairs += 1;
             sfx.cash();
             useToasts.getState().push(bill > 0 ? `Repaired. $${bill}.` : "Repaired.", "#7CFC00");
           } else {
@@ -331,6 +335,10 @@ export function PlayerRig({ spawn, view, onReady, onAnchor, roads, wet }: {
       // §2.8 — full pose for the shared sim (nav + missions).
       playState.player.heading = st.carYaw;
       playState.player.speed = Math.abs(st.carSpeed);
+      if (Math.abs(st.carSpeed) > 1) {
+        playState.tutorial.drove = true;
+        playState.career.drove = true;
+      }
     }
 
     // §2.1.4 — NaN guard: a non-finite transform resets to spawn instead of
@@ -404,22 +412,28 @@ function firstPerson(camera: THREE.Camera, parent: THREE.Object3D, up: THREE.Vec
 // Stream A (2026-11-03): the primitive-box CarMesh is deleted. Tile NPC
 // cars below render pack GLBs instead (paint is baked, so per-car colour
 // is dropped — the same trade-off already accepted for parked pack cars).
-const NPC_PACKS = [
-  "/packs/pack006/sports_coupe.glb",
-  "/packs/pack006/mid_sedan.glb",
-  "/packs/pack006/offroad_suv.glb",
-];
-
 // ---------------------------------------------------------------------------
 // City life: a small crowd on the active city's roads, lamps, a lookahead
 // camera so tiles stream ahead of the car, and a couple of pursuit cruisers.
 
-interface LiveRoute { roadIndex: number; pts: THREE.Vector3[]; total: number }
+interface LiveRoute {
+  roadIndex: number;
+  pts: THREE.Vector3[];
+  total: number;
+  highway?: string;
+  lanes?: number;
+  ref?: string;
+  control?: "signal" | "stop" | "none";
+}
 
 function toLive(list: LocalRoute[]): LiveRoute[] {
   return list.map((route) => ({
     roadIndex: route.roadIndex,
     total: route.total,
+    highway: route.highway,
+    lanes: route.lanes,
+    ref: route.ref,
+    control: route.control,
     pts: route.pts.map((p) => new THREE.Vector3(p.x, 0, p.z)),
   }));
 }
@@ -427,8 +441,13 @@ function toLive(list: LocalRoute[]): LiveRoute[] {
 function publishRoutes(routes: LiveRoute[]) {
   playState.routes = routes.map((route) => ({
     total: route.total,
+    highway: route.highway,
+    lanes: route.lanes,
+    ref: route.ref,
+    control: route.control,
     pts: route.pts.map((p) => ({ x: p.x, z: p.z })),
   }));
+  playState.junctions = junctionsFromRoutes(playState.routes);
 }
 
 function pointOn(routes: LiveRoute[], i: number): THREE.Vector3 {
@@ -444,6 +463,7 @@ export function CityLife({ roads }: { roads: Road[] | null }) {
       {roads && roads.length > 0 && <TileNpcs roads={roads} />}
       <StreetLamps roads={roads} />
       <WantedPursuit />
+      <SignalPosts />
     </>
   );
 }
@@ -465,6 +485,7 @@ export function TileNpcs({ roads }: { roads: Road[] }) {
         pos, goal: pos.clone(), heading: 0, y: 0, t: Math.random(),
         down: 0, dead: false,
         shirt: pedLooks[i].shirt, pants: pedLooks[i].pants, skin: pedLooks[i].skin,
+        hair: pedLooks[i].hair, hat: pedLooks[i].hat, coat: pedLooks[i].coat,
         build: pedLooks[i].build,
         body: { pos: new THREE.Vector3(), push: new THREE.Vector3(), hit: 0 } as Body,
       };
@@ -473,7 +494,8 @@ export function TileNpcs({ roads }: { roads: Road[] }) {
   const cars = useRef(
     Array.from({ length: EARTH_CAR_COUNT }, (_, i) => ({
       route: i,
-      fwd: i % 2 === 0, dir: (i % 2 === 0 ? 1 : -1) as 1 | -1, dist: 0, hold: 0, y: 0, t: Math.random(), heading: 0,
+      fwd: i % 2 === 0, dir: (i % 2 === 0 ? 1 : -1) as 1 | -1, dist: 0, hold: 0, lane: i % 2, y: 0, t: Math.random(), heading: 0,
+      style: i % 4,
       offset: new THREE.Vector3(),
       body: { pos: new THREE.Vector3(), push: new THREE.Vector3(), hit: 0 } as Body,
     })),
@@ -533,13 +555,21 @@ export function TileNpcs({ roads }: { roads: Road[] }) {
         return;
       }
       if (p.body.push.lengthSq() > 0) { p.pos.add(p.body.push); p.body.push.set(0, 0, 0); }
-      if (routes.length && Math.hypot(p.goal.x - p.pos.x, p.goal.z - p.pos.z) < 1.4) {
+      const react = pedReaction(
+        p.pos,
+        cars.current.map((car) => ({ x: car.body.pos.x, z: car.body.pos.z, heading: car.heading, speed: car.hold > 0 ? 0 : 9 })),
+      );
+      if (react.mode === "step") {
+        p.pos.x += react.x * 1.4 * step;
+        p.pos.z += react.z * 1.4 * step;
+      }
+      if (react.mode !== "wait" && routes.length && Math.hypot(p.goal.x - p.pos.x, p.goal.z - p.pos.z) < 1.4) {
         const route = routes[Math.floor(Math.random() * routes.length)];
         const pt = route.pts[Math.floor(Math.random() * route.pts.length)];
         if (Math.hypot(pt.x - playState.player.pos.x, pt.z - playState.player.pos.z) < 480) p.goal.copy(pt);
       }
       _pedTo.set(p.goal.x - p.pos.x, 0, p.goal.z - p.pos.z);
-      if (_pedTo.lengthSq() > 0.25) {
+      if (react.mode !== "wait" && _pedTo.lengthSq() > 0.25) {
         _pedTo.normalize();
         p.pos.addScaledVector(_pedTo, 1.35 * step);
         p.heading = Math.atan2(_pedTo.x, _pedTo.z);
@@ -558,13 +588,14 @@ export function TileNpcs({ roads }: { roads: Road[] }) {
     });
 
     if (routes.length) {
-      const lanes: LaneState[] = cars.current.map((c) => ({ route: c.route, dist: c.dist, dir: c.dir, hold: c.hold }));
-      stepLanes(lanes, routes, step, 9);
+      const lanes: LaneState[] = cars.current.map((c) => ({ route: c.route, dist: c.dist, dir: c.dir, hold: c.hold, lane: c.lane }));
+      stepLanes(lanes, routes, step, 9, state.clock.elapsedTime, playState.junctions);
       lanes.forEach((lane, i) => {
         cars.current[i].route = lane.route;
         cars.current[i].dist = lane.dist;
         cars.current[i].dir = lane.dir;
         cars.current[i].hold = lane.hold;
+        cars.current[i].lane = lane.lane ?? 0;
         cars.current[i].fwd = lane.dir === 1;
       });
       cars.current.forEach((c, i) => {
@@ -578,6 +609,9 @@ export function TileNpcs({ roads }: { roads: Road[] }) {
         }
         const along = c.fwd ? c.dist : Math.max(0, route.total - c.dist);
         const { point, dir } = sampleAlong(route, along, _alongPoint, _alongDir);
+        const shift = laneShift(dir.x, dir.z, laneOffset(c.lane, route.lanes ?? 1));
+        point.x += shift.x;
+        point.z += shift.z;
         if (c.body.push.lengthSq() > 0) { c.offset.add(c.body.push); c.body.push.set(0, 0, 0); }
         c.offset.multiplyScalar(0.9);
         const px = point.x + c.offset.x, pz = point.z + c.offset.z;
@@ -601,12 +635,12 @@ export function TileNpcs({ roads }: { roads: Road[] }) {
     <group>
       {peds.current.map((p, i) => (
         <group key={`p${i}`} ref={(el) => (pedRefs.current[i] = el)}>
-          <Character shirt={p.shirt} pants={p.pants} skin={p.skin} build={p.build} moving={() => !p.dead && p.down <= 0} />
+          <Character shirt={p.shirt} pants={p.pants} skin={p.skin} hair={p.hair} hat={p.hat} coat={p.coat} build={p.build} moving={() => !p.dead && p.down <= 0} />
         </group>
       ))}
       {cars.current.map((_, i) => (
         <group key={`c${i}`} ref={(el) => (carRefs.current[i] = el)}>
-          <PackGLB path={NPC_PACKS[i % NPC_PACKS.length]} />
+          <ProceduralCar style={cars.current[i].style} />
         </group>
       ))}
     </group>
@@ -704,6 +738,34 @@ function StreetLamps({ roads }: { roads: Road[] | null }) {
     <>
       {Array.from({ length: LAMP_COUNT }, (_, i) => (
         <pointLight key={i} ref={(el) => { lights.current[i] = el; }} color="#ffc98a" distance={34} decay={2} intensity={0} />
+      ))}
+    </>
+  );
+}
+
+function SignalPosts() {
+  const refs = useRef<(THREE.Mesh | null)[]>([]);
+  useFrame(({ clock }) => {
+    const list = playState.junctions;
+    for (let i = 0; i < 8; i++) {
+      const mesh = refs.current[i];
+      const junction = list[i];
+      if (!mesh) continue;
+      if (!junction || junction.kind === "none") { mesh.visible = false; continue; }
+      mesh.visible = true;
+      mesh.position.set(junction.x, 3.2, junction.z);
+      const open = junction.kind === "signal" && signalOpen(junction.id, clock.elapsedTime, 0);
+      const mat = mesh.material as THREE.MeshBasicMaterial;
+      mat.color.set(junction.kind === "stop" ? "#c23b3b" : open ? "#3dba6a" : "#d2a03a");
+    }
+  });
+  return (
+    <>
+      {Array.from({ length: 8 }, (_, i) => (
+        <mesh key={i} ref={(el) => { refs.current[i] = el; }} visible={false}>
+          <boxGeometry args={[0.4, 1.2, 0.4]} />
+          <meshBasicMaterial color="#c23b3b" />
+        </mesh>
       ))}
     </>
   );

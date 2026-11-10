@@ -42,7 +42,11 @@ export const playState = {
   /** Seconds R has been held while stopped, toward a repair. */
   repair: 0,
   /** Drivable polylines in the current local frame. Traffic publishes these. */
-  routes: [] as { pts: { x: number; z: number }[]; total: number }[],
+  routes: [] as { pts: { x: number; z: number }[]; total: number; highway?: string; lanes?: number; ref?: string; control?: "signal" | "stop" | "none" }[],
+  junctions: [] as { id: number; x: number; z: number; kind: "signal" | "stop" | "none" }[],
+  career: { seconds: 0, meters: 0, drove: false, repairs: 0 },
+  heatSeen: false,
+  tutorial: { moved: false, drove: false, mapped: false, dismissed: false },
   peds: [] as Body[],
   cars: [] as Body[],
   bump: 0, // set when the player's car hits an NPC car (PlayerRig reads + clears)

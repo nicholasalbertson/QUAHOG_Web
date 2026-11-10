@@ -31,7 +31,7 @@ import { useToasts } from "../store";
 import { sfx } from "../audio/sfx";
 import { playState } from "./playState";
 import { advanceArc, arcDistance, arcIndex, currentArc, finishArc, loadArc } from "./arc";
-import { advanceJob, currentJob, jobSnapshot, loadJobs } from "./jobs";
+import { advanceJob, chasePoint, currentJob, jobClock, jobSnapshot, loadJobs, tickJob } from "./jobs";
 import { bedFor } from "./ambience";
 import { nearestCity } from "./regions";
 import { straightGuide } from "./rebase";
@@ -43,6 +43,7 @@ import { saveMissionProgress, restoreMissionProgress } from "../world/GameSystem
 import { loadJSON, saveJSON } from "../storage";
 import { SAVE_KEYS } from "../registries";
 import { EARTH_LOCAL_KEY, parseEarthLocal, sharesStylizedFrame, type EarthLocalSave } from "./earthLocal";
+import { SLOT_KEY, parseSlots, withActive } from "./slots";
 import type { Slice } from "../slice";
 import type { Weather as EarthWeather } from "./Ambient";
 import type { Weather as SimWeather } from "../store";
@@ -122,7 +123,8 @@ export function EarthSimBridge({ slice, weather }: { slice: Slice | null; weathe
       const target = latLonToLocal(playState.anchor, arc);
       guide = straightGuide(p.pos.x, p.pos.z, p.heading, target.x, target.z);
     } else if (job) {
-      const target = latLonToLocal(playState.anchor, job.step);
+      const point = chasePoint(job.step, jobClock());
+      const target = latLonToLocal(playState.anchor, point);
       guide = straightGuide(p.pos.x, p.pos.z, p.heading, target.x, target.z);
     } else {
       const ms = useMission.getState();
@@ -132,6 +134,9 @@ export function EarthSimBridge({ slice, weather }: { slice: Slice | null; weathe
         guide = straightGuide(p.pos.x, p.pos.z, p.heading, target.x, target.z);
       }
     }
+    playState.career.seconds += dt;
+    playState.career.meters += Math.max(0, p.speed) * dt;
+    if (useStats.getState().police > 0.4) playState.heatSeen = true;
     bedAcc.current += dt;
     if (bedAcc.current > 1) {
       bedAcc.current = 0;
@@ -188,8 +193,13 @@ export function EarthMissionRunner() {
         saveEarth();
       }
     } else if (job) {
-      marker = latLonToLocal(playState.anchor, job.step);
+      const point = chasePoint(job.step, jobClock());
+      marker = latLonToLocal(playState.anchor, point);
       const heat = useStats.getState().police;
+      if (tickJob(Math.min(dt, 0.05), heat) === "fail") {
+        useToasts.getState().push("Failed. Back to the last checkpoint.", "#ff8a8a");
+        saveEarth();
+      }
       const reached = Math.hypot(p.pos.x - marker.x, p.pos.z - marker.z) <= job.step.radius;
       if (playState.settled && reached && (!job.step.needCar || p.driving) && (!job.step.noHeat || heat < 0.8)) {
         const moved = advanceJob();
@@ -280,8 +290,17 @@ export function saveEarth(): void {
         lon: playState.anchor.lon,
         arcStep: arcIndex(),
         ...jobSnapshot(),
+        careerSeconds: playState.career.seconds,
+        careerMeters: playState.career.meters,
+        careerDrove: playState.career.drove,
+        careerRepairs: playState.career.repairs,
+        heatSeen: playState.heatSeen,
       };
-      if (parseEarthLocal(local)) saveJSON(EARTH_LOCAL_KEY, local);
+      if (parseEarthLocal(local)) {
+        saveJSON(EARTH_LOCAL_KEY, local);
+        const stored = parseSlots(loadJSON(SLOT_KEY, null));
+        saveJSON(SLOT_KEY, withActive(stored, stored.active, local));
+      }
       if (sharesStylizedFrame(playState.placeId) && anchorIsSliceOrigin(playState.anchor)) {
         saveJSON(SAVE_KEYS.pos, {
           mode: p.driving ? "car" : "foot",
@@ -324,4 +343,11 @@ export function restoreEarth(): void {
     if (ms.done || ms.mi > 0 || ms.step > 0) finishArc();
   }
   loadJobs(local);
+  if (local) {
+    playState.career.seconds = local.careerSeconds ?? 0;
+    playState.career.meters = local.careerMeters ?? 0;
+    playState.career.drove = local.careerDrove === true;
+    playState.career.repairs = local.careerRepairs ?? 0;
+    playState.heatSeen = local.heatSeen === true;
+  }
 }

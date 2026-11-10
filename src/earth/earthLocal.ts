@@ -22,6 +22,14 @@ export interface EarthLocalSave {
   jobId?: string;
   jobStep?: number;
   jobsDone?: string[];
+  jobLine?: number;
+  jobClock?: number;
+  jobCheckpoint?: number;
+  careerSeconds?: number;
+  careerMeters?: number;
+  careerDrove?: boolean;
+  careerRepairs?: number;
+  heatSeen?: boolean;
 }
 
 const MAX_OFFSET_M = 8000;
@@ -58,6 +66,14 @@ export function parseEarthLocal(raw: unknown): EarthLocalSave | null {
     const ids = rec.jobsDone.filter((id): id is string => typeof id === "string" && !!jobById(id));
     if (ids.length) save.jobsDone = ids;
   }
+  if (typeof rec.jobLine === "number" && rec.jobLine >= 0) save.jobLine = Math.floor(rec.jobLine);
+  if (typeof rec.jobClock === "number" && rec.jobClock >= 0) save.jobClock = rec.jobClock;
+  if (typeof rec.jobCheckpoint === "number" && rec.jobCheckpoint >= 0) save.jobCheckpoint = Math.floor(rec.jobCheckpoint);
+  if (typeof rec.careerSeconds === "number" && rec.careerSeconds >= 0) save.careerSeconds = rec.careerSeconds;
+  if (typeof rec.careerMeters === "number" && rec.careerMeters >= 0) save.careerMeters = rec.careerMeters;
+  if (rec.careerDrove === true) save.careerDrove = true;
+  if (typeof rec.careerRepairs === "number" && rec.careerRepairs >= 0) save.careerRepairs = Math.floor(rec.careerRepairs);
+  if (rec.heatSeen === true) save.heatSeen = true;
   return save;
 }
 

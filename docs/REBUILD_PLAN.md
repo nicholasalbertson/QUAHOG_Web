@@ -24,7 +24,13 @@ Phase 1 is in. Phase 2 and the first playable loop are in on the same branch:
 - Pause → Jobs has one chain each for Fall River, New Bedford, Brockton, Cape Cod, and the South Coast towns. They use latitude and longitude, so a rebase does not move the pin. The shared campaign list is unchanged.
 - Gamepad triggers drive the car and Start pauses. Settings cover graphics, subtitle size, and a colorblind HUD. A loading card, a credits screen (OpenStreetMap, Google, pack models), and a redacted crash overlay are in. `docs/RELEASE_CHECKLIST.md` is the human list.
 
-Still not a commercial release. The checklist is the remaining human work: the live key and its terms, pack licenses, art, voice, rating, privacy, store listing, and the soak on real hardware.
+- Traffic reads lane counts and route refs from the slices. I-195, Route 24, US 6, and Route 3 are at least two lanes, and a car changes lanes when another is ahead. Where a slice has no signal tag, a freeway is open, a primary meeting is a signal, and a local meeting is a stop. Pedestrians wait for a closing car and step aside when it is on them.
+- The five jobs are one campaign. Mira Costa, Lena Duarte, Eddie Vara, Nia Perry, and Jonah Ellis speak on the subtitle line. Steps include deliveries, a chase, escapes, timed runs, and photo stops. A failed timer or a blown escape returns to the last checkpoint. Finishing a chapter unlocks the next and cuts the price of one front.
+- Ambient people grow a coat, a hat, and a hair color from code. Ambient cars are original box bodies in four silhouettes, not new downloaded models.
+- Three save slots. Autosave writes the active one. Pause has a stats and achievements page.
+- The first drive asks you to walk, enter the car, and open the map. F1 lists the controls. Hints mention repair, heat, and the story.
+
+Still not a commercial release. The checklist is the remaining human work: the live key and its terms, pack licenses for any model that is still in the repo, voice, rating, privacy, store listing, and the soak on real hardware. The campaign is a short original script, not a full season of missions.
 
 ## What phase 1 lands
 

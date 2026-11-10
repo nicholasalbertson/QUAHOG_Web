@@ -51,7 +51,8 @@ import { actionCode, loadSettings, saveSettings, type EarthSettings, type Qualit
 import { QUALITY_PRESET, capsForTier, meanOf, memoryBand, nextQuality, type QualityName } from "./quality";
 import { applyTileMemoryCaps, type TileMemoryHost } from "./tileCaps";
 import { formatCrash } from "./crashReport";
-import { currentJob } from "./jobs";
+import { advanceLine, currentJob, currentLine } from "./jobs";
+import { CONTROLS_TEXT, nextHint, tutorialStep } from "./tutorial";
 import { DriveHint, PauseScreen, TitleScreen } from "./EarthMenu";
 import { sfx } from "../audio/sfx";
 
@@ -126,6 +127,8 @@ export function EarthApp() {
     return choice === "auto" ? "high" : choice;
   });
   const [crashText, setCrashText] = useState<string | null>(null);
+  const [controlsOpen, setControlsOpen] = useState(false);
+  const [seenHints, setSeenHints] = useState<string[]>([]);
   // §2.9.1 — day/night: the sun + lights follow the sim clock (which the
   // EarthSimBridge advances in play mode). Polled at 1 Hz — the sun moves
   // slowly (a 600 s game day), so 1 Hz is smooth enough and cheap.
@@ -234,7 +237,9 @@ export function EarthApp() {
         });
         return;
       }
-      if (e.code === actionCode("map")) { setMapOpen((open) => !open); return; }
+      if (e.code === "F1") { e.preventDefault(); setControlsOpen((open) => !open); return; }
+      if (e.code === "KeyT") { advanceLine(); return; }
+      if (e.code === actionCode("map")) { playState.tutorial.mapped = true; setMapOpen((open) => !open); return; }
       if (e.code === actionCode("camera")) { setView((v) => (v === "third" ? "first" : "third")); return; }
       const pauseKey = actionCode("pause");
       const isPause = e.code === "Escape" || (pauseKey !== "Escape" && e.code === pauseKey);
@@ -382,6 +387,10 @@ export function EarthApp() {
         onOpenMap={() => setMapOpen(true)}
         settings={settings}
         tier={tier}
+        controlsOpen={controlsOpen}
+        onCloseControls={() => setControlsOpen(false)}
+        seenHints={seenHints}
+        onSeen={(id) => setSeenHints((prev) => prev.includes(id) ? prev : [...prev, id])}
       />
       {mapOpen && (
         <EarthBigMap
@@ -419,6 +428,13 @@ export function EarthApp() {
         />
       )}
       {glLost && lostAt != null && <GlLostNotice since={lostAt} />}
+      {controlsOpen && (
+        <div id="controls-overlay" style={{ position: "fixed", left: "50%", top: "50%", transform: "translate(-50%, -50%)", width: 320, zIndex: 36, background: "#0c1018", border: "1px solid #2c3a5e", borderRadius: 10, padding: 14, color: "#e7e0ff", font: "13px/1.45 'Courier New', monospace" }}>
+          <b style={{ color: "#7ad9ff" }}>Controls</b>
+          {CONTROLS_TEXT.map((row) => <div key={row} style={{ marginTop: 4 }}>{row}</div>)}
+          <button onClick={() => setControlsOpen(false)} style={{ marginTop: 10, cursor: "pointer", border: "1px solid #2c3a5e", background: "#7ad9ff", color: "#04121a", fontWeight: 700, padding: "6px 12px", borderRadius: 6 }}>Close</button>
+        </div>
+      )}
       {crashText && <CrashOverlay text={crashText} onClose={() => setCrashText(null)} />}
     </>
   );
@@ -617,8 +633,12 @@ function Hud(props: {
   onOpenMap: () => void;
   settings: EarthSettings;
   tier: QualityName;
+  controlsOpen: boolean;
+  onCloseControls: () => void;
+  seenHints: string[];
+  onSeen: (id: string) => void;
 }) {
-  const { mode, setMode, view, setView, placeId, setPlaceId, weather, anchor, onOpenMap, settings, tier } = props;
+  const { mode, setMode, view, setView, placeId, setPlaceId, weather, anchor, onOpenMap, settings, tier, controlsOpen, onCloseControls, seenHints, onSeen } = props;
   // §2.5 — HUD parity: the reactive values come from the shared stores
   // (useMission, useStats); the per-frame values (heading, nav distance,
   // car distance) are polled at 2 Hz — fast enough for a HUD, cheap enough
@@ -629,12 +649,19 @@ function Hud(props: {
   const police = useStats((s) => s.police);
   const { roads, url } = useLiveCityRoads(placeId);
   const aligned = liveRoadsAligned(url, anchor);
-  const [live, setLive] = useState({ heading: 0, navDist: 0, carDist: Infinity, driving: false, x: 0, z: 0, speed: 0, hour: 9, arc: "", job: "", body: 100, fps: 0, rebases: 0 });
+  const [live, setLive] = useState({ heading: 0, navDist: 0, carDist: Infinity, driving: false, x: 0, z: 0, speed: 0, hour: 9, arc: "", job: "", body: 100, fps: 0, rebases: 0, who: "", line: "", tutorial: "", hint: "", hintId: "" });
   useEffect(() => {
     const id = window.setInterval(() => {
       const p = playState.player;
       const arc = currentArc();
       const job = currentJob();
+      const spoken = currentLine();
+      const step = tutorialStep(playState.tutorial);
+      const hint = nextHint({
+        damaged: playState.condition.body < 100 || playState.condition.engine < 100,
+        heat: useStats.getState().police > 0.4,
+        driving: p.driving,
+      }, seenHints);
       setLive({
         heading: p.heading,
         navDist: shared.navDist ?? 0,
@@ -649,10 +676,15 @@ function Hud(props: {
         body: playState.condition.body,
         fps: playState.fps,
         rebases: playState.rebases,
+        who: spoken?.who ?? "",
+        line: spoken?.text ?? "",
+        tutorial: step?.text ?? "",
+        hint: hint?.text ?? "",
+        hintId: hint?.id ?? "",
       });
     }, 500);
     return () => window.clearInterval(id);
-  }, []);
+  }, [seenHints]);
   const compass = headingToCompass(live.heading);
   const navKm = live.navDist > 0 ? (live.navDist >= 1000 ? `${(live.navDist / 1000).toFixed(1)} km` : `${Math.round(live.navDist)} m`) : null;
   const where = describeLocation(anchor, live.x, live.z, roads, aligned);
@@ -694,6 +726,17 @@ function Hud(props: {
           <span>{compass.cardinal} {compass.bearing}°</span>
           {live.driving && <span>BODY {Math.round(live.body)}</span>}
         </div>
+        {mode === "play" && live.who && (
+          <div id="subtitle-line" style={{ marginBottom: 6, fontSize: 12 * settings.subtitleScale, color: "#f4efe2" }}>
+            <b>{live.who}</b> — {live.line}
+            <span style={{ opacity: 0.6 }}> · T</span>
+          </div>
+        )}
+        {mode === "play" && live.tutorial && (
+          <div id="tutorial-line" style={{ marginBottom: 6, fontSize: 12 * settings.subtitleScale, color: "#7ad9ff" }}>
+            {live.tutorial}
+          </div>
+        )}
         {mode === "play" && live.arc && (
           <div style={{ marginBottom: 6, fontSize: 11 * settings.subtitleScale, color: "#ffcf4a" }}>
             <b>THE NARROWS</b> — {live.arc}
@@ -746,6 +789,12 @@ function Hud(props: {
       {mode === "play" && (
         <div style={{ position: "absolute", right: 12, bottom: 12 }}>
           <EarthMinimap anchor={anchor} placeId={placeId} />
+        </div>
+      )}
+      {live.hint && (
+        <div id="hint-line" style={{ position: "absolute", left: 12, bottom: 48, maxWidth: 360, background: "rgba(5,7,13,.88)", border: "1px solid #2c3a5e", borderRadius: 8, padding: "8px 10px", pointerEvents: "auto" }}>
+          {live.hint}
+          <button style={{ ...btn(false), marginLeft: 8 }} onClick={() => onSeen(live.hintId)}>OK</button>
         </div>
       )}
       {settings.showPerf && (

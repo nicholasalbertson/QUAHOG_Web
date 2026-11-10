@@ -20,13 +20,17 @@ import {
   type EarthSettings,
   type QualityChoice,
 } from "./controls";
-import { REGION_JOBS, currentJob, isJobDone, startJob } from "./jobs";
+import { REGION_JOBS, currentJob, currentLine, frontCost, isJobDone, jobSnapshot, jobUnlocked, startJob, unlockedFrontIds } from "./jobs";
+import { listAchievements } from "./achievements";
+import { SLOT_COUNT, SLOT_KEY, parseSlots, type SlotFile } from "./slots";
+import { loadJSON, saveJSON } from "../storage";
+import { playState } from "./playState";
 
 const RESERVED = new Set(["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
 
 const panel: CSSProperties = {
   pointerEvents: "auto",
-  background: "rgba(5,7,13,.92)",
+  background: "#0c1018",
   border: "1px solid #2c3a5e",
   borderRadius: 12,
   padding: "22px 24px",
@@ -105,7 +109,7 @@ export function PauseScreen({ onResume, onMap, onTitle, onSave, weather, setWeat
   setWeather: (w: Weather) => void;
   onSettings?: (settings: EarthSettings) => void;
 }) {
-  const [page, setPage] = useState<"main" | "settings" | "controls" | "fronts" | "jobs" | "credits">("main");
+  const [page, setPage] = useState<"main" | "settings" | "controls" | "fronts" | "jobs" | "credits" | "saves" | "stats">("main");
   const [hour, setHourState] = useState(shared.hour);
   return scrim(
     <div style={panel}>
@@ -115,7 +119,9 @@ export function PauseScreen({ onResume, onMap, onTitle, onSave, weather, setWeat
           <button style={button} onClick={onResume}>Resume</button>
           <button style={button} onClick={onMap}>Map</button>
           <button style={button} onClick={() => setPage("fronts")}>Fronts</button>
-          <button style={button} onClick={() => setPage("jobs")}>Jobs</button>
+          <button style={button} onClick={() => setPage("jobs")}>Story</button>
+          <button style={button} onClick={() => setPage("saves")}>Saves</button>
+          <button style={button} onClick={() => setPage("stats")}>Stats</button>
           <button style={button} onClick={() => setPage("controls")}>Controls</button>
           <button style={button} onClick={() => setPage("settings")}>Settings</button>
           <button style={button} onClick={() => setPage("credits")}>Credits</button>
@@ -136,6 +142,8 @@ export function PauseScreen({ onResume, onMap, onTitle, onSave, weather, setWeat
       {page === "controls" && <ControlsBody onBack={() => setPage("main")} />}
       {page === "fronts" && <FrontsBody onBack={() => setPage("main")} />}
       {page === "jobs" && <JobsBody onBack={() => setPage("main")} />}
+      {page === "saves" && <SavesBody onBack={() => setPage("main")} />}
+      {page === "stats" && <StatsBody onBack={() => setPage("main")} />}
       {page === "credits" && <CreditsBody onBack={() => setPage("main")} />}
     </div>,
   );
@@ -234,24 +242,85 @@ function SettingsBody({ onBack, weather, setWeather, hour, onHour, onChange }: {
 function JobsBody({ onBack }: { onBack: () => void }) {
   const [rev, setRev] = useState(0);
   const active = currentJob();
+  const spoken = currentLine();
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+    <div id="story-screen" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       <div style={{ fontSize: 12, opacity: 0.75 }}>
-        {active ? `${active.job.regionLabel} — ${active.job.title}: ${active.step.text}` : "One job at a time. The opening at the Narrows still comes first."}
+        {active
+          ? `${active.job.who} — ${active.job.title}. ${active.step.kind ?? "go"}: ${active.step.text}`
+          : "One chapter at a time. Fall River opens the story. A failed timer returns you to the last checkpoint."}
       </div>
+      {spoken && <div style={{ fontSize: 12, color: "#ffcf4a" }}>{spoken.who}: {spoken.text}</div>}
       {REGION_JOBS.map((job) => {
         const finished = isJobDone(job.id);
+        const open = jobUnlocked(job.id);
         return (
           <button
             key={job.id}
-            style={{ ...button, opacity: finished || (active && active.job.id !== job.id) ? 0.45 : 1 }}
-            disabled={finished || !!active}
+            style={{ ...button, opacity: finished || !open || (active && active.job.id !== job.id) ? 0.45 : 1 }}
+            disabled={finished || !open || !!active}
             onClick={() => { if (startJob(job.id)) setRev(rev + 1); }}
           >
-            {job.regionLabel}: {job.title}{finished ? " — done" : ""}
+            {job.regionLabel}: {job.title}{finished ? " — done" : open ? "" : " — locked"}
           </button>
         );
       })}
+      <button style={button} onClick={onBack}>Back</button>
+    </div>
+  );
+}
+
+function readSlots(): SlotFile {
+  return parseSlots(loadJSON(SLOT_KEY, null));
+}
+
+function SavesBody({ onBack }: { onBack: () => void }) {
+  const [file, setFile] = useState(readSlots);
+  const useSlot = (index: number) => {
+    const next = parseSlots({ active: index, slots: file.slots });
+    saveJSON(SLOT_KEY, next);
+    setFile(next);
+  };
+  return (
+    <div id="saves-screen" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ fontSize: 12, opacity: 0.75 }}>
+        Autosave writes the active slot. Continue on the title loads that slot.
+      </div>
+      {Array.from({ length: SLOT_COUNT }, (_, i) => {
+        const slot = file.slots[i];
+        return (
+          <button key={i} style={{ ...button, borderColor: file.active === i ? "#7ad9ff" : "#2c3a5e" }} onClick={() => useSlot(i)}>
+            Slot {i + 1}{file.active === i ? " — active" : ""}{slot ? ` — ${slot.placeId}` : " — empty"}
+          </button>
+        );
+      })}
+      <button style={button} onClick={onBack}>Back</button>
+    </div>
+  );
+}
+
+function StatsBody({ onBack }: { onBack: () => void }) {
+  const owned = useEconomy((s) => s.owned);
+  const cash = useStats((s) => s.cash);
+  const input = {
+    career: playState.career,
+    jobsDone: jobSnapshot().jobsDone,
+    ownedFronts: Object.keys(owned).length,
+    heatSeen: playState.heatSeen,
+  };
+  const rows = listAchievements(input);
+  const earned = rows.filter((row) => row.earned).length;
+  return (
+    <div id="stats-screen" style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 12 }}>
+      <div>Cash ${Math.round(cash)} · driven {(input.career.meters / 1000).toFixed(1)} km · repairs {input.career.repairs}</div>
+      <div style={{ opacity: 0.7 }}>{earned} / {rows.length} achievements</div>
+      <div style={{ maxHeight: 240, overflow: "auto" }}>
+        {rows.map((row) => (
+          <div key={row.id} style={{ opacity: row.earned ? 1 : 0.45, marginBottom: 4 }}>
+            {row.earned ? "●" : "○"} {row.name} — {row.detail}
+          </div>
+        ))}
+      </div>
       <button style={button} onClick={onBack}>Back</button>
     </div>
   );
@@ -312,10 +381,12 @@ function ControlsBody({ onBack }: { onBack: () => void }) {
 function FrontsBody({ onBack }: { onBack: () => void }) {
   const owned = useEconomy((s) => s.owned);
   const cash = useStats((s) => s.cash);
+  const unlocked = unlockedFrontIds();
   const buy = (id: string) => {
     const business = BUSINESSES.find((b) => b.id === id);
-    if (!business || owned[id] || cash < business.cost) return;
-    useStats.getState().addCash(-business.cost);
+    const price = business ? frontCost(business.id, business.cost, unlocked) : 0;
+    if (!business || owned[id] || cash < price) return;
+    useStats.getState().addCash(-price);
     useEconomy.getState().buy(business);
     useEconomy.getState().save();
     useStats.getState().save();
@@ -330,7 +401,7 @@ function FrontsBody({ onBack }: { onBack: () => void }) {
             <span>{b.name}<span style={{ opacity: 0.6 }}> · {b.blurb} · ${b.perDay}/day</span></span>
             {owned[b.id]
               ? <span style={{ color: "#7CFC00" }}>owned</span>
-              : <button style={{ ...button, padding: "3px 8px" }} disabled={cash < b.cost} onClick={() => buy(b.id)}>${b.cost}</button>}
+              : <button style={{ ...button, padding: "3px 8px" }} disabled={cash < frontCost(b.id, b.cost, unlocked)} onClick={() => buy(b.id)}>${frontCost(b.id, b.cost, unlocked)}</button>}
           </div>
         ))}
       </div>

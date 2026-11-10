@@ -50,7 +50,14 @@ export interface RoadSpawn {
   heading: number;
 }
 
-type RoadLine = { highway: string; points: [number, number][] };
+type RoadLine = {
+  highway: string;
+  points: [number, number][];
+  lanes?: number;
+  ref?: string;
+  /** OSM node tag when the slice has one. Absent slices are classified from the road class. */
+  control?: "signal" | "stop" | "none";
+};
 
 /**
  * Closest drivable centerline to the local origin, with a heading along the
@@ -89,6 +96,10 @@ export interface LocalRoute {
   roadIndex: number;
   pts: { x: number; z: number }[];
   total: number;
+  highway?: string;
+  lanes?: number;
+  ref?: string;
+  control?: "signal" | "stop" | "none";
 }
 
 function routeFrom(
@@ -115,7 +126,15 @@ function routeFrom(
     pts.push(p);
   }
   if (pts.length < 2 || total <= 12) return null;
-  return { roadIndex: index, pts, total };
+  return {
+    roadIndex: index,
+    pts,
+    total,
+    highway: road.highway,
+    lanes: road.lanes,
+    ref: road.ref,
+    control: road.control,
+  };
 }
 
 /** Drivable roads near the origin, in the active frame. Already-built indexes are skipped. */
