@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Sky } from "@react-three/drei";
@@ -10,7 +10,7 @@ import {
 } from "3d-tiles-renderer/r3f";
 import { WGS84_ELLIPSOID } from "3d-tiles-renderer/three";
 import { type Slice } from "../slice";
-import { installInput } from "../input";
+import { consumeTap, installInput } from "../input";
 import { computeSpawn } from "./follow";
 import { useContext } from "react";
 import { TilesRendererContext } from "3d-tiles-renderer/r3f";
@@ -36,7 +36,6 @@ import { sim } from "../sim/SimRuntime";
 import { TilesBVH } from "./bvh";
 import { GoogleTilesAuth } from "./GoogleTilesAuth";
 import { useTileActivity } from "./useTileActivity";
-import { shouldDegrade } from "./frameLoop";
 import { faultCopy, mergeFault, type TileFault } from "./tileFault";
 import { Radio } from "../audio/Radio";
 import { EarthBigMap, EarthMinimap, liveRoadsAligned, useLiveCityRoads } from "./EarthMap";
@@ -48,7 +47,11 @@ import { DEG_TO_RAD } from "./enuFrame";
 import { nearestRoadSpawn } from "./rebase";
 import { SLICE_ORIGIN, type LatLon } from "./geo";
 import { currentArc, resetArc } from "./arc";
-import { actionCode, loadSettings } from "./controls";
+import { actionCode, loadSettings, saveSettings, type EarthSettings, type QualityChoice } from "./controls";
+import { QUALITY_PRESET, capsForTier, meanOf, memoryBand, nextQuality, type QualityName } from "./quality";
+import { applyTileMemoryCaps, type TileMemoryHost } from "./tileCaps";
+import { formatCrash } from "./crashReport";
+import { currentJob } from "./jobs";
 import { DriveHint, PauseScreen, TitleScreen } from "./EarthMenu";
 import { sfx } from "../audio/sfx";
 
@@ -116,8 +119,13 @@ export function EarthApp() {
   const activity = useTileActivity(mode === "play" && !paused);
   // §2.1.6: WebGL context loss pauses the loop and shows a HUD notice.
   const [glLost, setGlLost] = useState(false);
-  // §2.1.7: frame-time watchdog drops a quality tier on sustained overrun.
-  const [degraded, setDegraded] = useState(false);
+  const [lostAt, setLostAt] = useState<number | null>(null);
+  const [settings, setSettings] = useState<EarthSettings>(loadSettings);
+  const [tier, setTier] = useState<QualityName>(() => {
+    const choice = loadSettings().quality;
+    return choice === "auto" ? "high" : choice;
+  });
+  const [crashText, setCrashText] = useState<string | null>(null);
   // §2.9.1 — day/night: the sun + lights follow the sim clock (which the
   // EarthSimBridge advances in play mode). Polled at 1 Hz — the sun moves
   // slowly (a 600 s game day), so 1 Hz is smooth enough and cheap.
@@ -150,6 +158,23 @@ export function EarthApp() {
   }, [apiKey, atlas]);
   useEffect(() => installInput(), []);
   useEffect(() => { sfx.setVolume(loadSettings().volume); }, []);
+  useEffect(() => {
+    const onErr = (event: ErrorEvent) => {
+      setCrashText(formatCrash(event.message || "error", event.error instanceof Error ? event.error.stack : undefined, window.location.href));
+    };
+    const onReject = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      const message = reason instanceof Error ? reason.message : String(reason);
+      const stack = reason instanceof Error ? reason.stack : undefined;
+      setCrashText(formatCrash(message, stack, window.location.href));
+    };
+    window.addEventListener("error", onErr);
+    window.addEventListener("unhandledrejection", onReject);
+    return () => {
+      window.removeEventListener("error", onErr);
+      window.removeEventListener("unhandledrejection", onReject);
+    };
+  }, []);
   // §2.8.4 — restore the shared mission progress + stats once on boot.
   useEffect(() => { restoreEarth(); }, []);
   useEffect(() => { loadSliceCached("slice-newbedford.json").then(setSlice).catch((e) => console.error(e)); }, []);
@@ -200,6 +225,15 @@ export function EarthApp() {
       if (e.repeat) return;
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+      if (e.code === "F3") {
+        e.preventDefault();
+        setSettings((prev) => {
+          const next = { ...prev, showPerf: !prev.showPerf };
+          saveSettings(next);
+          return next;
+        });
+        return;
+      }
       if (e.code === actionCode("map")) { setMapOpen((open) => !open); return; }
       if (e.code === actionCode("camera")) { setView((v) => (v === "third" ? "first" : "third")); return; }
       const pauseKey = actionCode("pause");
@@ -269,12 +303,16 @@ export function EarthApp() {
     <>
       <Canvas
         shadows
-        dpr={degraded ? [1, 1] : [1, 1.5]}
+        dpr={[1, QUALITY_PRESET[tier].dprMax]}
         frameloop={paused || activity.loop === "demand" || glLost ? "demand" : "always"}
         camera={{ position: [0, 0, 2e7], near: 0.5, far: 1e8 }}
       >
-        <ContextGuard onLost={() => setGlLost(true)} onRestored={() => setGlLost(false)} />
-        <FrameWatchdog degraded={degraded} onDegrade={() => setDegraded(true)} />
+        <ContextGuard
+          onLost={() => { saveEarth(); setGlLost(true); setLostAt(Date.now()); }}
+          onRestored={() => { setGlLost(false); setLostAt(null); setTilesKey((k) => k + 1); }}
+        />
+        <QualityScaler preference={settings.quality} onTier={setTier} />
+        <GamepadPause onToggle={() => { if (screenRef.current !== "play") return; setPaused((p) => { playState.paused = !p; return !p; }); }} />
         <color attach="background" args={[wx.bg]} />
         {mode === "play" && <fog attach="fog" args={[wx.bg, wx.fog[0], wx.fog[1]]} />}
         {/* §2.9.1 — the Sky sun follows the sim clock's hour (rises east,
@@ -288,11 +326,12 @@ export function EarthApp() {
         {/* errorTarget: the higher it is, the coarser/faster tiles load. Street-
             level (play) cameras need this raised or the deepest LOD never streams
             in and the ground stays blank. */}
-        <TilesRenderer key={`${apiKey}:${tilesKey}`} errorTarget={degraded ? 48 : 32} enabled={activity.tilesEnabled && !glLost}>
+        <TilesRenderer key={`${apiKey}:${tilesKey}`} errorTarget={QUALITY_PRESET[tier].errorTarget} enabled={activity.tilesEnabled && !glLost}>
           {/* §2.1.3/2.1.5/2.3: auth plugin with guarded dispose, memory caps
               (maxDepth 24, LRU byte/count bounds, job limits), classified tile
               faults, and a redacting log guard — replaces the bare TilesPlugin. */}
           <GoogleTilesAuth apiToken={apiKey} onFault={(f) => setFault((cur) => mergeFault(cur, f))} />
+          <QualityCaps tier={tier} />
           {/* BVH-accelerated collision raycasts + bounded tile memory (prevents
               the street-level hitching and GPU-OOM WebGL context loss). */}
           <TilesBVH />
@@ -341,6 +380,8 @@ export function EarthApp() {
         weather={weather}
         anchor={anchor}
         onOpenMap={() => setMapOpen(true)}
+        settings={settings}
+        tier={tier}
       />
       {mapOpen && (
         <EarthBigMap
@@ -352,7 +393,7 @@ export function EarthApp() {
       )}
       <Radio />
       {screen === "title" && (
-        <TitleScreen canContinue={!!earthLocal} onContinue={() => begin(false)} onNew={() => begin(true)} />
+        <TitleScreen canContinue={!!earthLocal} onContinue={() => begin(false)} onNew={() => begin(true)} onSettings={setSettings} />
       )}
       {screen === "play" && paused && (
         <PauseScreen
@@ -360,6 +401,7 @@ export function EarthApp() {
           onMap={() => { playState.paused = false; setPaused(false); setMapOpen(true); }}
           onTitle={() => { playState.paused = false; setPaused(false); setMode("orbit"); setScreen("title"); }}
           onSave={() => saveEarth()}
+          onSettings={setSettings}
           weather={weather}
           setWeather={(w) => { weatherHold.current = true; setWeather(w); }}
         />
@@ -376,7 +418,8 @@ export function EarthApp() {
           onDismiss={() => setFault(null)}
         />
       )}
-      {glLost && <GlLostNotice />}
+      {glLost && lostAt != null && <GlLostNotice since={lostAt} />}
+      {crashText && <CrashOverlay text={crashText} onClose={() => setCrashText(null)} />}
     </>
   );
 }
@@ -430,23 +473,8 @@ function ContextGuard({ onLost, onRestored }: { onLost: () => void; onRestored: 
   return null;
 }
 
-// §2.1.7: frame-time watchdog — on sustained overrun, degrade once (the app
-// lowers dpr + coarsens tiles). Fires at most once per mount.
-function FrameWatchdog({ degraded, onDegrade }: { degraded: boolean; onDegrade: () => void }) {
-  const samples = useRef<number[]>([]);
-  const fired = useRef(false);
-  useFrame((_, dt) => {
-    if (degraded || fired.current) return;
-    samples.current.push(Math.min(dt, 0.25));
-    if (samples.current.length > 300) samples.current.shift();
-    if (shouldDegrade(samples.current)) {
-      fired.current = true;
-      console.warn("[earth] sustained frame overrun — degrading quality tier");
-      onDegrade();
-    }
-  });
-  return null;
-}
+// QualityScaler replaces the one-shot watchdog. shouldDegrade stays in frameLoop
+// for the stability tests; the live tier uses nextQuality so it can step back up.
 
 // §2.3: distinct copy per fault kind + a retry that re-mounts the tiles
 // renderer without a page reload. The canvas is never blank: movement still
@@ -495,12 +523,73 @@ function TileFaultOverlay({ fault, notice, canRekey, onRetry, onDismiss }: { fau
   );
 }
 
-function GlLostNotice() {
+function GlLostNotice({ since }: { since: number }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 500);
+    return () => window.clearInterval(id);
+  }, []);
+  const stuck = now - since > 8000;
   return (
     <div style={{ position: "fixed", left: "50%", top: 16, transform: "translateX(-50%)", zIndex: 6, background: "rgba(40,30,5,.92)", border: "1px solid #8a6a2c", borderRadius: 8, padding: "8px 14px", color: "#ffe9b0", font: "12px 'Courier New', monospace", textAlign: "center" }}>
-      Graphics paused — restoring… (no reload needed)
+      Graphics paused — restoring…
+      {stuck && (
+        <div style={{ marginTop: 8 }}>
+          <button onClick={() => window.location.reload()} style={{ cursor: "pointer", border: "1px solid #8a6a2c", background: "#ffe9b0", color: "#2a2208", fontWeight: 700, padding: "4px 10px", borderRadius: 6 }}>
+            RELOAD
+          </button>
+        </div>
+      )}
     </div>
   );
+}
+
+function QualityScaler({ preference, onTier }: { preference: QualityChoice; onTier: (tier: QualityName) => void }) {
+  const samples = useRef<number[]>([]);
+  const tier = useRef<QualityName>(preference === "auto" ? "high" : preference);
+  useEffect(() => {
+    if (preference === "auto") return;
+    tier.current = preference;
+    onTier(preference);
+  }, [preference, onTier]);
+  useFrame((_, dt) => {
+    samples.current.push(Math.min(dt, 0.25));
+    if (samples.current.length > 180) samples.current.shift();
+    if (samples.current.length % 30 !== 0) return;
+    const heap = readHeap();
+    const next = nextQuality(
+      tier.current,
+      meanOf(samples.current),
+      samples.current.length,
+      memoryBand(heap?.used ?? null, heap?.limit ?? null),
+      preference !== "auto",
+    );
+    playState.fps = samples.current.length ? Math.round(1 / Math.max(0.001, meanOf(samples.current))) : 0;
+    if (next === tier.current) return;
+    tier.current = next;
+    playState.tier = next;
+    onTier(next);
+  });
+  return null;
+}
+
+function QualityCaps({ tier }: { tier: QualityName }) {
+  const tiles = useContext(TilesRendererContext);
+  useLayoutEffect(() => {
+    if (tiles) applyTileMemoryCaps(tiles as unknown as TileMemoryHost, capsForTier(tier));
+  }, [tiles, tier]);
+  return null;
+}
+
+function GamepadPause({ onToggle }: { onToggle: () => void }) {
+  useFrame(() => { if (consumeTap("KeyP")) onToggle(); });
+  return null;
+}
+
+function readHeap(): { used: number; limit: number } | null {
+  const memory = (performance as { memory?: { usedJSHeapSize: number; jsHeapSizeLimit: number } }).memory;
+  if (!memory) return null;
+  return { used: memory.usedJSHeapSize, limit: memory.jsHeapSizeLimit };
 }
 
 function FlyTo({ lat, lon }: { lat: number; lon: number }) {
@@ -526,8 +615,10 @@ function Hud(props: {
   weather: Weather;
   anchor: { lat: number; lon: number };
   onOpenMap: () => void;
+  settings: EarthSettings;
+  tier: QualityName;
 }) {
-  const { mode, setMode, view, setView, placeId, setPlaceId, weather, anchor, onOpenMap } = props;
+  const { mode, setMode, view, setView, placeId, setPlaceId, weather, anchor, onOpenMap, settings, tier } = props;
   // §2.5 — HUD parity: the reactive values come from the shared stores
   // (useMission, useStats); the per-frame values (heading, nav distance,
   // car distance) are polled at 2 Hz — fast enough for a HUD, cheap enough
@@ -538,11 +629,12 @@ function Hud(props: {
   const police = useStats((s) => s.police);
   const { roads, url } = useLiveCityRoads(placeId);
   const aligned = liveRoadsAligned(url, anchor);
-  const [live, setLive] = useState({ heading: 0, navDist: 0, carDist: Infinity, driving: false, x: 0, z: 0, speed: 0, hour: 9, arc: "" });
+  const [live, setLive] = useState({ heading: 0, navDist: 0, carDist: Infinity, driving: false, x: 0, z: 0, speed: 0, hour: 9, arc: "", job: "", body: 100, fps: 0, rebases: 0 });
   useEffect(() => {
     const id = window.setInterval(() => {
       const p = playState.player;
       const arc = currentArc();
+      const job = currentJob();
       setLive({
         heading: p.heading,
         navDist: shared.navDist ?? 0,
@@ -553,6 +645,10 @@ function Hud(props: {
         speed: p.speed,
         hour: shared.hour,
         arc: arc ? arc.text : "",
+        job: job ? `${job.job.title} — ${job.step.text}` : "",
+        body: playState.condition.body,
+        fps: playState.fps,
+        rebases: playState.rebases,
       });
     }, 500);
     return () => window.clearInterval(id);
@@ -592,28 +688,35 @@ function Hud(props: {
             : "Orbit: drag to look, scroll to zoom. M opens the map."}
         </div>
         <div style={{ display: "flex", gap: 12, marginBottom: 6, fontSize: 11 }}>
-          <span>♥ {Math.round(health)}</span>
-          <span>{"★".repeat(Math.round(police))}{"☆".repeat(5 - Math.round(police))}</span>
+          <span>{settings.colorblind ? `HP ${Math.round(health)}` : `♥ ${Math.round(health)}`}</span>
+          <span>{settings.colorblind ? `POLICE ${Math.round(police)}` : `${"★".repeat(Math.round(police))}${"☆".repeat(5 - Math.round(police))}`}</span>
           <span>${Math.round(cash)}</span>
           <span>{compass.cardinal} {compass.bearing}°</span>
+          {live.driving && <span>BODY {Math.round(live.body)}</span>}
         </div>
         {mode === "play" && live.arc && (
-          <div style={{ marginBottom: 6, fontSize: 11, color: "#ffcf4a" }}>
+          <div style={{ marginBottom: 6, fontSize: 11 * settings.subtitleScale, color: "#ffcf4a" }}>
             <b>THE NARROWS</b> — {live.arc}
             {navKm && <span> · {navKm}</span>}
           </div>
         )}
-        {mode === "play" && !live.arc && !mission.done && (
-          <div style={{ marginBottom: 6, fontSize: 11, color: "#ffcf4a" }}>
+        {mode === "play" && !live.arc && live.job && (
+          <div style={{ marginBottom: 6, fontSize: 11 * settings.subtitleScale, color: "#ffcf4a" }}>
+            <b>JOB</b> — {live.job}
+            {navKm && <span> · {navKm}</span>}
+          </div>
+        )}
+        {mode === "play" && !live.arc && !live.job && !mission.done && (
+          <div style={{ marginBottom: 6, fontSize: 11 * settings.subtitleScale, color: "#ffcf4a" }}>
             <b>{mission.title}</b> — {mission.objective}
             {navKm && <span> · {navKm}</span>}
           </div>
         )}
-        {mode === "play" && !live.arc && mission.done && (
+        {mode === "play" && !live.arc && !live.job && mission.done && (
           <div style={{ marginBottom: 6, fontSize: 11, color: "#7CFC00" }}>Campaign complete — the Narrows is yours.</div>
         )}
         {prompt && (
-          <div style={{ marginBottom: 6, fontSize: 11, color: "#7ad9ff" }}>{prompt}</div>
+          <div style={{ marginBottom: 6, fontSize: 11 * settings.subtitleScale, color: "#7ad9ff" }}>{prompt}</div>
         )}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
           <button style={btn(mode === "play")} onClick={() => setMode("play")}>PLAY</button>
@@ -645,6 +748,12 @@ function Hud(props: {
           <EarthMinimap anchor={anchor} placeId={placeId} />
         </div>
       )}
+      {settings.showPerf && (
+        <div id="perf-line" style={{ position: "absolute", bottom: 12, left: 12, background: "rgba(5,7,13,.82)", border: "1px solid #2c3a5e", borderRadius: 6, padding: "4px 8px", fontSize: 11 }}>
+          {live.fps || "—"} fps · {tier} · rebase {live.rebases}
+          {(() => { const heap = readHeap(); return heap ? ` · ${Math.round(heap.used / (1024 * 1024))} MB` : ""; })()}
+        </div>
+      )}
     </div>
   );
 }
@@ -665,11 +774,54 @@ function AtlasPreview() {
   );
 }
 
+const LOAD_TIPS = [
+  "The car is parked beside you. E gets in.",
+  "M is the map. The arrow is you.",
+  "I-195 runs east from Fall River toward the Cape.",
+  "Stars fade if you stay clean.",
+  "F3 hides the performance line.",
+  "Hold R while stopped to repair the car.",
+];
+
 function Loading() {
+  const [tip, setTip] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setTip((n) => (n + 1) % LOAD_TIPS.length), 3200);
+    return () => window.clearInterval(id);
+  }, []);
   return (
-    <div style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
-      <div style={{ background: "rgba(5,7,13,.82)", border: "1px solid #2c3a5e", borderRadius: 10, padding: "16px 22px", color: "#e7e0ff", font: "14px 'Courier New', monospace" }}>
-        Streaming photoreal tiles… dropping you on the street.
+    <div id="loading-screen" style={{ position: "fixed", inset: 0, zIndex: 12, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(5,7,13,.72)" }}>
+      <div style={{ width: "min(420px, calc(100vw - 32px))", background: "#0c1018", border: "1px solid #2c3a5e", borderRadius: 12, padding: "22px 24px", color: "#e7e0ff", font: "14px/1.5 'Courier New', monospace" }}>
+        <div style={{ color: "#7ad9ff", letterSpacing: 2, marginBottom: 8 }}>THE NARROWS</div>
+        <div>Streaming the coast…</div>
+        <div style={{ margin: "14px 0", height: 4, background: "#1c2740", borderRadius: 2, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: "35%", background: "#7ad9ff", animation: "narrows-load 1.4s ease-in-out infinite" }} />
+        </div>
+        <div style={{ opacity: 0.8, fontSize: 12 }}>{LOAD_TIPS[tip]}</div>
+      </div>
+      <style>{`@keyframes narrows-load { 0% { transform: translateX(-120%); } 100% { transform: translateX(320%); } }`}</style>
+    </div>
+  );
+}
+
+function CrashOverlay({ text, onClose }: { text: string; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div id="crash-overlay" style={{ position: "fixed", inset: 0, zIndex: 40, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(5,7,13,.72)", padding: 24 }}>
+      <div style={{ maxWidth: 520, width: "100%", background: "#1c0c0c", border: "1px solid #7a2c2c", borderRadius: 10, padding: 16, color: "#ffd9d9", font: "13px/1.45 'Courier New', monospace" }}>
+        <b>Something broke</b>
+        <pre style={{ whiteSpace: "pre-wrap", maxHeight: 220, overflow: "auto", background: "#140808", padding: 8, borderRadius: 6 }}>{text}</pre>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            style={{ cursor: "pointer", border: "1px solid #7a2c2c", background: "#7ad9ff", color: "#04121a", fontWeight: 700, padding: "6px 12px", borderRadius: 6 }}
+            onClick={() => { void navigator.clipboard?.writeText(text).then(() => setCopied(true)).catch(() => setCopied(false)); }}
+          >
+            {copied ? "COPIED" : "COPY"}
+          </button>
+          <button style={{ cursor: "pointer", border: "1px solid #7a2c2c", background: "transparent", color: "#ffd9d9", padding: "6px 12px", borderRadius: 6 }} onClick={onClose}>
+            DISMISS
+          </button>
+        </div>
       </div>
     </div>
   );

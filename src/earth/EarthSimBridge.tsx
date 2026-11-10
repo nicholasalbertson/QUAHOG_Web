@@ -31,8 +31,11 @@ import { useToasts } from "../store";
 import { sfx } from "../audio/sfx";
 import { playState } from "./playState";
 import { advanceArc, arcDistance, arcIndex, currentArc, finishArc, loadArc } from "./arc";
+import { advanceJob, currentJob, jobSnapshot, loadJobs } from "./jobs";
+import { bedFor } from "./ambience";
+import { nearestCity } from "./regions";
 import { straightGuide } from "./rebase";
-import { anchorIsSliceOrigin, latLonToLocal, sliceToLatLon, type LatLon } from "./geo";
+import { anchorIsSliceOrigin, latLonToLocal, localToLatLon, sliceToLatLon, type LatLon } from "./geo";
 import { sunDayFactor } from "./dayNight";
 import { markerFade } from "../world/markerVisual";
 import { weatherBusinessMultiplier } from "../world/worldContinuity";
@@ -58,6 +61,7 @@ export function earthWeatherToSim(w: EarthWeather): SimWeather {
 export function EarthSimBridge({ slice, weather }: { slice: Slice | null; weather: EarthWeather }) {
   const bound = useRef<string | null>(null);
   const loopBound = useRef(false);
+  const bedAcc = useRef(0);
 
   useEffect(() => {
     if (!slice) return;
@@ -112,9 +116,13 @@ export function EarthSimBridge({ slice, weather }: { slice: Slice | null; weathe
     // (and after a rebase) guidance is the straight line to the local target.
     const p = playState.player;
     const arc = currentArc();
+    const job = currentJob();
     let guide: { distanceRemaining: number; bearing: number; wrongWay: boolean } | null = null;
     if (arc) {
       const target = latLonToLocal(playState.anchor, arc);
+      guide = straightGuide(p.pos.x, p.pos.z, p.heading, target.x, target.z);
+    } else if (job) {
+      const target = latLonToLocal(playState.anchor, job.step);
       guide = straightGuide(p.pos.x, p.pos.z, p.heading, target.x, target.z);
     } else {
       const ms = useMission.getState();
@@ -123,6 +131,13 @@ export function EarthSimBridge({ slice, weather }: { slice: Slice | null; weathe
         const target = missionLocal(playState.anchor, step.target);
         guide = straightGuide(p.pos.x, p.pos.z, p.heading, target.x, target.z);
       }
+    }
+    bedAcc.current += dt;
+    if (bedAcc.current > 1) {
+      bedAcc.current = 0;
+      const geo = localToLatLon(playState.anchor, p.pos.x, p.pos.z);
+      const city = nearestCity(geo.lat, geo.lon);
+      sfx.setBed(bedFor(city.region, p.speed, city.kind === "highway"));
     }
     shared.navDist = guide?.distanceRemaining ?? 0;
     shared.navBearing = guide?.bearing ?? 0;
@@ -157,6 +172,7 @@ export function EarthMissionRunner() {
     const p = playState.player;
     const arc = currentArc();
     let marker: { x: number; z: number } | null = null;
+    const job = !arc ? currentJob() : null;
     if (arc) {
       marker = latLonToLocal(playState.anchor, arc);
       arcArm.current = playState.settled ? arcArm.current + Math.min(dt, 0.05) : 0;
@@ -171,10 +187,24 @@ export function EarthMissionRunner() {
         useToasts.getState().push(next ? next.text : "The Narrows lets you go. The campaign is open.", "#ffcf4a");
         saveEarth();
       }
+    } else if (job) {
+      marker = latLonToLocal(playState.anchor, job.step);
+      const heat = useStats.getState().police;
+      const reached = Math.hypot(p.pos.x - marker.x, p.pos.z - marker.z) <= job.step.radius;
+      if (playState.settled && reached && (!job.step.needCar || p.driving) && (!job.step.noHeat || heat < 0.8)) {
+        const moved = advanceJob();
+        if (moved?.reward) {
+          useStats.getState().addCash(moved.reward);
+          sfx.cash();
+          useToasts.getState().push(`+$${moved.reward}`, "#7CFC00");
+        }
+        useToasts.getState().push(moved?.finished ? `${job.job.title} complete.` : (moved?.text ?? ""), "#ffcf4a");
+        saveEarth();
+      }
     }
     const ms = useMission.getState();
     const cur = ms.done ? null : ms.steps[ms.step];
-    if (!arc && cur?.target) marker = missionLocal(playState.anchor, cur.target);
+    if (!arc && !job && cur?.target) marker = missionLocal(playState.anchor, cur.target);
     if (root.current) {
       root.current.visible = !!marker;
       if (marker) root.current.position.set(marker.x, 0, marker.z);
@@ -192,7 +222,7 @@ export function EarthMissionRunner() {
     }
     // The opening arc owns the objective until it's finished. The shared
     // campaign then uses the same completion rule, in the live local frame.
-    if (arc || !cur || ms.done) return;
+    if (arc || job || !cur || ms.done) return;
     const local = cur.target ? missionLocal(playState.anchor, cur.target) : null;
     const complete = stepComplete(
       local ? { ...cur, target: [local.x, 0, local.z] } : cur,
@@ -249,6 +279,7 @@ export function saveEarth(): void {
         lat: playState.anchor.lat,
         lon: playState.anchor.lon,
         arcStep: arcIndex(),
+        ...jobSnapshot(),
       };
       if (parseEarthLocal(local)) saveJSON(EARTH_LOCAL_KEY, local);
       if (sharesStylizedFrame(playState.placeId) && anchorIsSliceOrigin(playState.anchor)) {
@@ -292,4 +323,5 @@ export function restoreEarth(): void {
     const ms = useMission.getState();
     if (ms.done || ms.mi > 0 || ms.step > 0) finishArc();
   }
+  loadJobs(local);
 }

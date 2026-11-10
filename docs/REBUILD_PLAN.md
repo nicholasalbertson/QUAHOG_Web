@@ -19,8 +19,12 @@ Phase 1 is in. Phase 2 and the first playable loop are in on the same branch:
 - Fronts from the shared economy can be bought from the pause menu. Income still ticks.
 - Title screen, pause, settings (volume, hour, weather), and control rebinding through the shared key map. Procedural SFX (engine, horn, crash, punch, siren, cash, footsteps, harbor bed). No music files.
 - Players open `earth.html` with no `?key=`. Vercel serves the browser key from `GOOGLE_MAP_TILES_KEY` (`/api/tiles-key`). An rsync of `dist/` uses a build-time `VITE_GOOGLE_MAP_TILES_KEY` or a gitignored `tiles-key.json`. A missing, refused (401/403, or 400 when Google says the key is invalid), or over-quota (429) key shows an overlay. How to create and restrict the key is in `ENV.md`. `?key=` is a one-tab developer override.
+- The frame rebase no longer rebuilds a whole city road list in one frame. Routes fill a few dozen roads at a time. Quality steps between high, medium, and low from frame time and the JS heap, unless the player locks a tier. F3 toggles a performance line. `docs/SOAK_TEST.md` is the hardware pass.
+- Traffic stays on the scanned roads, yields at a join, and turns around when a road ends. At three stars one cruiser parks across the lane ahead. Hard hits spend body and engine; holding R while stopped pays to repair. The wind and wave bed retunes for mill, harbor, city, highway, and cape. No new audio files.
+- Pause → Jobs has one chain each for Fall River, New Bedford, Brockton, Cape Cod, and the South Coast towns. They use latitude and longitude, so a rebase does not move the pin. The shared campaign list is unchanged.
+- Gamepad triggers drive the car and Start pauses. Settings cover graphics, subtitle size, and a colorblind HUD. A loading card, a credits screen (OpenStreetMap, Google, pack models), and a redacted crash overlay are in. `docs/RELEASE_CHECKLIST.md` is the human list.
 
-Still not a commercial release. See the note at the bottom of "After phase 1".
+Still not a commercial release. The checklist is the remaining human work: the live key and its terms, pack licenses, art, voice, rating, privacy, store listing, and the soak on real hardware.
 
 ## What phase 1 lands
 

@@ -32,6 +32,17 @@ export const playState = {
   infractions: 0,
   /** True while braking, so the tail lights can brighten without a re-render. */
   braking: false,
+  /** How many times the local frame has moved under the player this session. */
+  rebases: 0,
+  /** Rolling frame rate and the quality tier, for the performance line. */
+  fps: 0,
+  tier: "high" as "high" | "medium" | "low",
+  /** Car condition, 0–100. The rig spends it on hard hits. */
+  condition: { body: 100, engine: 100 },
+  /** Seconds R has been held while stopped, toward a repair. */
+  repair: 0,
+  /** Drivable polylines in the current local frame. Traffic publishes these. */
+  routes: [] as { pts: { x: number; z: number }[]; total: number }[],
   peds: [] as Body[],
   cars: [] as Body[],
   bump: 0, // set when the player's car hits an NPC car (PlayerRig reads + clears)

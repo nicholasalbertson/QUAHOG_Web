@@ -17,7 +17,10 @@ import {
   loadSettings,
   rebind,
   saveSettings,
+  type EarthSettings,
+  type QualityChoice,
 } from "./controls";
+import { REGION_JOBS, currentJob, isJobDone, startJob } from "./jobs";
 
 const RESERVED = new Set(["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
 
@@ -47,7 +50,7 @@ const button: CSSProperties = {
 
 function scrim(children: ReactNode) {
   return (
-    <div style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(2,4,10,.55)", zIndex: 20, pointerEvents: "auto" }}>
+    <div style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(2,4,10,.55)", zIndex: 32, pointerEvents: "auto" }}>
       {children}
     </div>
   );
@@ -66,10 +69,11 @@ function setHour(hour: number) {
   sim.clock.hour = h;
 }
 
-export function TitleScreen({ canContinue, onContinue, onNew }: {
+export function TitleScreen({ canContinue, onContinue, onNew, onSettings }: {
   canContinue: boolean;
   onContinue: () => void;
   onNew: () => void;
+  onSettings?: (settings: EarthSettings) => void;
 }) {
   const [settings, setSettings] = useState(false);
   return scrim(
@@ -77,7 +81,7 @@ export function TitleScreen({ canContinue, onContinue, onNew }: {
       <div style={{ color: "#7ad9ff", fontSize: 22, letterSpacing: 2 }}>THE NARROWS</div>
       <div style={{ opacity: 0.75, marginBottom: 14 }}>South Coast — Fall River, New Bedford, Brockton, Cape Cod</div>
       {settings ? (
-        <SettingsBody onBack={() => setSettings(false)} />
+        <SettingsBody onBack={() => setSettings(false)} onChange={onSettings} />
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {canContinue && <button style={button} onClick={onContinue}>Continue</button>}
@@ -92,15 +96,16 @@ export function TitleScreen({ canContinue, onContinue, onNew }: {
   );
 }
 
-export function PauseScreen({ onResume, onMap, onTitle, onSave, weather, setWeather }: {
+export function PauseScreen({ onResume, onMap, onTitle, onSave, weather, setWeather, onSettings }: {
   onResume: () => void;
   onMap: () => void;
   onTitle: () => void;
   onSave: () => void;
   weather: Weather;
   setWeather: (w: Weather) => void;
+  onSettings?: (settings: EarthSettings) => void;
 }) {
-  const [page, setPage] = useState<"main" | "settings" | "controls" | "fronts">("main");
+  const [page, setPage] = useState<"main" | "settings" | "controls" | "fronts" | "jobs" | "credits">("main");
   const [hour, setHourState] = useState(shared.hour);
   return scrim(
     <div style={panel}>
@@ -110,8 +115,10 @@ export function PauseScreen({ onResume, onMap, onTitle, onSave, weather, setWeat
           <button style={button} onClick={onResume}>Resume</button>
           <button style={button} onClick={onMap}>Map</button>
           <button style={button} onClick={() => setPage("fronts")}>Fronts</button>
+          <button style={button} onClick={() => setPage("jobs")}>Jobs</button>
           <button style={button} onClick={() => setPage("controls")}>Controls</button>
           <button style={button} onClick={() => setPage("settings")}>Settings</button>
+          <button style={button} onClick={() => setPage("credits")}>Credits</button>
           <button style={button} onClick={onSave}>Save</button>
           <button style={button} onClick={onTitle}>Title</button>
         </div>
@@ -123,36 +130,77 @@ export function PauseScreen({ onResume, onMap, onTitle, onSave, weather, setWeat
           hour={hour}
           onHour={(h) => { setHour(h); setHourState(h); }}
           onBack={() => setPage("main")}
+          onChange={onSettings}
         />
       )}
       {page === "controls" && <ControlsBody onBack={() => setPage("main")} />}
       {page === "fronts" && <FrontsBody onBack={() => setPage("main")} />}
+      {page === "jobs" && <JobsBody onBack={() => setPage("main")} />}
+      {page === "credits" && <CreditsBody onBack={() => setPage("main")} />}
     </div>,
   );
 }
 
-function SettingsBody({ onBack, weather, setWeather, hour, onHour }: {
+function SettingsBody({ onBack, weather, setWeather, hour, onHour, onChange }: {
   onBack: () => void;
   weather?: Weather;
   setWeather?: (w: Weather) => void;
   hour?: number;
   onHour?: (h: number) => void;
+  onChange?: (settings: EarthSettings) => void;
 }) {
-  const [volume, setVolume] = useState(loadSettings().volume);
+  const [settings, setSettings] = useState(loadSettings);
+  const write = (next: EarthSettings) => {
+    setSettings(next);
+    saveSettings(next);
+    onChange?.(next);
+  };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <label>
         Volume
         <input
-          type="range" min={0} max={1} step={0.05} value={volume}
+          type="range" min={0} max={1} step={0.05} value={settings.volume}
           onChange={(e) => {
             const v = Number(e.target.value);
-            setVolume(v);
-            saveSettings({ volume: v });
             sfx.setVolume(v);
+            write({ ...settings, volume: v });
           }}
           style={{ width: "100%", pointerEvents: "auto" }}
         />
+      </label>
+      <label>
+        Graphics
+        <select
+          value={settings.quality}
+          onChange={(e) => write({ ...settings, quality: e.target.value as QualityChoice })}
+          style={{ display: "block", width: "100%", marginTop: 4, background: "#0c0f1a", color: "#e7e0ff", border: "1px solid #2c3a5e", borderRadius: 6, padding: 6 }}
+        >
+          <option value="auto">Auto</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+      </label>
+      <label>
+        Subtitle size
+        <select
+          value={String(settings.subtitleScale)}
+          onChange={(e) => write({ ...settings, subtitleScale: Number(e.target.value) })}
+          style={{ display: "block", width: "100%", marginTop: 4, background: "#0c0f1a", color: "#e7e0ff", border: "1px solid #2c3a5e", borderRadius: 6, padding: 6 }}
+        >
+          <option value="1">100%</option>
+          <option value="1.25">125%</option>
+          <option value="1.5">150%</option>
+        </select>
+      </label>
+      <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <input type="checkbox" checked={settings.colorblind} onChange={(e) => write({ ...settings, colorblind: e.target.checked })} />
+        Colorblind HUD (words, not only color)
+      </label>
+      <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <input type="checkbox" checked={settings.showPerf} onChange={(e) => write({ ...settings, showPerf: e.target.checked })} />
+        Performance line (F3)
       </label>
       {onHour && (
         <label>
@@ -178,6 +226,46 @@ function SettingsBody({ onBack, weather, setWeather, hour, onHour }: {
           </select>
         </label>
       )}
+      <button style={button} onClick={onBack}>Back</button>
+    </div>
+  );
+}
+
+function JobsBody({ onBack }: { onBack: () => void }) {
+  const [rev, setRev] = useState(0);
+  const active = currentJob();
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ fontSize: 12, opacity: 0.75 }}>
+        {active ? `${active.job.regionLabel} — ${active.job.title}: ${active.step.text}` : "One job at a time. The opening at the Narrows still comes first."}
+      </div>
+      {REGION_JOBS.map((job) => {
+        const finished = isJobDone(job.id);
+        return (
+          <button
+            key={job.id}
+            style={{ ...button, opacity: finished || (active && active.job.id !== job.id) ? 0.45 : 1 }}
+            disabled={finished || !!active}
+            onClick={() => { if (startJob(job.id)) setRev(rev + 1); }}
+          >
+            {job.regionLabel}: {job.title}{finished ? " — done" : ""}
+          </button>
+        );
+      })}
+      <button style={button} onClick={onBack}>Back</button>
+    </div>
+  );
+}
+
+function CreditsBody({ onBack }: { onBack: () => void }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12 }}>
+      <div>The Narrows is a driving game on the real South Coast of Massachusetts.</div>
+      <div>Streets and place names: © OpenStreetMap contributors, under the Open Database License.</div>
+      <div>Photoreal buildings and ground: Google Photorealistic 3D Tiles. Imagery © Google, under the Map Tiles API terms.</div>
+      <div>Cars are GLB models in /packs. Confirm that pack's license before a store build. This screen does not grant one.</div>
+      <div>People are placeholder figures drawn by the game.</div>
+      <div>Sound is generated in the browser. No music files ship in this repo.</div>
       <button style={button} onClick={onBack}>Back</button>
     </div>
   );
@@ -213,7 +301,9 @@ function ControlsBody({ onBack }: { onBack: () => void }) {
           </button>
         </div>
       ))}
-      <div style={{ opacity: 0.6, fontSize: 11, margin: "6px 0" }}>Punch is F. That one stays put.</div>
+      <div style={{ opacity: 0.6, fontSize: 11, margin: "6px 0" }}>
+        Punch is F. A gamepad uses the right trigger to accelerate, the left trigger to brake, Start to pause, A to enter, B to brake, X to punch, and Y for the camera.
+      </div>
       <button style={button} onClick={onBack}>Back</button>
     </div>
   );

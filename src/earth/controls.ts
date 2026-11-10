@@ -56,19 +56,36 @@ export const ACTION_LABELS: Record<RemappableAction, string> = {
 
 const SETTINGS_KEY = "mh.earth.settings.v1";
 
+export type QualityChoice = "auto" | "high" | "medium" | "low";
+
 export interface EarthSettings {
   volume: number;
+  quality: QualityChoice;
+  subtitleScale: number;
+  colorblind: boolean;
+  showPerf: boolean;
+}
+
+const SCALES = [1, 1.25, 1.5];
+
+function defaultSettings(): EarthSettings {
+  return { volume: 0.5, quality: "auto", subtitleScale: 1, colorblind: false, showPerf: true };
 }
 
 export function loadSettings(): EarthSettings {
+  const settings = defaultSettings();
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return { volume: 0.5 };
+    if (!raw) return settings;
     const rec = JSON.parse(raw) as Partial<EarthSettings>;
-    const volume = typeof rec.volume === "number" && Number.isFinite(rec.volume) ? rec.volume : 0.5;
-    return { volume: Math.max(0, Math.min(1, volume)) };
+    if (typeof rec.volume === "number" && Number.isFinite(rec.volume)) settings.volume = Math.max(0, Math.min(1, rec.volume));
+    if (rec.quality === "auto" || rec.quality === "high" || rec.quality === "medium" || rec.quality === "low") settings.quality = rec.quality;
+    if (typeof rec.subtitleScale === "number" && SCALES.includes(rec.subtitleScale)) settings.subtitleScale = rec.subtitleScale;
+    if (typeof rec.colorblind === "boolean") settings.colorblind = rec.colorblind;
+    if (typeof rec.showPerf === "boolean") settings.showPerf = rec.showPerf;
+    return settings;
   } catch {
-    return { volume: 0.5 };
+    return settings;
   }
 }
 

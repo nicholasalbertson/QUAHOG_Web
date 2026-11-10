@@ -29,7 +29,18 @@ export interface TileMemoryHost {
   parseQueue?: { maxJobs: number };
 }
 
-export function applyTileMemoryCaps(tiles: TileMemoryHost, caps: typeof TILE_MEMORY = TILE_MEMORY): void {
+export interface TileMemoryCaps {
+  errorTarget: number;
+  minBytes: number;
+  maxBytes: number;
+  minCount: number;
+  maxCount: number;
+  maxDepth: number;
+  downloadJobs: number;
+  parseJobs: number;
+}
+
+export function applyTileMemoryCaps(tiles: TileMemoryHost, caps: TileMemoryCaps = TILE_MEMORY): void {
   tiles.errorTarget = caps.errorTarget;
   tiles.maxDepth = caps.maxDepth;
   if (tiles.lruCache) {

@@ -91,6 +91,33 @@ export interface LocalRoute {
   total: number;
 }
 
+function routeFrom(
+  roads: readonly RoadLine[],
+  index: number,
+  anchor: LatLon,
+  aligned: boolean,
+  radius: number,
+): LocalRoute | null {
+  const road = roads[index];
+  if (!road || !DRIVABLE.has(road.highway) || road.points.length < 2) return null;
+  const first = road.points[0];
+  const last = road.points[road.points.length - 1];
+  const a0 = sliceToFrame(anchor, first[0], first[1], aligned);
+  const b0 = sliceToFrame(anchor, last[0], last[1], aligned);
+  if (Math.hypot(a0.x, a0.z) > radius && Math.hypot(b0.x, b0.z) > radius) return null;
+  const pts: { x: number; z: number }[] = [];
+  let total = 0;
+  for (const [east, north] of road.points) {
+    const p = sliceToFrame(anchor, east, north, aligned);
+    if (Math.hypot(p.x, p.z) > radius + 400) continue;
+    const prev = pts[pts.length - 1];
+    if (prev) total += Math.hypot(p.x - prev.x, p.z - prev.z);
+    pts.push(p);
+  }
+  if (pts.length < 2 || total <= 12) return null;
+  return { roadIndex: index, pts, total };
+}
+
 /** Drivable roads near the origin, in the active frame. Already-built indexes are skipped. */
 export function routesNear(
   roads: readonly RoadLine[],
@@ -102,25 +129,37 @@ export function routesNear(
   const out: LocalRoute[] = [];
   for (let i = 0; i < roads.length; i++) {
     if (have.has(i)) continue;
-    const road = roads[i];
-    if (!DRIVABLE.has(road.highway) || road.points.length < 2) continue;
-    const first = road.points[0];
-    const last = road.points[road.points.length - 1];
-    const a0 = sliceToFrame(anchor, first[0], first[1], aligned);
-    const b0 = sliceToFrame(anchor, last[0], last[1], aligned);
-    if (Math.hypot(a0.x, a0.z) > radius && Math.hypot(b0.x, b0.z) > radius) continue;
-    const pts: { x: number; z: number }[] = [];
-    let total = 0;
-    for (const [east, north] of road.points) {
-      const p = sliceToFrame(anchor, east, north, aligned);
-      if (Math.hypot(p.x, p.z) > radius + 400) continue;
-      const prev = pts[pts.length - 1];
-      if (prev) total += Math.hypot(p.x - prev.x, p.z - prev.z);
-      pts.push(p);
-    }
-    if (pts.length >= 2 && total > 12) out.push({ roadIndex: i, pts, total });
+    const built = routeFrom(roads, i, anchor, aligned, radius);
+    if (built) out.push(built);
   }
   return out;
+}
+
+/**
+ * Walk `budget` roads from `start` and return only the ones near the anchor.
+ * A rebase uses this across frames so a 16k-road city is not rebuilt in one hitch.
+ */
+export function scanRoutes(
+  roads: readonly RoadLine[],
+  anchor: LatLon,
+  have: ReadonlySet<number>,
+  start: number,
+  budget = 36,
+  radius = 2200,
+): { routes: LocalRoute[]; next: number } {
+  const n = roads.length;
+  if (n === 0 || budget <= 0) return { routes: [], next: 0 };
+  const aligned = anchorIsSliceOrigin(anchor);
+  let i = ((start % n) + n) % n;
+  const out: LocalRoute[] = [];
+  for (let stepped = 0; stepped < budget; stepped++) {
+    if (!have.has(i)) {
+      const built = routeFrom(roads, i, anchor, aligned, radius);
+      if (built) out.push(built);
+    }
+    i = (i + 1) % n;
+  }
+  return { routes: out, next: i };
 }
 
 /** Straight-line guidance in the local frame. Bearing is the yaw delta to the target. */
@@ -141,6 +180,25 @@ export function straightGuide(
 }
 
 export interface LampPoint { x: number; z: number }
+
+/** Lamps from routes already in the local frame. Does not walk the city slice. */
+export function lampsFromRoutes(
+  routes: readonly { pts: readonly { x: number; z: number }[] }[],
+  x: number,
+  z: number,
+  count: number,
+): LampPoint[] {
+  const found: LampPoint[] = [];
+  for (const route of routes) {
+    const step = Math.max(1, Math.floor(route.pts.length / 3));
+    for (let i = 0; i < route.pts.length; i += step) {
+      const pt = route.pts[i];
+      if (Math.hypot(pt.x - x, pt.z - z) < 180) found.push({ x: pt.x, z: pt.z });
+    }
+  }
+  found.sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z));
+  return found.slice(0, count);
+}
 
 /** A few lamp positions along nearby drivable roads, closest first. */
 export function lampPoints(

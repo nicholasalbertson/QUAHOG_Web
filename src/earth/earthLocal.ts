@@ -4,6 +4,7 @@
 // would drop a stylized continue in the wrong city.
 
 import { placeById } from "./regions";
+import { jobById } from "./jobs";
 
 export const EARTH_LOCAL_KEY = "mh.earthLocal.v1";
 
@@ -17,6 +18,10 @@ export interface EarthLocalSave {
   lon?: number;
   /** Opening-arc step. Absent means step 0. */
   arcStep?: number;
+  /** Active earth job. Absent on older saves. An unknown id is dropped, not rejected. */
+  jobId?: string;
+  jobStep?: number;
+  jobsDone?: string[];
 }
 
 const MAX_OFFSET_M = 8000;
@@ -44,6 +49,14 @@ export function parseEarthLocal(raw: unknown): EarthLocalSave | null {
   }
   if (typeof rec.arcStep === "number" && Number.isFinite(rec.arcStep) && rec.arcStep >= 0) {
     save.arcStep = Math.floor(rec.arcStep);
+  }
+  if (typeof rec.jobId === "string" && jobById(rec.jobId)) {
+    save.jobId = rec.jobId;
+    if (typeof rec.jobStep === "number" && Number.isFinite(rec.jobStep) && rec.jobStep >= 0) save.jobStep = Math.floor(rec.jobStep);
+  }
+  if (Array.isArray(rec.jobsDone)) {
+    const ids = rec.jobsDone.filter((id): id is string => typeof id === "string" && !!jobById(id));
+    if (ids.length) save.jobsDone = ids;
   }
   return save;
 }

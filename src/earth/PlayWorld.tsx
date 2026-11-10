@@ -12,13 +12,15 @@ import { surfaceAt } from "../world/surfaceSample";
 import type { Road } from "../slice";
 import { Character } from "../world/Character";
 import { slewHeading, stepJump, type JumpState } from "../world/locomotion";
-import { consumeTap, moveAxis } from "../input";
+import { consumeTap, gamepadDrive, isDown, moveAxis } from "../input";
 import { actionDown, actionTap } from "./controls";
 import { followCam, forwardHit, frameUp, groundY, lerpAngle, sanitizePosition } from "./follow";
 import { EARTH_TUNING, chaseForSpeed, stepEarthDrive } from "./drive";
 import { NPC_GROUND_INTERVAL_S, WALL_INTERVAL_S, tileCollision } from "./raycastBudget";
 import { noteCrime, playState, resetBodies, type Body } from "./playState";
-import { lampPoints, planRebase, registerShift, routesNear, shiftLocals, type LocalRoute } from "./rebase";
+import { lampsFromRoutes, planRebase, registerShift, scanRoutes, shiftLocals, type LocalRoute } from "./rebase";
+import { stepLanes, followRoad, roadblockPoint, type LaneState } from "./traffic";
+import { applyImpact, powerFor, repairBill } from "./damage";
 import { writeEastNorthUp } from "./enuFrame";
 import { SLICE_ORIGIN, latLonToLocal, localToLatLon, type LatLon } from "./geo";
 import { useStats } from "../game";
@@ -142,6 +144,8 @@ export function PlayerRig({ spawn, view, onReady, onAnchor, roads, wet }: {
     if (car.current) car.current.visible = true;
 
     const ax = moveAxis();
+    const pad = gamepadDrive();
+    const drive = { x: ax.x, y: Math.max(-1, Math.min(1, ax.y + pad.y)) };
     const fwd = _fwd.set(Math.sin(st.camYaw), 0, Math.cos(st.camYaw));
     const right = _right.set(fwd.z, 0, -fwd.x);
 
@@ -237,9 +241,9 @@ export function PlayerRig({ spawn, view, onReady, onAnchor, roads, wet }: {
       if (player.current) player.current.visible = false;
       const driven = stepEarthDrive(
         { yaw: st.carYaw, speed: st.carSpeed, skidding: false },
-        ax,
+        drive,
         step,
-        { handbrake: actionDown("handbrake"), wet: !!wet },
+        { handbrake: actionDown("handbrake"), wet: !!wet, power: powerFor(playState.condition.engine) },
       );
       st.carYaw = driven.yaw;
       st.carSpeed = driven.speed;
@@ -252,7 +256,10 @@ export function PlayerRig({ spawn, view, onReady, onAnchor, roads, wet }: {
           () => forwardHit(parent, tiles?.group, tileCollision.ray, _probe.copy(st.carPos).setY(st.carPos.y + 1.0), pdir, Math.abs(moveDist) + 2.6),
           { priority: true, interval: WALL_INTERVAL_S });
         if (probe < Math.abs(moveDist) + 2.4) {
-          if (Math.abs(st.carSpeed) > 8) sfx.crash(Math.min(1, Math.abs(st.carSpeed) / 20));
+          if (Math.abs(st.carSpeed) > 8) {
+            sfx.crash(Math.min(1, Math.abs(st.carSpeed) / 20));
+            playState.condition = applyImpact(playState.condition, Math.abs(st.carSpeed));
+          }
           st.carSpeed *= 0.2; // bump, don't tunnel
         }
         else st.carPos.addScaledVector(cf, moveDist);
@@ -272,16 +279,37 @@ export function PlayerRig({ spawn, view, onReady, onAnchor, roads, wet }: {
           const impact = Math.abs(st.carSpeed);
           st.carSpeed *= -0.25;
           playState.bump = 1;
-          if (impact > 6) { sfx.crash(0.45); noteCrime(); }
+          if (impact > 6) {
+            sfx.crash(0.45);
+            noteCrime();
+            playState.condition = applyImpact(playState.condition, impact);
+          }
         }
       }
       knockPeds(st.carPos, 1.9, Math.abs(st.carSpeed) > 6);
-      playState.braking = ax.y < -0.2 && Math.abs(st.carSpeed) > 1;
+      playState.braking = drive.y < -0.2 && Math.abs(st.carSpeed) > 1;
+      const hurt = playState.condition.body < 100 || playState.condition.engine < 100;
+      if (hurt && Math.abs(st.carSpeed) < 0.4 && isDown("KeyR")) {
+        playState.repair += step;
+        if (playState.repair >= 1.2) {
+          const bill = repairBill(playState.condition.body, playState.condition.engine);
+          const stats = useStats.getState();
+          if (stats.cash >= bill) {
+            stats.addCash(-bill);
+            playState.condition = { body: 100, engine: 100 };
+            sfx.cash();
+            useToasts.getState().push(bill > 0 ? `Repaired. $${bill}.` : "Repaired.", "#7CFC00");
+          } else {
+            useToasts.getState().push(`Repair is $${bill}.`, "#ffcf4a");
+          }
+          playState.repair = 0;
+        }
+      } else if (!isDown("KeyR")) playState.repair = 0;
 
       car.current!.position.copy(st.carPos);
       car.current!.rotation.y = st.carYaw;
       const lean = Math.min(1, Math.abs(st.carSpeed) / 20);
-      car.current!.rotation.z = -ax.x * lean * (driven.skidding ? 0.09 : 0.045);
+      car.current!.rotation.z = -drive.x * lean * (driven.skidding ? 0.09 : 0.045);
       st.pos.copy(st.carPos);
       if (actionTap("interact")) {
         st.mode = "foot";
@@ -321,6 +349,7 @@ export function PlayerRig({ spawn, view, onReady, onAnchor, roads, wet }: {
       playState.player.pos.x -= plan.shiftX;
       playState.player.pos.z -= plan.shiftZ;
       playState.anchor = plan.anchor;
+      playState.rebases += 1;
       shiftLocals(plan.shiftX, plan.shiftZ);
       writeEastNorthUp(enu, plan.anchor);
       onAnchor?.(plan.anchor);
@@ -395,6 +424,13 @@ function toLive(list: LocalRoute[]): LiveRoute[] {
   }));
 }
 
+function publishRoutes(routes: LiveRoute[]) {
+  playState.routes = routes.map((route) => ({
+    total: route.total,
+    pts: route.pts.map((p) => ({ x: p.x, z: p.z })),
+  }));
+}
+
 function pointOn(routes: LiveRoute[], i: number): THREE.Vector3 {
   if (!routes.length) return new THREE.Vector3((i - 3) * 6, 0, (i % 4) * 5);
   const route = routes[i % routes.length];
@@ -414,8 +450,8 @@ export function CityLife({ roads }: { roads: Road[] | null }) {
 
 export function TileNpcs({ roads }: { roads: Road[] }) {
   const tiles = useContext(TilesRendererContext);
-  const routesRef = useRef<LiveRoute[] | null>(null);
-  if (!routesRef.current) routesRef.current = toLive(routesNear(roads, playState.anchor, new Set()));
+  const routesRef = useRef<LiveRoute[]>([]);
+  const scanAt = useRef(0);
   const roadsRef = useRef(roads);
   roadsRef.current = roads;
 
@@ -437,7 +473,7 @@ export function TileNpcs({ roads }: { roads: Road[] }) {
   const cars = useRef(
     Array.from({ length: EARTH_CAR_COUNT }, (_, i) => ({
       route: i,
-      fwd: i % 2 === 0, dist: 0, y: 0, t: Math.random(), heading: 0,
+      fwd: i % 2 === 0, dir: (i % 2 === 0 ? 1 : -1) as 1 | -1, dist: 0, hold: 0, y: 0, t: Math.random(), heading: 0,
       offset: new THREE.Vector3(),
       body: { pos: new THREE.Vector3(), push: new THREE.Vector3(), hit: 0 } as Body,
     })),
@@ -451,12 +487,11 @@ export function TileNpcs({ roads }: { roads: Road[] }) {
         ped.pos.x -= dx; ped.pos.z -= dz;
         ped.goal.x -= dx; ped.goal.z -= dz;
       }
-      const routes = routesRef.current ?? [];
+      const routes = routesRef.current;
       for (const route of routes) for (const pt of route.pts) { pt.x -= dx; pt.z -= dz; }
-      const have = new Set(routes.map((r) => r.roadIndex));
-      const source = roadsRef.current;
-      if (source) routes.push(...toLive(routesNear(source, playState.anchor, have)));
       routesRef.current = routes.filter((route) => route.pts.some((pt) => Math.hypot(pt.x, pt.z) < 3200));
+      scanAt.current = 0;
+      publishRoutes(routesRef.current);
     });
   }, []);
 
@@ -466,7 +501,17 @@ export function TileNpcs({ roads }: { roads: Road[] }) {
     if (playState.paused) return;
     const parent = (pedRefs.current[0] || carRefs.current[0])?.parent;
     if (!parent) return;
-    const routes = routesRef.current ?? [];
+    const routes = routesRef.current;
+    const source = roadsRef.current;
+    if (source && routes.length < 48) {
+      const have = new Set(routes.map((route) => route.roadIndex));
+      const scanned = scanRoutes(source, playState.anchor, have, scanAt.current, 36);
+      scanAt.current = scanned.next;
+      if (scanned.routes.length) {
+        routes.push(...toLive(scanned.routes));
+        publishRoutes(routes);
+      }
+    }
     const step = Math.min(dt, 0.05);
     parent.updateWorldMatrix(true, false);
     const up = frameUp(parent);
@@ -513,13 +558,25 @@ export function TileNpcs({ roads }: { roads: Road[] }) {
     });
 
     if (routes.length) {
+      const lanes: LaneState[] = cars.current.map((c) => ({ route: c.route, dist: c.dist, dir: c.dir, hold: c.hold }));
+      stepLanes(lanes, routes, step, 9);
+      lanes.forEach((lane, i) => {
+        cars.current[i].route = lane.route;
+        cars.current[i].dist = lane.dist;
+        cars.current[i].dir = lane.dir;
+        cars.current[i].hold = lane.hold;
+        cars.current[i].fwd = lane.dir === 1;
+      });
       cars.current.forEach((c, i) => {
         const g = carRefs.current[i];
         if (!g) return;
         const route = routes[c.route % routes.length];
-        c.dist += 9 * step;
-        if (c.dist >= route.total) { c.fwd = !c.fwd; c.dist = 0; c.route = Math.floor(Math.random() * routes.length); }
-        const along = c.fwd ? c.dist : route.total - c.dist;
+        if (c.hold > 0) {
+          g.position.set(c.body.pos.x, c.y, c.body.pos.z);
+          g.rotation.y = c.heading;
+          return;
+        }
+        const along = c.fwd ? c.dist : Math.max(0, route.total - c.dist);
         const { point, dir } = sampleAlong(route, along, _alongPoint, _alongDir);
         if (c.body.push.lengthSq() > 0) { c.offset.add(c.body.push); c.body.push.set(0, 0, 0); }
         c.offset.multiplyScalar(0.9);
@@ -624,8 +681,6 @@ function StreetLamps({ roads }: { roads: Road[] | null }) {
   const lights = useRef<(THREE.PointLight | null)[]>([]);
   const spots = useRef<{ x: number; z: number }[]>([]);
   const acc = useRef(0);
-  const roadsRef = useRef(roads);
-  roadsRef.current = roads;
   useEffect(() => registerShift((dx, dz) => {
     for (const spot of spots.current) { spot.x -= dx; spot.z -= dz; }
   }), []);
@@ -633,11 +688,8 @@ function StreetLamps({ roads }: { roads: Road[] | null }) {
     acc.current -= dt;
     if (acc.current <= 0) {
       acc.current = 0.6;
-      const source = roadsRef.current;
       const pose = playState.player;
-      spots.current = source
-        ? lampPoints(source, playState.anchor, pose.pos.x, pose.pos.z, LAMP_COUNT)
-        : [];
+      spots.current = lampsFromRoutes(playState.routes, pose.pos.x, pose.pos.z, LAMP_COUNT);
     }
     const night = playState.night;
     for (let i = 0; i < LAMP_COUNT; i++) {
@@ -684,13 +736,27 @@ function WantedPursuit() {
         car.yaw = heading;
         car.active = true;
       }
-      const dx = playState.player.pos.x - car.x;
-      const dz = playState.player.pos.z - car.z;
+      const px = playState.player.pos.x;
+      const pz = playState.player.pos.z;
+      const dx = px - car.x;
+      const dz = pz - car.z;
       const dist = Math.hypot(dx, dz) || 1;
-      car.yaw = lerpAngle(car.yaw, Math.atan2(dx, dz), 1 - Math.exp(-step * 2.4));
-      const speed = dist < 9 ? 7 : 15 + Math.min(5, stars) * 1.6;
-      car.x += Math.sin(car.yaw) * speed * step;
-      car.z += Math.cos(car.yaw) * speed * step;
+      const block = stars >= 3 && i === 0 ? roadblockPoint(playState.routes, px, pz, playState.player.heading, 45) : null;
+      if (block) {
+        const bd = Math.hypot(block.x - car.x, block.z - car.z);
+        if (bd < 3.5) car.yaw = block.yaw;
+        else {
+          car.yaw = lerpAngle(car.yaw, Math.atan2(block.x - car.x, block.z - car.z), 1 - Math.exp(-step * 2.4));
+          car.x += Math.sin(car.yaw) * 16 * step;
+          car.z += Math.cos(car.yaw) * 16 * step;
+        }
+      } else {
+        const speed = dist < 9 ? 7 : 15 + Math.min(5, stars) * 1.6;
+        const next = followRoad(playState.routes, car.x, car.z, car.yaw, px, pz, step, speed);
+        car.x = next.x;
+        car.z = next.z;
+        car.yaw = next.yaw;
+      }
       car.t -= step;
       if (car.t <= 0 && parent && up && tiles?.group) {
         car.t = 0.45;

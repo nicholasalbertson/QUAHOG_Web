@@ -24,6 +24,8 @@ const WET_GRIP = 0.7;
 export interface EarthDriveOpts {
   handbrake: boolean;
   wet: boolean;
+  /** 0–1 engine health. Omitted means full power, so older callers stay the same. */
+  power?: number;
 }
 
 /**
@@ -38,11 +40,13 @@ export function stepEarthDrive(
   opts: EarthDriveOpts,
 ): VehicleDynamicsState {
   const braking = !opts.handbrake && axis.y < -0.15 && state.speed > 1.4;
+  const power = opts.power == null ? 1 : Math.max(0, Math.min(1, opts.power));
+  const throttle = braking ? 0 : axis.y > 0 ? axis.y * power : axis.y;
   const next = stepVehicleDynamics(
     state,
     {
       steer: axis.x,
-      throttle: braking ? 0 : axis.y,
+      throttle,
       handbrake: opts.handbrake,
     },
     dt,
