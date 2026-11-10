@@ -19,7 +19,7 @@ The human is one CC0 rig. Each slot tints the clothing so a crowd is not a row o
 
 | Pack | Author | License | Used for |
 |---|---|---|---|
-| Car Kit, City Kit, Nature Kit, and the other Kenney packs under `public/vendor/kenney/` | Kenney | CC0 1.0 | Traffic and the patrol car on the tiles build. Street props, trees, and extra vehicles on the street map. https://kenney.nl/assets |
+| Car Kit, City Kit, Nature Kit, Furniture Kit, and the other Kenney packs under `public/vendor/kenney/` | Kenney | CC0 1.0 | Traffic and the patrol car on both builds. Street props and trees. Catalog ids `kenney-sedan`, `kenney-suv`, `kenney-van`, `kenney-police`, `kenney-tree`, `kenney-trashcan`. https://kenney.nl/assets |
 | PBR textures under `public/vendor/polyhaven/` | Poly Haven | CC0 1.0 | Asphalt, cobble, brick, wood, sand, metal. https://polyhaven.com |
 | CesiumMan | Cesium | CC-BY 4.0 | Legacy character file kept in `public/models/`. Attribution: CesiumMan © Cesium. |
 | OpenStreetMap slices | OpenStreetMap contributors | ODbL 1.0 | Roads and districts. © OpenStreetMap contributors. |

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useThree } from "@react-three/fiber";
 import { mobileBudget } from "./mobile/profile";
 import { Physics } from "@react-three/rapier";
@@ -94,7 +94,7 @@ import { ShopInteract } from "./world/ShopInteract";
 import { MissionRunner } from "./world/MissionRunner";
 import { ObjectiveBeacon } from "./world/ObjectiveBeacon";
 import { RenderDiagnostics } from "./world/RenderDiagnostics";
-import { Effects } from "./world/Effects";
+const Effects = lazy(() => import("./world/Effects").then((mod) => ({ default: mod.Effects })));
 import { CoastCampaign } from "./campaign/CoastCampaign";
 import { AutoQuality } from "./perf/AutoQuality";
 import { SimBootstrap } from "./sim/SimBootstrap";
@@ -109,7 +109,7 @@ import { FollowCamera } from "./actors/FollowCamera";
 function FxGate() {
   const on = useGame((s) => s.fxOn);
   const quality = useGame((s) => s.quality);
-  return on && quality > 0 ? <Effects /> : null;
+  return on && quality > 0 ? <Suspense fallback={null}><Effects /></Suspense> : null;
 }
 
 // Shadow rendering toggle (§26) — a real perf lever for low-end / mobile: when

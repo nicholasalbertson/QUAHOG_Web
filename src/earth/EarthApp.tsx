@@ -47,7 +47,10 @@ import { DEFAULT_PLACE_ID, REGIONS, anchorOf, placeById, placesInRegion, roadsSl
 import { loadSliceCached } from "./sliceCache";
 import { DEG_TO_RAD } from "./enuFrame";
 import { nearestRoadSpawn } from "./rebase";
-import { SLICE_ORIGIN, type LatLon } from "./geo";
+import { SLICE_ORIGIN, localToLatLon, type LatLon } from "./geo";
+import { useGame } from "../store";
+import { TouchControls } from "../ui/TouchControls";
+import { CoastExtras } from "../ui/CoastExtras";
 import { currentArc, resetArc } from "./arc";
 import { actionCode, loadSettings, saveSettings, type EarthSettings, type QualityChoice } from "./controls";
 import { QUALITY_PRESET, capsForTier, meanOf, memoryBand, nextQuality, type QualityName } from "./quality";
@@ -206,6 +209,8 @@ export function EarthApp() {
     }
     playState.paused = false;
     setPaused(false);
+    useGame.getState().setPaused(false);
+    useGame.getState().setStarted(true);
     setScreen("play");
     setMode("play");
     setWorldOn(true);
@@ -285,7 +290,7 @@ export function EarthApp() {
       if (!isPause) return;
       if (mapRef.current) { setMapOpen(false); return; }
       if (screenRef.current !== "play") return;
-      setPaused((p) => { playState.paused = !p; return !p; });
+      setPaused((p) => { const next = !p; playState.paused = next; useGame.getState().setPaused(next); return next; });
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -337,6 +342,8 @@ export function EarthApp() {
     }
     playState.paused = false;
     setPaused(false);
+    useGame.getState().setPaused(false);
+    useGame.getState().setStarted(true);
     setScreen("play");
     setMode("play");
     setWorldOn(true);
@@ -352,13 +359,14 @@ export function EarthApp() {
         dpr={[1, QUALITY_PRESET[tier].dprMax]}
         frameloop={paused || activity.loop === "demand" || glLost ? "demand" : "always"}
         camera={{ position: [0, 0, 2e7], near: 0.5, far: 1e8 }}
+        gl={{ antialias: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1 }}
       >
         <ContextGuard
           onLost={() => { saveEarth(); setGlLost(true); setLostAt(Date.now()); }}
           onRestored={() => { setGlLost(false); setLostAt(null); setTilesKey((k) => k + 1); }}
         />
         <QualityScaler preference={settings.quality} onTier={setTier} />
-        <GamepadPause onToggle={() => { if (screenRef.current !== "play") return; setPaused((p) => { playState.paused = !p; return !p; }); }} />
+        <GamepadPause onToggle={() => { if (screenRef.current !== "play") return; setPaused((p) => { const next = !p; playState.paused = next; useGame.getState().setPaused(next); return next; }); }} />
         <color attach="background" args={[wx.bg]} />
         {mode === "play" && <fog attach="fog" args={[wx.bg, wx.fog[0], wx.fog[1]]} />}
         {/* §2.9.1 — the Sky sun follows the sim clock's hour (rises east,
@@ -444,14 +452,21 @@ export function EarthApp() {
         />
       )}
       <Radio />
+      {screen === "play" && <TouchControls />}
+      {screen === "play" && mode === "play" && (
+        <CoastExtras pose={() => {
+          const ll = localToLatLon(playState.anchor, playState.player.pos.x, playState.player.pos.z);
+          return { lat: ll.lat, lon: ll.lon, driving: playState.player.driving, paused: playState.paused };
+        }} />
+      )}
       {screen === "title" && (
         <TitleScreen canContinue={!!earthLocal} onContinue={() => begin(false)} onNew={() => begin(true)} onSettings={setSettings} />
       )}
       {screen === "play" && paused && (
         <PauseScreen
-          onResume={() => { playState.paused = false; setPaused(false); }}
-          onMap={() => { playState.paused = false; setPaused(false); setMapOpen(true); }}
-          onTitle={() => { playState.paused = false; setPaused(false); setMode("orbit"); setScreen("title"); }}
+          onResume={() => { playState.paused = false; setPaused(false); useGame.getState().setPaused(false); }}
+          onMap={() => { playState.paused = false; setPaused(false); useGame.getState().setPaused(false); setMapOpen(true); }}
+          onTitle={() => { playState.paused = false; setPaused(false); useGame.getState().setPaused(false); useGame.getState().setStarted(false); setMode("orbit"); setScreen("title"); }}
           onSave={() => saveEarth()}
           onSettings={setSettings}
           weather={weather}

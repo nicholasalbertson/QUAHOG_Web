@@ -39,3 +39,16 @@ Play then asks for the world. Gzip sizes of those chunks:
 On the tiles page, Play with no map key stays on the key notice and does not download the city slice. With a key, the slice and the tiles load after Play.
 
 The fetched packs (Quaternius human 684 KB, Kloofendal HDRI 1.4 MB, Kenney cars) download with the world, after Play. They are not in the boot transfer.
+
+## This round
+
+Measured again on `vite preview` after the post stack was split out.
+
+| Page | DOMContentLoaded | Boot transfer | Boot files |
+|---|---:|---:|---|
+| Street map | 78 ms | 83,630 bytes | entry, preload helper, React, CSS, boot |
+| 3D Tiles | boot files only | three.js not in the boot set | entry, preload helper, React, boot, favicon |
+
+The tiles-page clock on that pass read 14 s because the street world was still finishing a 20 MB play download in the same browser. The boot file list did not include three.js, Rapier, or a city slice.
+
+Play on the street map then loaded `vendor-post` (299,873 bytes) and a 1,532 byte effects module, separate from the world chunk. The tiles page loaded `vendor-three` and `vendor-tiles` only after Play. Each city slice is still fetched for the city on screen. Foliage instances drop as the camera leaves the block (`lodCount`). Pack GLBs were already Meshopt. There is no KTX2 encoder in this toolchain, so the PBR JPEGs stay as they are. Google tiles are not transcoded and are not cached.

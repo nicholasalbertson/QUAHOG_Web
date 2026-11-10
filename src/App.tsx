@@ -77,6 +77,9 @@ import { sfx } from "./audio/sfx";
 import { Radio } from "./audio/Radio";
 import { installInput } from "./input";
 import { useGame, useToasts } from "./store";
+import { shared } from "./shared";
+import { SLICE_ORIGIN, localToLatLon } from "./earth/geo";
+import { CoastExtras } from "./ui/CoastExtras";
 import { requestGuardedSpawn } from "./world/SpawnGuard";
 import { applyReviewStore } from "./dev/visualReview";
 
@@ -171,6 +174,14 @@ export default function App() {
       <CharacterMenu />
       <PauseMenu />
       <TouchControls />
+      <CoastExtras pose={() => {
+        const game = useGame.getState();
+        const body = game.mode === "car" ? shared.car : shared.player;
+        const at = body?.translation();
+        if (!at) return null;
+        const ll = localToLatLon(SLICE_ORIGIN, at.x, at.z);
+        return { lat: ll.lat, lon: ll.lon, driving: game.mode === "car", paused: game.paused };
+      }} />
       <Toasts />
       <Radio />
       <DebugStats />

@@ -94,11 +94,14 @@ describe("damage, beds, and jobs", () => {
     expect(startJob("fr-quequechan")).toBe(true);
     expect(startJob("cape-canal")).toBe(false);
     expect(currentJob()?.step.text).toContain("Narrows");
-    advanceJob();
-    advanceJob();
-    const last = advanceJob();
+    expect(currentJob()!.job.steps.length).toBeGreaterThanOrEqual(4);
+    const steps = currentJob()!.job.steps;
+    expect(steps[steps.length - 1]?.text.startsWith("Ending:")).toBe(true);
+    let last = advanceJob();
+    for (let i = 0; i < 8 && last && !last.finished; i++) last = advanceJob();
     expect(last?.finished).toBe(true);
     expect(last?.reward).toBe(250);
+    expect(last?.text.startsWith("Ending:")).toBe(true);
     expect(currentJob()).toBeNull();
     const snap = { jobId: "nb-whaling", jobStep: 1, jobsDone: ["fr-quequechan", "nope"] };
     loadJobs(snap);

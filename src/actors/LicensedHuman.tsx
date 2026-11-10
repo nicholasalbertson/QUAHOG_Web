@@ -22,7 +22,19 @@ const readyCache = new Map<string, Promise<boolean>>();
 function fileReady(url: string): Promise<boolean> {
   const cached = readyCache.get(url);
   if (cached) return cached;
-  const pending = fetch(url, { method: "HEAD" }).then((res) => res.ok).catch(() => false);
+  const pending = (async () => {
+    try {
+      const head = await fetch(url, { method: "HEAD" });
+      if (head.ok) return true;
+    } catch { /* some preview servers reject HEAD */ }
+    try {
+      const get = await fetch(url);
+      await get.body?.cancel();
+      return get.ok;
+    } catch {
+      return false;
+    }
+  })();
   readyCache.set(url, pending);
   return pending;
 }

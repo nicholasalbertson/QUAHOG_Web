@@ -1,12 +1,15 @@
-import { useState, type ComponentType } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import { BootTitle } from "./BootTitle";
 import { stashBoot, type BootIntent } from "./intent";
+import { registerAppShell } from "../pwa/register";
 
 // The entry chunk is this gate. three.js, Rapier, and the city slice stay in
 // the next chunk, requested only after Play.
 export function BootGate({ app }: { app: "earth" | "street" }) {
   const [LoadedApp, setLoadedApp] = useState<ComponentType | null>(null);
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => { registerAppShell(); }, []);
 
   const play = (intent: BootIntent) => {
     stashBoot(intent);

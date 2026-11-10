@@ -121,6 +121,16 @@ export const STRINGS = {
     helpWeapons: "weapons",
     helpPhoto: "photo",
   },
+  coast: {
+    discovery: "Discovery log",
+    empty: "No landmarks yet. Walk up to one.",
+    take: "Take it",
+    fareOffer: "Fare: {name}",
+    raceOffer: "Street race: {name}",
+    fareActive: "Fare to {name}",
+    raceActive: "Race gate {n}",
+    found: "Found {name}",
+  },
 } as const;
 
 export type StringKey = keyof typeof STRINGS.common | keyof typeof STRINGS.menu | keyof typeof STRINGS.hud;
@@ -129,6 +139,7 @@ export type StringKey = keyof typeof STRINGS.common | keyof typeof STRINGS.menu 
 export function t(section: "common", key: keyof typeof STRINGS.common): string;
 export function t(section: "menu", key: keyof typeof STRINGS.menu): string;
 export function t(section: "hud", key: keyof typeof STRINGS.hud): string;
+export function t(section: "coast", key: keyof typeof STRINGS.coast): string;
 export function t(section: keyof typeof STRINGS, key: string): string {
   const table = STRINGS[section] as Record<string, string | readonly string[]>;
   const v = table[key];

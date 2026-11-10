@@ -65,6 +65,28 @@
       "download": null,
       "dest": "/vendor/kenney/car-kit/Models/GLB format/police.glb",
       "note": "Already fetched by scripts/download_cc0_packs.mjs. Patrol car on the tiles build."
+    },
+    {
+      "id": "kenney-tree",
+      "role": "vegetation",
+      "author": "Kenney",
+      "license": "CC0-1.0",
+      "commercial": true,
+      "source": "https://kenney.nl/assets/nature-kit",
+      "download": null,
+      "dest": "/vendor/kenney/nature-kit/Models/GLTF format/tree_default.glb",
+      "note": "Street trees. The live crowd of bushes is instanced and drops with distance. This mesh is the licensed stand-in when a dressing pass swaps the cones."
+    },
+    {
+      "id": "kenney-trashcan",
+      "role": "prop",
+      "author": "Kenney",
+      "license": "CC0-1.0",
+      "commercial": true,
+      "source": "https://kenney.nl/assets/furniture-kit",
+      "download": null,
+      "dest": "/vendor/kenney/furniture-kit/Models/GLTF format/trashcan.glb",
+      "note": "Street prop already in the Kenney furniture kit."
     }
   ]
 }

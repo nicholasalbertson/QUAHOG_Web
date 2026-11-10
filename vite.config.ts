@@ -42,6 +42,7 @@ export default defineConfig({
         // they cache across deploys and don't bloat the main app chunk. Each only
         // re-downloads when that library actually changes, not on every game edit.
         manualChunks(id) {
+          if (id.includes("postprocessing") || id.includes("/n8ao")) return "vendor-post";
           if (!id.includes("node_modules")) {
             // Keep Vite's shared import helper out of the three.js chunk.
             // Otherwise the title screen downloads the renderer before Play.

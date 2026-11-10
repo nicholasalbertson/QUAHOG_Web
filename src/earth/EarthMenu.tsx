@@ -25,6 +25,7 @@ import { listAchievements } from "./achievements";
 import { SLOT_COUNT, SLOT_KEY, parseSlots, type SlotFile } from "./slots";
 import { loadJSON, saveJSON } from "../storage";
 import { playState } from "./playState";
+import { DiscoveryLog } from "../ui/DiscoveryLog";
 
 const RESERVED = new Set(["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
 
@@ -110,7 +111,7 @@ export function PauseScreen({ onResume, onMap, onTitle, onSave, weather, setWeat
   setWeather: (w: Weather) => void;
   onSettings?: (settings: EarthSettings) => void;
 }) {
-  const [page, setPage] = useState<"main" | "settings" | "controls" | "fronts" | "jobs" | "credits" | "saves" | "stats">("main");
+  const [page, setPage] = useState<"main" | "settings" | "controls" | "fronts" | "jobs" | "credits" | "saves" | "stats" | "log">("main");
   const [hour, setHourState] = useState(shared.hour);
   return scrim(
     <div style={panel}>
@@ -123,6 +124,7 @@ export function PauseScreen({ onResume, onMap, onTitle, onSave, weather, setWeat
           <button style={button} onClick={() => setPage("jobs")}>Story</button>
           <button style={button} onClick={() => setPage("saves")}>Saves</button>
           <button style={button} onClick={() => setPage("stats")}>Stats</button>
+          <button style={button} onClick={() => setPage("log")}>Discovery log</button>
           <button style={button} onClick={() => setPage("controls")}>Controls</button>
           <button style={button} onClick={() => setPage("settings")}>Settings</button>
           <button style={button} onClick={() => setPage("credits")}>Credits</button>
@@ -146,6 +148,12 @@ export function PauseScreen({ onResume, onMap, onTitle, onSave, weather, setWeat
       {page === "saves" && <SavesBody onBack={() => setPage("main")} />}
       {page === "stats" && <StatsBody onBack={() => setPage("main")} />}
       {page === "credits" && <CreditsBody onBack={() => setPage("main")} />}
+      {page === "log" && (
+        <div>
+          <DiscoveryLog />
+          <button style={{ ...button, marginTop: 10 }} onClick={() => setPage("main")}>Back</button>
+        </div>
+      )}
     </div>,
   );
 }

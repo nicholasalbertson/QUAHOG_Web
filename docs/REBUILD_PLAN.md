@@ -32,7 +32,9 @@ Phase 1 is in. Phase 2 and the first playable loop are in on the same branch:
 - Three save slots. Autosave writes the active one. Pause has a stats and achievements page.
 - The first drive asks you to walk, enter the car, and open the map. F1 lists the controls. Hints mention repair, heat, and the story.
 
-Still not a commercial release. The checklist is the remaining human work: the live key and its terms, pack licenses for any model that is still in the repo, voice, rating, privacy, store listing, and the soak on real hardware. The campaign is a short original script, not a full season of missions.
+Phase 5 content that is in the build: each chapter ends on an "Ending:" step and has at least four steps; fares and two street races share one lat/lon list on both pages; the discovery log records the Lizzie Borden House, the Braga Bridge, the Whaling Museum, the Rocky Marciano statue, both canal bridges, and Provincetown. The street map already had the touch stick. The tiles page uses it too. The production service worker caches the app shell and returns before storing anything from `tile.googleapis.com` or `/v1/3dtiles`. Drafts: `docs/PRIVACY_POLICY.md`, `docs/STORE_LISTING.md`. The string catalog has a `coast` section for the new UI.
+
+Still not a commercial release. The checklist is the remaining human work: the live key and its terms, pack licenses for any model that is still in the repo, voice, rating, a lawyer's pass on the privacy and store drafts, and the soak on real hardware. The campaign is a short original script, not a full season of missions. KTX2 texture encoding is not in the toolchain. The foliage instances drop with camera distance. Pack GLBs were already Meshopt. Google tiles are not transcoded.
 
 ## What phase 1 lands
 

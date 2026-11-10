@@ -8,6 +8,7 @@ import { radio } from "../audio/radioEngine";
 import { QUALITY_LABELS } from "../quality";
 import { shared } from "../shared";
 import { REGION_JOBS, currentJob, isJobDone, jobUnlocked, startJob } from "../earth/jobs";
+import { DiscoveryLog } from "./DiscoveryLog";
 
 // Pause / settings overlay (§26). Opens on Esc/P (handled in GameSystems).
 // Freezes the sim loops and exposes quick settings + a save reset.
@@ -58,6 +59,7 @@ export function PauseMenu() {
   const [vol, setVol] = useState(0.5);
   const [showCredits, setShowCredits] = useState(false);
   const [showStory, setShowStory] = useState(false);
+  const [showLog, setShowLog] = useState(false);
   const [showStats, setShowStats] = useState(false);
   // Confirm-before-quit (2026-11-07, streamer-stability diagnosis Q2).
   // "Quit to title" is the ONLY in-app code path that returns to the title
@@ -135,6 +137,7 @@ export function PauseMenu() {
           />
         </div>
         <button style={btn} onClick={() => setShowStory(true)}>Coast story</button>
+        <button style={btn} onClick={() => setShowLog(true)}>Discovery log</button>
         <button style={btn} onClick={() => setShowStats(true)}>📊 Stats</button>
         <button style={btn} onClick={() => setShowCredits(true)}>ⓘ Credits &amp; attribution</button>
         <button
@@ -242,6 +245,30 @@ export function PauseMenu() {
             );
           })}
           <button style={btn} onClick={() => setShowStory(false)}>Back</button>
+          </div>
+        </div>
+      )}
+
+      {showLog && (
+        <div
+          id="street-discovery"
+          style={{
+            position: "fixed", inset: 0, zIndex: 21,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: "rgba(6,8,16,.94)",
+          }}
+          onClick={() => setShowLog(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "min(420px, 100%)", maxHeight: "80vh", overflowY: "auto", padding: 18,
+              background: "rgba(12,15,26,.97)", border: "1px solid #3a2a5e", borderRadius: 14,
+              color: "#e7e0ff", fontFamily: "'Courier New', monospace", fontSize: 13,
+            }}
+          >
+            <DiscoveryLog />
+            <button style={btn} onClick={() => setShowLog(false)}>Back</button>
           </div>
         </div>
       )}
