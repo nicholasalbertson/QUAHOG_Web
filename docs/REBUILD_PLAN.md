@@ -34,6 +34,12 @@ Phase 1 is in. Phase 2 and the first playable loop are in on the same branch:
 
 Phase 5 content that is in the build: each chapter ends on an "Ending:" step and has at least four steps; fares and two street races share one lat/lon list on both pages; the discovery log records the Lizzie Borden House, the Braga Bridge, the Whaling Museum, the Rocky Marciano statue, both canal bridges, and Provincetown. The street map already had the touch stick. The tiles page uses it too. The production service worker caches the app shell and returns before storing anything from `tile.googleapis.com` or `/v1/3dtiles`. Drafts: `docs/PRIVACY_POLICY.md`, `docs/STORE_LISTING.md`. The string catalog has a `coast` section for the new UI.
 
+The live soak of `5bff668` got photoreal streets in every region (507 child glTF and 123 child JSON, all 200, no 400s). What it still showed, and what this round changes: the player is the baked Quaternius rig instead of the blue capsule, traffic and the player car are the Kenney kit instead of the cube, NPCs bake with the albedo kept and metalness capped so they are not silver shards, the ground ray stays on the surface under the actor instead of the first roof from 180 m up, a tile seam slows the car instead of crashing it to a stop every frame, and F3 shows the performance line. Tile error stays at 8 until the low tier.
+
+Photoreal tile detail stays at a screen-space error of 8 on high and medium. The quality step drops pixel ratio first. Only the low tier, or a critical heap, coarsens tiles to 16. The queue prefers tiles in front of the camera, the cache holds more of the street, and the chase camera stays near street height instead of looking down from the roofs. The photoreal player is the baked Quaternius rig (idle, walk, run, jump, punch). The photoreal car is the Kenney kit, scaled to the road, not the cube placeholder.
+
+The street scene no longer meshes a whole city at once. Roads and building footprints are windowed around the player (high tier: local roads inside 900 m, at most 500, highways inside 2,200 m). Skinned characters cap at 12 on high and 6 on a phone. One thrown GLB or a failed pose bake drops that object. A lost WebGL context calls `preventDefault` and drops quality to low, and the street error boundary paints a ground plane instead of leaving the canvas empty. Slice JSON parses in a worker. The numbers are in `docs/LOAD_REPORT.md`. `src/perf/stability.test.ts` is the soak that runs in `npm test`.
+
 Still not a commercial release. The checklist is the remaining human work: the live key and its terms, pack licenses for any model that is still in the repo, voice, rating, a lawyer's pass on the privacy and store drafts, and the soak on real hardware. The campaign is a short original script, not a full season of missions. KTX2 texture encoding is not in the toolchain. The foliage instances drop with camera distance. Pack GLBs were already Meshopt. Google tiles are not transcoded.
 
 ## What phase 1 lands
@@ -130,7 +136,7 @@ Target the photoreal build at a steady frame on a recent laptop, and a degraded 
 
 - Mean frame time over a 60-sample window above 33 ms drops the pixel ratio to 1 and coarsens `errorTarget` to 48, once.
 - Tile memory stays inside the 280 MB / 3500 tile window above.
-- Do not raise the New Bedford pedestrian count past 50, and do not spawn that crowd in every city. Each extra skinned or even rigid character is a draw the tiles are already paying for.
+- Skinned characters cap at 12 on high and 6 on a phone. Do not put a crowd on every sidewalk, and do not spawn the street crowd in every city at once. Each extra character is a draw the tiles are already paying for.
 - The map redraws at 20 Hz and the minimap at 10 Hz. Neither touches the tile renderer.
 - A background tab must not download tiles. That is `enabled={false}` on the tiles renderer, not only a paused canvas.
 

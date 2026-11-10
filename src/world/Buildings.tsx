@@ -10,6 +10,8 @@ import { districtFacadeMaps } from "./districtMaterials";
 import { productionFacadeMaps } from "./productionFacadeMaps";
 import { windowGlowNight } from "./streetLights";
 import { useGame } from "../store";
+import { isMobileDevice } from "../mobile/profile";
+import { sceneCaps, windowBuildings } from "../perf/sceneBudget";
 import { ArchitecturalShell } from "./ArchitecturalShell";
 
 const WINDOW_GLOW = new THREE.Color("#ffcf8a");
@@ -90,9 +92,11 @@ export function Buildings({
   }, [quality]);
   useEffect(() => () => { Object.values(materials).forEach((m) => m.dispose()); }, [materials]);
   const { near, chunks } = useMemo(() => {
+    const caps = sceneCaps(quality, isMobileDevice());
+    const visible = windowBuildings(buildings, center, caps.buildingRadius, caps.buildingCap);
     const near: { geom: THREE.BufferGeometry; kind: "brick" | "clapboard" | "granite"; hidden: boolean }[] = [];
     const cells = new Map<string, THREE.BufferGeometry[]>();
-    buildings.forEach((b) => {
+    visible.forEach((b) => {
       const [cx, cy] = centroid(b);
       const d = Math.hypot(cx - center[0], cy - center[1]);
       const geom = footprintGeometry(b);
@@ -113,7 +117,7 @@ export function Buildings({
       chunks.push({ geom: merged, cx: (gx + 0.5) * CELL, cz: -(gy + 0.5) * CELL });
     }
     return { near, chunks };
-  }, [buildings, center, colliderRadius]);
+  }, [buildings, center, colliderRadius, quality]);
 
   useEffect(() => () => { near.forEach((n) => n.geom.dispose()); chunks.forEach((c) => c.geom.dispose()); }, [near, chunks]);
 

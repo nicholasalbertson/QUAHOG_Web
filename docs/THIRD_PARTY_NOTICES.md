@@ -13,7 +13,9 @@ Run `npm run assets:fetch-licensed`. Files land in `public/vendor/cc0/files/` an
 | Universal Base Characters (rigged human, idle/walk/run) | Quaternius | CC0 1.0 | Pedestrians, the station officer, story guides, and the in-world Borden cast on both builds. Source: https://quaternius.com/packs/universalbasecharacters.html — the file is the public CC0 copy at https://github.com/UMRAM-Bilkent/supine-human-model |
 | Kloofendal 48d Partly Cloudy (Pure Sky), 1K HDR | Poly Haven | CC0 1.0 | Image-based light for local meshes. Source: https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky |
 
-The human is one CC0 rig. Each slot tints the clothing so a crowd is not a row of clones. The file’s armature is about 5.3 m tall, so the game bakes the idle and walk poses down to 1.75 m. Baking also keeps the mesh rigid: GPU skinning breaks at the tiles build’s earth-centered coordinates, and the street build uses the same poses so the two crowds match. Kenney’s car kit is the traffic and patrol body on both builds. It is a low-poly CC0 kit, not a photograph of a car.
+The human is one CC0 rig. Each slot tints the clothing so a crowd is not a row of clones. The file’s armature is about 5.3 m tall, so the game bakes idle, walk, run, jump, and punch down to 1.75 m and plants the feet at y=0. Baking keeps the mesh rigid: GPU skinning breaks at the tiles build’s earth-centered coordinates, and a bake that comes out huge is dropped instead of drawn as shards. The street build uses the same poses so the two crowds match. On the photoreal page the player is this rig, not the block primitive.
+
+Kenney’s car kit is the traffic, the patrol car, and the player’s car on the photoreal page. The kit is about 2.5 m long; the photoreal page scales it to about 4.6 m so it sits on the tile road, with the wheels on the ground. It is a low-poly CC0 kit with a color texture, not a photograph of a car. The cube bodies in `public/packs/pack006/` are original placeholders and are not the photoreal player car.
 
 ## Packs already in the repo
 

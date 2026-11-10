@@ -59,14 +59,23 @@ export function stepEarthDrive(
   return { yaw: next.yaw, speed, skidding: next.skidding || skidding };
 }
 
-/** Chase camera: longer and lazier as speed builds, so the car has weight. */
-export function chaseForSpeed(speed: number): { dist: number; height: number; follow: number } {
+/** Chase camera stays near street level, where the photogrammetry is sharp.
+ *  It lengthens a little with speed. It does not climb onto the roofs. */
+export function chaseForSpeed(speed: number): { dist: number; height: number; follow: number; fov: number } {
   const t = Math.min(1, Math.abs(speed) / 28);
   return {
-    dist: 9.5 + t * 5,
-    height: 4.1 + t * 1.8,
+    dist: 6.2 + t * 2.4,
+    height: 1.55 + t * 0.45,
     follow: 5.5 - t * 2.2,
+    fov: 54 + t * 14,
   };
+}
+
+/** Smooth the car onto the tile surface instead of snapping every sample. */
+export function suspendHeight(current: number, ground: number, dt: number): number {
+  if (!Number.isFinite(ground)) return current;
+  const follow = 1 - Math.exp(-Math.max(0, dt) * 10);
+  return current + (ground - current) * follow;
 }
 
 export function speedMph(metersPerSecond: number): number {

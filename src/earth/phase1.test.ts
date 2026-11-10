@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { headingForBearing, latLonToLocal, localToLatLon, sliceToLatLon, SLICE_ORIGIN } from "./geo";
-import { chaseForSpeed, stepEarthDrive } from "./drive";
+import { chaseForSpeed, stepEarthDrive, suspendHeight } from "./drive";
+import { isWallNormal } from "./follow";
+import { pickFrame } from "../actors/LicensedHuman";
 import { parseEarthLocal, sharesStylizedFrame } from "./earthLocal";
 import { HIGHWAYS, PLACES, placeById, placesInRegion, roadsSliceFor } from "./regions";
 import { describeLocation, frameSouthCoast, placeAtScreen, project, unproject, zoomView } from "./regionMap";
@@ -130,6 +132,18 @@ describe("earth driving", () => {
     const held = stepEarthDrive({ yaw: 0, speed: 24, skidding: false }, { x: 0, y: 0 }, 0.4, { handbrake: true, wet: false });
     expect(held.speed).toBeLessThan(12);
     expect(chaseForSpeed(30).dist).toBeGreaterThan(chaseForSpeed(0).dist);
+    expect(chaseForSpeed(0).height).toBeLessThan(2);
+    expect(chaseForSpeed(30).fov).toBeGreaterThan(chaseForSpeed(0).fov);
+    expect(suspendHeight(0, 2, 0.2)).toBeGreaterThan(0.5);
+    expect(suspendHeight(2, 2, 0.2)).toBeCloseTo(2);
+    expect(isWallNormal(0)).toBe(true);
+    expect(isWallNormal(0.9)).toBe(false);
+    const cast = { count: 11, walk: 4, run: 4, jump: 9, punch: 10 };
+    expect(pickFrame(cast, "idle", 1)).toBe(0);
+    expect(pickFrame(cast, "walk", 0)).toBe(1);
+    expect(pickFrame(cast, "run", 0)).toBe(5);
+    expect(pickFrame(cast, "punch", 0)).toBe(10);
+    expect(pickFrame(cast, "jump", 0)).toBe(9);
   });
 
   it("reverses only once the car has actually stopped", () => {

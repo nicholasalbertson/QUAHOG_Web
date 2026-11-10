@@ -37,6 +37,8 @@ export const playState = {
   /** Rolling frame rate and the quality tier, for the performance line. */
   fps: 0,
   tier: "high" as "high" | "medium" | "low",
+  /** Tiles still loading inside 300 m, and how long the last settle took. */
+  tileRefine: { pending: 0, settled: false, ms: 0 },
   /** Car condition, 0–100. The rig spends it on hard hits. */
   condition: { body: 100, engine: 100 },
   /** Seconds R has been held while stopped, toward a repair. */

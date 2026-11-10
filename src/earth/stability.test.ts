@@ -17,7 +17,7 @@ import {
 import { installTileLogGuard } from "./tileLog";
 import { guardPluginLifecycle } from "./googleAuth";
 import { IDLE_PAUSE_MS, advanceIdle, shouldDegrade, tileActivityFor } from "./frameLoop";
-import { followCam, forwardHit, groundY, sanitizePosition } from "./follow";
+import { chooseGround, followCam, forwardHit, groundY, sanitizePosition } from "./follow";
 
 describe("collision budget", () => {
   it("samples ground at 10 Hz and eases between hits", () => {
@@ -122,7 +122,7 @@ describe("tile memory caps", () => {
     expect(TILE_MEMORY.minBytes).toBeLessThan(TILE_MEMORY.maxBytes);
     expect(TILE_MEMORY.minCount).toBeLessThan(TILE_MEMORY.maxCount);
     expect(TILE_MEMORY.maxDepth).toBeGreaterThan(1);
-    expect(TILE_MEMORY.errorTarget).toBe(32);
+    expect(TILE_MEMORY.errorTarget).toBe(8);
     const host: {
       errorTarget?: number;
       maxDepth?: number;
@@ -136,15 +136,15 @@ describe("tile memory caps", () => {
     };
     applyTileMemoryCaps(host);
     expect(host.maxDepth).toBe(TILE_MEMORY.maxDepth);
-    expect(host.errorTarget).toBe(32);
+    expect(host.errorTarget).toBe(8);
     expect(host.lruCache).toMatchObject({
       minBytesSize: TILE_MEMORY.minBytes,
       maxBytesSize: TILE_MEMORY.maxBytes,
       minSize: TILE_MEMORY.minCount,
       maxSize: TILE_MEMORY.maxCount,
     });
-    expect(host.downloadQueue.maxJobs).toBe(6);
-    expect(host.parseQueue.maxJobs).toBe(3);
+    expect(host.downloadQueue.maxJobs).toBe(14);
+    expect(host.parseQueue.maxJobs).toBe(6);
   });
 
   it("still sets depth when the cache objects are absent", () => {
@@ -319,6 +319,11 @@ describe("scratch-vector helpers", () => {
     const camera = new THREE.PerspectiveCamera();
     followCam(camera, parent, up, new THREE.Vector3(1, 2, 3), 0.4, 7, 4, 1);
     expect(Number.isFinite(camera.position.x)).toBe(true);
+    // Street under the feet wins over a bridge deck above, and a deck wins
+    // when the actor has not landed yet.
+    expect(chooseGround([1, 18], 0)).toBe(1);
+    expect(chooseGround([0, 12], 12)).toBe(12);
+    expect(chooseGround([18], 0)).toBe(18);
   });
 
   it("§2.1.4 resets a non-finite position to spawn and leaves good ones alone", () => {

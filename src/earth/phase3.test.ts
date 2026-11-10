@@ -6,7 +6,8 @@ import { applyImpact, powerFor, repairBill } from "./damage";
 import { bedFor } from "./ambience";
 import { advanceJob, currentJob, loadJobs, resetJobs, startJob } from "./jobs";
 import { followRoad, roadblockPoint, stepLanes, type LaneState } from "./traffic";
-import { capsForTier, memoryBand, nextQuality } from "./quality";
+import { capsForTier, memoryBand, nextQuality, tileErrorTarget } from "./quality";
+import { refineReport, streetTilePriority } from "./tileRefine";
 import { formatCrash, redactSecrets } from "./crashReport";
 import { loadSettings, saveSettings } from "./controls";
 import { parseEarthLocal } from "./earthLocal";
@@ -120,9 +121,27 @@ describe("quality, crash text, and settings", () => {
     expect(nextQuality("medium", 0.01, 180, "ok", false)).toBe("high");
     expect(nextQuality("high", 0.05, 60, "ok", true)).toBe("high");
     expect(nextQuality("high", 0.01, 180, "critical", true)).toBe("low");
-    expect(capsForTier("low").errorTarget).toBe(48);
+    expect(tileErrorTarget("high")).toBe(8);
+    expect(tileErrorTarget("medium")).toBe(8);
+    expect(tileErrorTarget("low")).toBe(16);
+    expect(tileErrorTarget("high", "critical")).toBe(16);
+    expect(capsForTier("low").errorTarget).toBe(16);
+    expect(capsForTier("medium").errorTarget).toBe(capsForTier("high").errorTarget);
     expect(capsForTier("high").maxDepth).toBe(TILE_MEMORY.maxDepth);
-    expect(TILE_MEMORY.errorTarget).toBe(32);
+    expect(TILE_MEMORY.errorTarget).toBe(8);
+    const nearer = streetTilePriority(
+      { traversal: { inFrustum: true, error: 4, distanceFromCamera: 20 } },
+      { traversal: { inFrustum: true, error: 4, distanceFromCamera: 200 } },
+    );
+    expect(nearer).toBe(1);
+    const report = refineReport(
+      [{ distance: 40, loading: true, error: 4, hasChildren: true }, { distance: 800, loading: true, error: 80, hasChildren: true }],
+      300,
+      8,
+    );
+    expect(report.pending).toBe(1);
+    expect(report.settled).toBe(false);
+    expect(refineReport([{ distance: 40, loading: false, error: 4, hasChildren: true }], 300, 8).settled).toBe(true);
   });
 
   it("redacts keys from a crash report", () => {

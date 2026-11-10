@@ -55,6 +55,7 @@ import { currentArc, resetArc } from "./arc";
 import { actionCode, loadSettings, saveSettings, type EarthSettings, type QualityChoice } from "./controls";
 import { QUALITY_PRESET, capsForTier, meanOf, memoryBand, nextQuality, type QualityName } from "./quality";
 import { applyTileMemoryCaps, type TileMemoryHost } from "./tileCaps";
+import { refineReport, streetTilePriority, type NearTile } from "./tileRefine";
 import { formatCrash } from "./crashReport";
 import { advanceLine, currentJob, currentLine } from "./jobs";
 import { CONTROLS_TEXT, nextHint, tutorialStep } from "./tutorial";
@@ -274,8 +275,10 @@ export function EarthApp() {
       if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
       if (e.code === "F3") {
         e.preventDefault();
+        // Show the line. A soak that taps F3 to read the rebase count was
+        // turning a default-on line off. The settings checkbox still hides it.
         setSettings((prev) => {
-          const next = { ...prev, showPerf: !prev.showPerf };
+          const next = { ...prev, showPerf: true };
           saveSettings(next);
           return next;
         });
@@ -362,7 +365,7 @@ export function EarthApp() {
         gl={{ antialias: false, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1 }}
       >
         <ContextGuard
-          onLost={() => { saveEarth(); setGlLost(true); setLostAt(Date.now()); }}
+          onLost={() => { saveEarth(); setGlLost(true); setLostAt(Date.now()); setTier("low"); }}
           onRestored={() => { setGlLost(false); setLostAt(null); setTilesKey((k) => k + 1); }}
         />
         <QualityScaler preference={settings.quality} onTier={setTier} />
@@ -374,19 +377,22 @@ export function EarthApp() {
             floor keeps the world readable, it never goes pitch black). */}
         {wx.sky && <Sky sunPosition={dayNight.sunPos} turbidity={weather === "cloudy" ? 8 : 3} rayleigh={1.2} />}
         <hemisphereLight args={["#dceaff", "#8a8678", 0.9 * (0.3 + 0.7 * dayNight.day)]} />
-        <directionalLight position={dayNight.sunPos} intensity={wx.sun * (0.05 + 0.95 * dayNight.day)} color={wx.sunColor} castShadow />
+        {/* Baked photogrammetry already carries the sun. A full-strength
+            directional on top of it washes the facades out. */}
+        <directionalLight position={dayNight.sunPos} intensity={0.42 * (0.15 + 0.85 * dayNight.day)} color={wx.sunColor} />
         <EnvLight />
 
         <Suspense fallback={null}>
-        {/* errorTarget: the higher it is, the coarser/faster tiles load. Street-
-            level (play) cameras need this raised or the deepest LOD never streams
-            in and the ground stays blank. */}
+        {/* errorTarget is screen-space error in pixels. Lower is sharper.
+            High and medium stay on the street target. Only low coarsens it. */}
         <TilesRenderer key={`${apiKey}:${tilesKey}`} errorTarget={QUALITY_PRESET[tier].errorTarget} enabled={activity.tilesEnabled && !glLost}>
           {/* §2.1.3/2.1.5/2.3: auth plugin with guarded dispose, memory caps
               (maxDepth 24, LRU byte/count bounds, job limits), classified tile
               faults, and a redacting log guard — replaces the bare TilesPlugin. */}
           <GoogleTilesAuth apiToken={apiKey} onFault={(f) => setFault((cur) => mergeFault(cur, f))} />
           <QualityCaps tier={tier} />
+          <TileSharpness />
+          <TileRefineMeter tier={tier} />
           {/* BVH-accelerated collision raycasts + bounded tile memory (prevents
               the street-level hitching and GPU-OOM WebGL context loss). */}
           <TilesBVH />
@@ -401,6 +407,12 @@ export function EarthApp() {
             (slice || !place.sliceAligned) && (
               <EastNorthUpFrame lat={anchor.lat * DEG_TO_RAD} lon={anchor.lon * DEG_TO_RAD} height={0}>
                 <group rotation={[Math.PI / 2, 0, 0]}>
+                  <directionalLight
+                    position={dayNight.sunPos}
+                    intensity={1.15 * (0.25 + 0.75 * dayNight.day)}
+                    color={wx.sunColor}
+                    castShadow
+                  />
                   {!holdForSnap && (
                     <PlayerRig key={place.id} spawn={spawn} view={view} onReady={() => setReady(true)} onAnchor={onAnchor} roads={liveRoads} wet={weather === "rain"} />
                   )}
@@ -650,9 +662,81 @@ function QualityScaler({ preference, onTier }: { preference: QualityChoice; onTi
 function QualityCaps({ tier }: { tier: QualityName }) {
   const tiles = useContext(TilesRendererContext);
   useLayoutEffect(() => {
-    if (tiles) applyTileMemoryCaps(tiles as unknown as TileMemoryHost, capsForTier(tier));
+    if (!tiles) return;
+    const host = tiles as unknown as TileMemoryHost & {
+      downloadQueue?: { priorityCallback?: (a: unknown, b: unknown) => number };
+      parseQueue?: { priorityCallback?: (a: unknown, b: unknown) => number };
+    };
+    applyTileMemoryCaps(host, capsForTier(tier));
+    if (host.downloadQueue) host.downloadQueue.priorityCallback = streetTilePriority as (a: unknown, b: unknown) => number;
+    if (host.parseQueue) host.parseQueue.priorityCallback = streetTilePriority as (a: unknown, b: unknown) => number;
   }, [tiles, tier]);
   return null;
+}
+
+function TileSharpness() {
+  const tiles = useContext(TilesRendererContext);
+  const gl = useThree((s) => s.gl);
+  const tuned = useRef(new Set<THREE.Texture>());
+  useFrame(() => {
+    const group = (tiles as { group?: THREE.Object3D } | null)?.group;
+    if (!group) return;
+    const max = gl.capabilities.getMaxAnisotropy();
+    group.traverse((obj) => {
+      const mesh = obj as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      for (const mat of mats) {
+        const map = mat && "map" in mat ? (mat as THREE.MeshStandardMaterial).map : null;
+        if (!map || tuned.current.has(map)) continue;
+        map.anisotropy = max;
+        if (map.colorSpace !== THREE.SRGBColorSpace && map.colorSpace !== THREE.NoColorSpace) {
+          map.colorSpace = THREE.SRGBColorSpace;
+        }
+        map.needsUpdate = true;
+        tuned.current.add(map);
+      }
+    });
+  });
+  return null;
+}
+
+function TileRefineMeter({ tier }: { tier: QualityName }) {
+  const tiles = useContext(TilesRendererContext);
+  const started = useRef(0);
+  useFrame((state) => {
+    const host = tiles as {
+      activeTiles?: Set<NearSource>;
+      loadingTiles?: Set<NearSource>;
+    } | null;
+    if (!host?.activeTiles) return;
+    const rows: NearTile[] = [];
+    const take = (set: Set<NearSource> | undefined, loading: boolean) => {
+      if (!set) return;
+      for (const tile of set) {
+        rows.push({
+          distance: tile.traversal?.distanceFromCamera ?? Number.POSITIVE_INFINITY,
+          loading,
+          error: tile.traversal?.error ?? tile.geometricError ?? 0,
+          hasChildren: (tile.children?.length ?? 0) > 0,
+        });
+      }
+    };
+    take(host.activeTiles, false);
+    take(host.loadingTiles, true);
+    const report = refineReport(rows, 300, capsForTier(tier).errorTarget);
+    if (!report.settled && started.current === 0) started.current = state.clock.elapsedTime;
+    if (report.settled && started.current > 0) playState.tileRefine.ms = (state.clock.elapsedTime - started.current) * 1000;
+    playState.tileRefine.pending = report.pending;
+    playState.tileRefine.settled = report.settled;
+  });
+  return null;
+}
+
+interface NearSource {
+  geometricError?: number;
+  children?: unknown[];
+  traversal?: { distanceFromCamera?: number; error?: number };
 }
 
 function GamepadPause({ onToggle }: { onToggle: () => void }) {
@@ -861,6 +945,11 @@ function Hud(props: {
           {(() => { const heap = readHeap(); return heap ? ` · ${Math.round(heap.used / (1024 * 1024))} MB` : ""; })()}
         </div>
       )}
+      {mode === "play" && !playState.tileRefine.settled && (
+        <div id="tile-streaming" style={{ position: "absolute", left: "50%", top: 18, transform: "translateX(-50%)", background: "rgba(5,7,13,.82)", border: "1px solid #2c3a5e", borderRadius: 8, padding: "6px 12px", fontSize: 12, color: "#d5e6ff" }}>
+          Streaming streets…
+        </div>
+      )}
     </div>
   );
 }
@@ -886,7 +975,7 @@ const LOAD_TIPS = [
   "M is the map. The arrow is you.",
   "I-195 runs east from Fall River toward the Cape.",
   "Stars fade if you stay clean.",
-  "F3 hides the performance line.",
+  "F3 shows the performance line.",
   "Hold R while stopped to repair the car.",
 ];
 

@@ -1,5 +1,6 @@
 import "./textSetup";
 import { Component, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
+import { contextLostPlan } from "./perf/sceneBudget";
 import * as THREE from "three";
 import { Canvas, useThree } from "@react-three/fiber";
 import { FrameDriver } from "./mobile/FrameDriver";
@@ -11,9 +12,29 @@ import { Experience } from "./Experience";
 // and menus (outside the Canvas) keep working.
 class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
+  private retries = 0;
   static getDerivedStateFromError() { return { failed: true }; }
-  componentDidCatch(e: unknown) { console.error("[scene] component error:", e); }
-  render() { return this.state.failed ? null : this.props.children; }
+  componentDidCatch(e: unknown) {
+    console.error("[scene] component error:", e);
+    try { useGame.getState().setQuality(contextLostPlan().quality); } catch { /* recovery must still paint */ }
+    if (this.retries < 1) {
+      this.retries += 1;
+      setTimeout(() => this.setState({ failed: false }), 400);
+    }
+  }
+  render() {
+    if (!this.state.failed) return this.props.children;
+    // A lit ground, not an empty canvas. The HUD stays up either way.
+    return (
+      <>
+        <ambientLight intensity={0.85} />
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
+          <planeGeometry args={[400, 400]} />
+          <meshStandardMaterial color="#3d4338" />
+        </mesh>
+      </>
+    );
+  }
 }
 
 // WebGL context guard (2026-11-07, streamer-stability diagnosis). Nic's 52 s
@@ -32,7 +53,9 @@ function ContextGuard() {
   useEffect(() => {
     const c = gl.domElement;
     const onLost = (e: Event) => {
-      e.preventDefault(); // required — without it the context cannot be restored
+      const plan = contextLostPlan();
+      if (plan.preventDefault) e.preventDefault();
+      try { useGame.getState().setQuality(plan.quality); } catch { /* drop load even if the toast store is down */ }
       console.error("[context] WebGL context lost — world unloaded (GPU/memory pressure suspected); attempting restore");
       try {
         useToasts.getState().push("GRAPHICS RESTARTED — the world is reloading", "#ffb0b0");

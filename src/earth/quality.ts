@@ -17,10 +17,15 @@ export interface QualityPreset {
   parseJobs: number;
 }
 
+// Tile detail is separate from the actor/effects tier. High and medium keep
+// the sharp street error target. Only low, or a critical heap, coarsens tiles.
+// A lower errorTarget is a sharper mesh (screen-space error, in pixels).
+export const TILE_ERROR = { sharp: 8, coarse: 16 } as const;
+
 export const QUALITY_PRESET: Record<QualityName, QualityPreset> = {
-  high: { dprMax: 1.5, errorTarget: 32, maxBytes: 280 * 1024 * 1024, maxCount: 3500, downloadJobs: 6, parseJobs: 3 },
-  medium: { dprMax: 1.25, errorTarget: 40, maxBytes: 220 * 1024 * 1024, maxCount: 2800, downloadJobs: 5, parseJobs: 2 },
-  low: { dprMax: 1, errorTarget: 48, maxBytes: 160 * 1024 * 1024, maxCount: 2000, downloadJobs: 3, parseJobs: 2 },
+  high: { dprMax: 2, errorTarget: TILE_ERROR.sharp, maxBytes: 384 * 1024 * 1024, maxCount: 5200, downloadJobs: 14, parseJobs: 6 },
+  medium: { dprMax: 1.5, errorTarget: TILE_ERROR.sharp, maxBytes: 280 * 1024 * 1024, maxCount: 3600, downloadJobs: 8, parseJobs: 4 },
+  low: { dprMax: 1, errorTarget: TILE_ERROR.coarse, maxBytes: 160 * 1024 * 1024, maxCount: 2000, downloadJobs: 4, parseJobs: 2 },
 };
 
 const ORDER: QualityName[] = ["high", "medium", "low"];
@@ -64,10 +69,16 @@ export function nextQuality(
   return current;
 }
 
-export function capsForTier(name: QualityName): TileMemoryCaps {
+/** Tile LOD for this tier. Frame-time drops pixel ratio first; tiles stay sharp until low. */
+export function tileErrorTarget(name: QualityName, memory: MemoryBand = "ok"): number {
+  if (memory === "critical" || name === "low") return TILE_ERROR.coarse;
+  return TILE_ERROR.sharp;
+}
+
+export function capsForTier(name: QualityName, memory: MemoryBand = "ok"): TileMemoryCaps {
   const preset = QUALITY_PRESET[name];
   return {
-    errorTarget: preset.errorTarget,
+    errorTarget: tileErrorTarget(name, memory),
     minBytes: Math.round(preset.maxBytes * 0.64),
     maxBytes: preset.maxBytes,
     minCount: Math.round(preset.maxCount * 0.71),

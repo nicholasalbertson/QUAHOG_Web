@@ -1,11 +1,10 @@
-import { useContext, useEffect, useMemo, useRef } from "react";
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import { TilesRendererContext } from "3d-tiles-renderer/r3f";
-// Rigid primitive humanoid, NOT the skinned CesiumMan: at the photoreal tiles'
-// earth-centered coordinates (~6.3M m from origin) GPU skinning shatters in
-// float32, so the skinned model explodes into shards. Rigid meshes render
-// camera-relative and stay crisp (same reason the car looks fine).
+// The player and the crowd use the Quaternius rig baked to rigid frames.
+// GPU skinning shatters at earth-centered coordinates, so the bake is what
+// the tiles build draws. The Kenney car kit replaces the cube placeholder.
 import { assignPedLooks } from "../world/pedLooks";
 import { sfx } from "../audio/sfx";
 import { surfaceAt } from "../world/surfaceSample";
@@ -17,7 +16,7 @@ import { slewHeading, stepJump, type JumpState } from "../world/locomotion";
 import { consumeTap, gamepadDrive, isDown, moveAxis } from "../input";
 import { actionDown, actionTap } from "./controls";
 import { followCam, forwardHit, frameUp, groundY, lerpAngle, sanitizePosition } from "./follow";
-import { EARTH_TUNING, chaseForSpeed, stepEarthDrive } from "./drive";
+import { EARTH_TUNING, chaseForSpeed, stepEarthDrive, suspendHeight } from "./drive";
 import { NPC_GROUND_INTERVAL_S, WALL_INTERVAL_S, tileCollision } from "./raycastBudget";
 import { noteCrime, playState, resetBodies, type Body } from "./playState";
 import { CAR_ENTER_M, lampsFromRoutes, parkedCar, planRebase, registerShift, scanRoutes, shiftLocals, type LocalRoute } from "./rebase";
@@ -27,8 +26,8 @@ import { applyImpact, powerFor, repairBill } from "./damage";
 import { writeEastNorthUp } from "./enuFrame";
 import { SLICE_ORIGIN, latLonToLocal, localToLatLon, type LatLon } from "./geo";
 import { useStats } from "../game";
-import { TrafficPackCar } from "../actors/TrafficPackCar";
 import { useToasts } from "../store";
+import { shared } from "../shared";
 
 export type View = "third" | "first";
 export interface Spawn { x: number; z: number; heading: number }
@@ -93,6 +92,11 @@ export function PlayerRig({ spawn, view, onReady, onAnchor, roads, wet }: {
     jump: { y: 0, vy: 0, grounded: true } as JumpState,
     carPos: new THREE.Vector3(parkedCar(spawn).x, 0, parkedCar(spawn).z),
     carYaw: spawn.heading,
+    punch: 0,
+    board: 0,
+    exitWalk: 0,
+    screechAt: 0,
+    lastHit: 0,
   });
 
   const spawnRef = useRef(spawn);
@@ -130,7 +134,7 @@ export function PlayerRig({ spawn, view, onReady, onAnchor, roads, wet }: {
     // spawn gating — hold until tiles exist under the spawn point
     if (!st.ready) {
       const gy = tileCollision.sampleGround("player", now,
-        () => groundY(parent, tiles?.group, tileCollision.ray, st.pos.x, st.pos.z, up),
+        () => groundY(parent, tiles?.group, tileCollision.ray, st.pos.x, st.pos.z, up, st.pos.y),
         { priority: true });
       st.wait += step;
       if (gy !== null) {
@@ -142,9 +146,9 @@ export function PlayerRig({ spawn, view, onReady, onAnchor, roads, wet }: {
       } else {
         if (player.current) player.current.visible = false;
         if (car.current) car.current.visible = false;
-        camera.up.copy(up);
-        camera.position.copy(parent.localToWorld(_probe.set(st.pos.x, 90, st.pos.z + 1)));
-        camera.lookAt(parent.localToWorld(_dir.set(st.pos.x, 0, st.pos.z)));
+        // Stay at street height while the first tiles arrive. A camera 90 m
+        // up asks Google for the soft roof mesh and leaves the sky empty.
+        followCam(camera, parent, up, st.pos, st.heading, 4.6, 1.65, 1);
         return;
       }
     }
@@ -158,6 +162,7 @@ export function PlayerRig({ spawn, view, onReady, onAnchor, roads, wet }: {
 
     if (st.mode === "foot") {
       if (player.current) player.current.visible = view === "third";
+      if (st.punch > 0) st.punch = Math.max(0, st.punch - step);
       const dir = _dir.set(0, 0, 0).addScaledVector(fwd, ax.y).addScaledVector(right, ax.x);
       const sprinting = actionDown("sprint");
       const speed = sprinting ? 9 : 4.5;
@@ -189,7 +194,7 @@ export function PlayerRig({ spawn, view, onReady, onAnchor, roads, wet }: {
       } else { st.moving = false; st.speed = 0; }
 
       const gy = tileCollision.sampleGround("player", now,
-        () => groundY(parent, tiles?.group, tileCollision.ray, st.pos.x, st.pos.z, up),
+        () => groundY(parent, tiles?.group, tileCollision.ray, st.pos.x, st.pos.z, up, st.pos.y),
         { priority: true });
       if (gy !== null) {
         // §2.4.5 — jump (Space, foot mode only): the player rises above the
@@ -218,6 +223,7 @@ export function PlayerRig({ spawn, view, onReady, onAnchor, roads, wet }: {
         if (best) {
           best.hit += 1;
           best.push.addScaledVector(awayXZ(best.pos, st.pos), 1.0);
+          st.punch = 0.45;
           sfx.punch();
           noteCrime();
         }
@@ -228,11 +234,34 @@ export function PlayerRig({ spawn, view, onReady, onAnchor, roads, wet }: {
       car.current!.position.copy(st.carPos);
       car.current!.rotation.y = st.carYaw;
       car.current!.rotation.z = 0;
-      if (actionTap("interact") && planar(st.pos, st.carPos) < CAR_ENTER_M) { st.mode = "car"; sfx.door(); }
+      if (st.exitWalk > 0) {
+        st.exitWalk = Math.max(0, st.exitWalk - step);
+        st.moving = true;
+        st.speed = Math.max(st.speed, 1);
+      } else if (st.board > 0) {
+        st.board = Math.max(0, st.board - step);
+        st.moving = true;
+        st.speed = 1;
+        const doorX = st.carPos.x + Math.cos(st.carYaw) * 1.7;
+        const doorZ = st.carPos.z - Math.sin(st.carYaw) * 1.7;
+        st.pos.x += (doorX - st.pos.x) * (1 - Math.exp(-step * 6));
+        st.pos.z += (doorZ - st.pos.z) * (1 - Math.exp(-step * 6));
+        st.heading = st.carYaw;
+        if (st.board <= 0) { st.mode = "car"; st.moving = false; sfx.door(); }
+      } else if (actionTap("interact") && planar(st.pos, st.carPos) < CAR_ENTER_M) {
+        st.board = 0.55;
+      }
 
       st.camYaw = lerpAngle(st.camYaw, st.heading, 1 - Math.exp(-step * 3));
-      if (view === "third") followCam(camera, parent, up, st.pos, st.camYaw, 7, 4, 1 - Math.exp(-step * 6));
-      else firstPerson(camera, parent, up, st.pos, st.heading, 1.7);
+      if (view === "third") followCam(camera, parent, up, st.pos, st.camYaw, 4.6, 1.65, 1 - Math.exp(-step * 6));
+      else firstPerson(camera, parent, up, st.pos, st.heading, 1.6);
+      shared.steerVisual = 0;
+      shared.carSpeed = 0;
+      const onFoot = camera as THREE.PerspectiveCamera;
+      if (onFoot.isPerspectiveCamera && Math.abs(onFoot.fov - 52) > 0.4) {
+        onFoot.fov += (52 - onFoot.fov) * (1 - Math.exp(-step * 4));
+        onFoot.updateProjectionMatrix();
+      }
       playState.player.driving = false;
       playState.braking = false;
       // §2.9.3 — no engine hum on foot.
@@ -260,22 +289,34 @@ export function PlayerRig({ spawn, view, onReady, onAnchor, roads, wet }: {
       const moveDist = st.carSpeed * step;
       if (Math.abs(moveDist) > 1e-3) {
         const pdir = _dir.copy(cf).multiplyScalar(Math.sign(st.carSpeed));
+        const stopAt = Math.abs(moveDist) + 1.15;
         const probe = tileCollision.sampleWall("player-wall", now,
-          () => forwardHit(parent, tiles?.group, tileCollision.ray, _probe.copy(st.carPos).setY(st.carPos.y + 1.0), pdir, Math.abs(moveDist) + 2.6),
+          () => {
+            const low = forwardHit(parent, tiles?.group, tileCollision.ray, _probe.copy(st.carPos).setY(st.carPos.y + 0.45), pdir, stopAt + 0.4);
+            const high = forwardHit(parent, tiles?.group, tileCollision.ray, _probe.copy(st.carPos).setY(st.carPos.y + 1.15), pdir, stopAt + 0.4);
+            // A real wall occupies both heights. A tile crack or a curb does not.
+            return low < stopAt && high < stopAt ? Math.min(low, high) : Infinity;
+          },
           { priority: true, interval: WALL_INTERVAL_S });
-        if (probe < Math.abs(moveDist) + 2.4) {
-          if (Math.abs(st.carSpeed) > 8) {
-            sfx.crash(Math.min(1, Math.abs(st.carSpeed) / 20));
-            playState.condition = applyImpact(playState.condition, Math.abs(st.carSpeed));
+        if (probe < stopAt) {
+          // A seam or a guardrail the centerline clips. Scoot out. One hard
+          // hit per second and a half, not a crash on every coarse tile.
+          if (probe < 0.4) st.carPos.addScaledVector(pdir, -0.3);
+          if (Math.abs(st.carSpeed) > 14 && now - st.lastHit > 1.5) {
+            sfx.crash(Math.min(1, Math.abs(st.carSpeed) / 24));
+            playState.condition = applyImpact(playState.condition, Math.abs(st.carSpeed) * 0.45);
+            st.carSpeed *= 0.72;
+            st.lastHit = now;
+          } else if (Math.abs(st.carSpeed) > 3) {
+            st.carSpeed *= 0.985;
           }
-          st.carSpeed *= 0.2; // bump, don't tunnel
         }
         else st.carPos.addScaledVector(cf, moveDist);
       }
       const gy = tileCollision.sampleGround("player", now,
-        () => groundY(parent, tiles?.group, tileCollision.ray, st.carPos.x, st.carPos.z, up),
+        () => groundY(parent, tiles?.group, tileCollision.ray, st.carPos.x, st.carPos.z, up, st.carPos.y),
         { priority: true });
-      if (gy !== null) st.carPos.y = gy;
+      if (gy !== null) st.carPos.y = suspendHeight(st.carPos.y, gy, step);
 
       // bump other vehicles
       for (const c of playState.cars) {
@@ -324,17 +365,28 @@ export function PlayerRig({ spawn, view, onReady, onAnchor, roads, wet }: {
         st.mode = "foot";
         sfx.door();
         const r = _dir.set(cf.z, 0, -cf.x);
-        st.pos.set(st.carPos.x + r.x * 3, st.carPos.y, st.carPos.z + r.z * 3);
+        st.pos.set(st.carPos.x + r.x * 2.2, st.carPos.y, st.carPos.z + r.z * 2.2);
         st.carSpeed = 0;
+        st.exitWalk = 0.4;
+        st.moving = true;
+        st.speed = 1;
       }
       // §2.9.3 — engine hum (speed fraction of the 22 m/s earth car max)
       // + horn on H, matching the stylized car.
       sfx.engine(Math.min(1, Math.abs(st.carSpeed) / EARTH_TUNING.maxSpeed), true);
+      if (driven.skidding && now - st.screechAt > 0.7) { sfx.screech(); st.screechAt = now; }
       if (actionTap("horn")) sfx.horn();
+      shared.steerVisual = drive.x * 0.35;
+      shared.carSpeed = st.carSpeed;
       const chase = chaseForSpeed(st.carSpeed);
       st.camYaw = lerpAngle(st.camYaw, st.carYaw, 1 - Math.exp(-step * chase.follow));
       if (view === "third") followCam(camera, parent, up, st.carPos, st.camYaw, chase.dist, chase.height, 1 - Math.exp(-step * chase.follow));
-      else firstPerson(camera, parent, up, _probe.copy(st.carPos).addScaledVector(cf, 0.2), st.carYaw, 1.6);
+      else firstPerson(camera, parent, up, _probe.copy(st.carPos).addScaledVector(cf, 0.2), st.carYaw, 1.2);
+      const persp = camera as THREE.PerspectiveCamera;
+      if (persp.isPerspectiveCamera) {
+        persp.fov += (chase.fov - persp.fov) * (1 - Math.exp(-step * 3));
+        persp.updateProjectionMatrix();
+      }
       playState.player.driving = true;
       playState.player.pos.copy(st.carPos);
       // §2.8 — full pose for the shared sim (nav + missions).
@@ -369,24 +421,46 @@ export function PlayerRig({ spawn, view, onReady, onAnchor, roads, wet }: {
     }
   });
 
+  useLayoutEffect(() => {
+    const parent = player.current?.parent;
+    if (!parent) return;
+    parent.updateWorldMatrix(true, true);
+    const st = s.current;
+    followCam(camera, parent, frameUp(parent), st.pos, st.heading, 4.6, 1.65, 1);
+  }, [camera]);
+
   return (
     <>
       <group ref={player}>
-        <Character moving={() => s.current.moving} speed={() => s.current.speed} airborne={() => !s.current.jump.grounded} shirt="#2f5fae" pants="#23262e" />
+        <LicensedHuman
+          slot={0}
+          gait={() => {
+            const st = s.current;
+            if (st.punch > 0) return "punch";
+            if (!st.jump.grounded) return "jump";
+            if (st.speed >= 2) return "run";
+            if (st.moving || st.board > 0 || st.exitWalk > 0) return "walk";
+            return "idle";
+          }}
+          fallback={<Character moving={() => s.current.moving} speed={() => s.current.speed} airborne={() => !s.current.jump.grounded} shirt="#2f5fae" pants="#23262e" />}
+        />
+        <ContactBlob radius={0.42} />
       </group>
       <group ref={car}>
-        {/* Stream A (2026-11-03): pack GLB instead of the procedural Vehicle.
-            NOTE: <Character> above is deliberately NOT replaced — the file
-            header documents that skinned models shatter at earth-centred
-            coordinates in float32, so the rigid primitive humanoid stays. */}
-        <TrafficPackCar
-          pack="/packs/pack006/sports_coupe.glb"
-          wheelR={0.33}
-          getSpeed={() => s.current.carSpeed}
-        />
+        <Cc0Vehicle slot={0} driven />
         <EarthHeadlights />
+        <ContactBlob radius={1.5} />
       </group>
     </>
+  );
+}
+
+function ContactBlob({ radius }: { radius: number }) {
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
+      <circleGeometry args={[radius, 20]} />
+      <meshBasicMaterial color="#0c0e12" transparent opacity={0.38} depthWrite={false} />
+    </mesh>
   );
 }
 
@@ -488,7 +562,7 @@ export function TileNpcs({ roads }: { roads: Road[] }) {
       const pos = pointOn(routesRef.current ?? [], i);
       return {
         pos, goal: pos.clone(), heading: 0, y: 0, t: Math.random(),
-        down: 0, dead: false,
+        down: 0, dead: false, grounded: false,
         shirt: pedLooks[i].shirt, pants: pedLooks[i].pants, skin: pedLooks[i].skin,
         hair: pedLooks[i].hair, hat: pedLooks[i].hat, coat: pedLooks[i].coat,
         build: pedLooks[i].build,
@@ -500,7 +574,7 @@ export function TileNpcs({ roads }: { roads: Road[] }) {
     Array.from({ length: EARTH_CAR_COUNT }, (_, i) => ({
       route: i,
       fwd: i % 2 === 0, dir: (i % 2 === 0 ? 1 : -1) as 1 | -1, dist: 0, hold: 0, lane: i % 2, y: 0, t: Math.random(), heading: 0,
-      style: i % 4,
+      style: i % 4, grounded: false,
       offset: new THREE.Vector3(),
       body: { pos: new THREE.Vector3(), push: new THREE.Vector3(), hit: 0 } as Body,
     })),
@@ -583,10 +657,11 @@ export function TileNpcs({ roads }: { roads: Road[] }) {
       if (p.t <= 0 && tiles?.group) {
         p.t = 0.5 + Math.random() * 0.5;
         const gy = tileCollision.sampleGround(`ped-${i}`, now,
-          () => groundY(parent, tiles.group, tileCollision.ray, p.pos.x, p.pos.z, up),
+          () => groundY(parent, tiles.group, tileCollision.ray, p.pos.x, p.pos.z, up, p.y),
           { interval: NPC_GROUND_INTERVAL_S });
-        if (gy !== null) p.y = gy;
+        if (gy !== null) { p.y = gy; p.grounded = true; }
       }
+      g.visible = p.grounded;
       g.position.set(p.pos.x, p.y, p.pos.z);
       g.rotation.set(0, p.heading, 0);
       p.body.pos.set(p.pos.x, p.y, p.pos.z);
@@ -608,6 +683,7 @@ export function TileNpcs({ roads }: { roads: Road[] }) {
         if (!g) return;
         const route = routes[c.route % routes.length];
         if (c.hold > 0) {
+          g.visible = c.grounded;
           g.position.set(c.body.pos.x, c.y, c.body.pos.z);
           g.rotation.y = c.heading;
           return;
@@ -624,10 +700,11 @@ export function TileNpcs({ roads }: { roads: Road[] }) {
         if (c.t <= 0 && tiles?.group) {
           c.t = 0.4 + Math.random() * 0.5;
           const gy = tileCollision.sampleGround(`car-${i}`, now,
-            () => groundY(parent, tiles.group, tileCollision.ray, px, pz, up),
+            () => groundY(parent, tiles.group, tileCollision.ray, px, pz, up, c.y),
             { interval: NPC_GROUND_INTERVAL_S });
-          if (gy !== null) c.y = gy;
+          if (gy !== null) { c.y = gy; c.grounded = true; }
         }
+        g.visible = c.grounded;
         c.heading = Math.atan2(dir.x, dir.z) + (c.fwd ? 0 : Math.PI);
         g.position.set(px, c.y, pz);
         g.rotation.y = c.heading;
@@ -832,7 +909,7 @@ function WantedPursuit() {
       if (car.t <= 0 && parent && up && tiles?.group) {
         car.t = 0.45;
         const gy = tileCollision.sampleGround(`pursuit-${i}`, now,
-          () => groundY(parent, tiles.group, tileCollision.ray, car.x, car.z, up),
+          () => groundY(parent, tiles.group, tileCollision.ray, car.x, car.z, up, car.y),
           { interval: NPC_GROUND_INTERVAL_S });
         if (gy !== null) car.y = gy;
       }

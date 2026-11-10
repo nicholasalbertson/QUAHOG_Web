@@ -9,16 +9,16 @@
 // and apply this object afterwards so the explicit target sticks.
 
 export const TILE_MEMORY = {
-  /** Coarser than the library default (16). Street-level blank ground was the failure this avoids; not a device measurement. */
-  errorTarget: 32,
-  minBytes: 180 * 1024 * 1024,
-  maxBytes: 280 * 1024 * 1024,
-  /** Must stay below maxCount. The library default minSize is 6000, which is above our max and skips count eviction. */
-  minCount: 2500,
-  maxCount: 3500,
-  maxDepth: 24,
-  downloadJobs: 6,
-  parseJobs: 3,
+  /** Screen-space error in pixels. Lower is sharper. 8 holds street facades; 32 left them soft. */
+  errorTarget: 8,
+  minBytes: 300 * 1024 * 1024,
+  maxBytes: 384 * 1024 * 1024,
+  /** Must stay below maxCount. A high floor keeps nearby tiles from being evicted for distant ones. */
+  minCount: 4200,
+  maxCount: 5200,
+  maxDepth: 32,
+  downloadJobs: 14,
+  parseJobs: 6,
 } as const;
 
 export interface TileMemoryHost {
