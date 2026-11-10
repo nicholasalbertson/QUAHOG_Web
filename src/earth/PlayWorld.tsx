@@ -7,22 +7,24 @@ import { TilesRendererContext } from "3d-tiles-renderer/r3f";
 // float32, so the skinned model explodes into shards. Rigid meshes render
 // camera-relative and stay crisp (same reason the car looks fine).
 import { assignPedLooks } from "../world/pedLooks";
-import { PedestrianAI, type PedAgent } from "../sim/PedestrianAI";
-import { sim } from "../sim/SimRuntime";
 import { sfx } from "../audio/sfx";
 import { surfaceAt } from "../world/surfaceSample";
 import type { Road } from "../slice";
 import { Character } from "../world/Character";
 import { slewHeading, stepJump, type JumpState } from "../world/locomotion";
-import { consumeTap, isDown, moveAxis } from "../input";
-import { DRIVABLE, followCam, forwardHit, frameUp, groundY, lerpAngle, sanitizePosition } from "./follow";
+import { consumeTap, moveAxis } from "../input";
+import { actionDown, actionTap } from "./controls";
+import { followCam, forwardHit, frameUp, groundY, lerpAngle, sanitizePosition } from "./follow";
 import { EARTH_TUNING, chaseForSpeed, stepEarthDrive } from "./drive";
 import { NPC_GROUND_INTERVAL_S, WALL_INTERVAL_S, tileCollision } from "./raycastBudget";
-import { playState, resetBodies, type Body } from "./playState";
-import { VEHICLE_TYPES } from "./vehicleTypes";
+import { noteCrime, playState, resetBodies, type Body } from "./playState";
+import { lampPoints, planRebase, registerShift, routesNear, shiftLocals, type LocalRoute } from "./rebase";
+import { writeEastNorthUp } from "./enuFrame";
+import { SLICE_ORIGIN, latLonToLocal, localToLatLon, type LatLon } from "./geo";
+import { useStats } from "../game";
 import { TrafficPackCar } from "../actors/TrafficPackCar";
 import { PackGLB } from "../actors/PackGLB";
-import type { Slice } from "../slice";
+import { useToasts } from "../store";
 
 export type View = "third" | "first";
 export interface Spawn { x: number; z: number; heading: number }
@@ -41,21 +43,24 @@ const _fpFwd = new THREE.Vector3();
 const _alongPoint = new THREE.Vector3();
 const _alongDir = new THREE.Vector3();
 
-const CAR_COLORS = ["#9c3a3a", "#2f6f7a", "#caa24a", "#3a5a9c", "#5a5a5a"];
+const _lead = new THREE.Vector3();
 
-// §2.7.3 — 50 peds visible in earth play mode. (Ped palette moved to
-// src/world/pedLooks.ts, which assigns the 3 builds + colors.)
-export const EARTH_PED_COUNT = 50;
+// A small crowd in whichever city is loaded. The old 50-ped New Bedford
+// crowd is too many draw calls once tiles are streaming in every city.
+export const EARTH_PED_COUNT = 8;
+export const EARTH_CAR_COUNT = 4;
 
 const planar = (a: THREE.Vector3, b: THREE.Vector3) => Math.hypot(a.x - b.x, a.z - b.z);
 
 // ---------------------------------------------------------------------------
 // Player: on foot + drivable car, wall-collided, with 1st/3rd-person views.
 
-export function PlayerRig({ spawn, view, onReady, roads, wet }: {
+export function PlayerRig({ spawn, view, onReady, onAnchor, roads, wet }: {
   spawn: Spawn;
   view: View;
   onReady?: () => void;
+  /** Called when the ENU anchor moves. The matrix is already written. */
+  onAnchor?: (anchor: LatLon) => void;
   /** §2.9.3 — slice roads for footstep surfaces (surfaceAt); null = grass. */
   roads?: readonly Road[] | null;
   /** §2.9.3 — wet surfaces (rain) for the footstep timbre. */
@@ -86,9 +91,24 @@ export function PlayerRig({ spawn, view, onReady, roads, wet }: {
     carYaw: spawn.heading,
   });
 
+  const spawnRef = useRef(spawn);
+  useEffect(() => {
+    const prev = spawnRef.current;
+    spawnRef.current = spawn;
+    if (prev.x === spawn.x && prev.z === spawn.z && prev.heading === spawn.heading) return;
+    const st = s.current;
+    if (Math.hypot(st.pos.x - prev.x, st.pos.z - prev.z) > 12) return;
+    st.pos.set(spawn.x, st.pos.y, spawn.z);
+    st.carPos.set(spawn.x + 5, st.carPos.y, spawn.z);
+    st.heading = spawn.heading;
+    st.carYaw = spawn.heading;
+    st.camYaw = spawn.heading;
+  }, [spawn.x, spawn.z, spawn.heading]);
+
   useFrame((state, dt) => {
     const parent = player.current?.parent;
     if (!parent) return;
+    if (playState.paused) return;
     const step = Math.min(dt, 0.05);
     parent.updateWorldMatrix(true, false);
     const up = frameUp(parent);
@@ -128,7 +148,7 @@ export function PlayerRig({ spawn, view, onReady, roads, wet }: {
     if (st.mode === "foot") {
       if (player.current) player.current.visible = view === "third";
       const dir = _dir.set(0, 0, 0).addScaledVector(fwd, ax.y).addScaledVector(right, ax.x);
-      const sprinting = isDown("ShiftLeft") || isDown("ShiftRight");
+      const sprinting = actionDown("sprint");
       const speed = sprinting ? 9 : 4.5;
       if (dir.lengthSq() > 1e-4) {
         dir.normalize();
@@ -151,7 +171,8 @@ export function PlayerRig({ spawn, view, onReady, roads, wet }: {
           const stride = sprinting ? 1.1 : 0.75;
           if (st.stepAcc >= stride) {
             st.stepAcc -= stride;
-            sfx.step(surfaceAt(st.pos.x, -st.pos.z, !!wet, roads ?? null));
+            const home = latLonToLocal(SLICE_ORIGIN, localToLatLon(playState.anchor, st.pos.x, st.pos.z));
+            sfx.step(surfaceAt(home.x, -home.z, !!wet, roads ?? null));
           }
         }
       } else { st.moving = false; st.speed = 0; }
@@ -162,7 +183,7 @@ export function PlayerRig({ spawn, view, onReady, roads, wet }: {
       if (gy !== null) {
         // §2.4.5 — jump (Space, foot mode only): the player rises above the
         // sampled tile ground and lands back on it.
-        stepJump(st.jump, step, isDown("Space"));
+        stepJump(st.jump, step, actionDown("handbrake"));
         st.pos.y = gy + st.jump.y;
       }
 
@@ -171,7 +192,7 @@ export function PlayerRig({ spawn, view, onReady, roads, wet }: {
         const d = planar(st.pos, c.pos);
         if (d > 1e-3 && d < 1.6) st.pos.addScaledVector(awayXZ(st.pos, c.pos), 1.6 - d);
       }
-      knockPeds(st.pos, 0.9);
+      knockPeds(st.pos, 0.9, false);
 
       // melee: punch the nearest pedestrian in front (F)
       if (consumeTap("KeyF")) {
@@ -183,7 +204,12 @@ export function PlayerRig({ spawn, view, onReady, roads, wet }: {
           const d = Math.hypot(dx, dz) || 1;
           if (d < bestD && (dx * f.x + dz * f.z) / d > 0.25) { best = p; bestD = d; }
         }
-        if (best) { best.hit += 1; best.push.addScaledVector(awayXZ(best.pos, st.pos), 1.0); }
+        if (best) {
+          best.hit += 1;
+          best.push.addScaledVector(awayXZ(best.pos, st.pos), 1.0);
+          sfx.punch();
+          noteCrime();
+        }
       }
 
       player.current!.position.copy(st.pos);
@@ -191,12 +217,13 @@ export function PlayerRig({ spawn, view, onReady, roads, wet }: {
       car.current!.position.copy(st.carPos);
       car.current!.rotation.y = st.carYaw;
       car.current!.rotation.z = 0;
-      if (consumeTap("KeyE") && planar(st.pos, st.carPos) < 5.5) { st.mode = "car"; sfx.door(); }
+      if (actionTap("interact") && planar(st.pos, st.carPos) < 5.5) { st.mode = "car"; sfx.door(); }
 
       st.camYaw = lerpAngle(st.camYaw, st.heading, 1 - Math.exp(-step * 3));
       if (view === "third") followCam(camera, parent, up, st.pos, st.camYaw, 7, 4, 1 - Math.exp(-step * 6));
       else firstPerson(camera, parent, up, st.pos, st.heading, 1.7);
       playState.player.driving = false;
+      playState.braking = false;
       // §2.9.3 — no engine hum on foot.
       sfx.engine(0, false);
       playState.player.pos.copy(st.pos);
@@ -212,7 +239,7 @@ export function PlayerRig({ spawn, view, onReady, roads, wet }: {
         { yaw: st.carYaw, speed: st.carSpeed, skidding: false },
         ax,
         step,
-        { handbrake: isDown("Space"), wet: !!wet },
+        { handbrake: actionDown("handbrake"), wet: !!wet },
       );
       st.carYaw = driven.yaw;
       st.carSpeed = driven.speed;
@@ -224,7 +251,10 @@ export function PlayerRig({ spawn, view, onReady, roads, wet }: {
         const probe = tileCollision.sampleWall("player-wall", now,
           () => forwardHit(parent, tiles?.group, tileCollision.ray, _probe.copy(st.carPos).setY(st.carPos.y + 1.0), pdir, Math.abs(moveDist) + 2.6),
           { priority: true, interval: WALL_INTERVAL_S });
-        if (probe < Math.abs(moveDist) + 2.4) st.carSpeed *= 0.2; // bump, don't tunnel
+        if (probe < Math.abs(moveDist) + 2.4) {
+          if (Math.abs(st.carSpeed) > 8) sfx.crash(Math.min(1, Math.abs(st.carSpeed) / 20));
+          st.carSpeed *= 0.2; // bump, don't tunnel
+        }
         else st.carPos.addScaledVector(cf, moveDist);
       }
       const gy = tileCollision.sampleGround("player", now,
@@ -239,18 +269,21 @@ export function PlayerRig({ spawn, view, onReady, roads, wet }: {
           const away = awayXZ(c.pos, st.carPos);
           c.push.addScaledVector(away, 3.4 - d);
           st.carPos.addScaledVector(away, -(3.4 - d) * 0.5);
+          const impact = Math.abs(st.carSpeed);
           st.carSpeed *= -0.25;
           playState.bump = 1;
+          if (impact > 6) { sfx.crash(0.45); noteCrime(); }
         }
       }
-      knockPeds(st.carPos, 1.9);
+      knockPeds(st.carPos, 1.9, Math.abs(st.carSpeed) > 6);
+      playState.braking = ax.y < -0.2 && Math.abs(st.carSpeed) > 1;
 
       car.current!.position.copy(st.carPos);
       car.current!.rotation.y = st.carYaw;
       const lean = Math.min(1, Math.abs(st.carSpeed) / 20);
       car.current!.rotation.z = -ax.x * lean * (driven.skidding ? 0.09 : 0.045);
       st.pos.copy(st.carPos);
-      if (consumeTap("KeyE")) {
+      if (actionTap("interact")) {
         st.mode = "foot";
         sfx.door();
         const r = _dir.set(cf.z, 0, -cf.x);
@@ -260,7 +293,7 @@ export function PlayerRig({ spawn, view, onReady, roads, wet }: {
       // §2.9.3 — engine hum (speed fraction of the 22 m/s earth car max)
       // + horn on H, matching the stylized car.
       sfx.engine(Math.min(1, Math.abs(st.carSpeed) / EARTH_TUNING.maxSpeed), true);
-      if (consumeTap("KeyH")) sfx.horn();
+      if (actionTap("horn")) sfx.horn();
       const chase = chaseForSpeed(st.carSpeed);
       st.camYaw = lerpAngle(st.camYaw, st.carYaw, 1 - Math.exp(-step * chase.follow));
       if (view === "third") followCam(camera, parent, up, st.carPos, st.camYaw, chase.dist, chase.height, 1 - Math.exp(-step * chase.follow));
@@ -277,6 +310,21 @@ export function PlayerRig({ spawn, view, onReady, roads, wet }: {
     sanitizePosition(st.pos, spawn);
     sanitizePosition(st.carPos, spawn);
     playState.settled = true;
+    const active = st.mode === "car" ? st.carPos : st.pos;
+    const plan = planRebase(playState.anchor, active.x, active.z);
+    const enu = parent.parent;
+    if (plan && enu) {
+      st.pos.x -= plan.shiftX;
+      st.pos.z -= plan.shiftZ;
+      st.carPos.x -= plan.shiftX;
+      st.carPos.z -= plan.shiftZ;
+      playState.player.pos.x -= plan.shiftX;
+      playState.player.pos.z -= plan.shiftZ;
+      playState.anchor = plan.anchor;
+      shiftLocals(plan.shiftX, plan.shiftZ);
+      writeEastNorthUp(enu, plan.anchor);
+      onAnchor?.(plan.anchor);
+    }
   });
 
   return (
@@ -294,16 +342,22 @@ export function PlayerRig({ spawn, view, onReady, roads, wet }: {
           wheelR={0.33}
           getSpeed={() => s.current.carSpeed}
         />
+        <EarthHeadlights />
       </group>
     </>
   );
 }
 
-function knockPeds(center: THREE.Vector3, r: number) {
+function knockPeds(center: THREE.Vector3, r: number, crime: boolean) {
+  let hit = false;
   for (const p of playState.peds) {
     const d = planar(center, p.pos);
-    if (d > 1e-3 && d < r) p.push.addScaledVector(awayXZ(p.pos, center), r - d + 0.05);
+    if (d > 1e-3 && d < r) {
+      p.push.addScaledVector(awayXZ(p.pos, center), r - d + 0.05);
+      hit = true;
+    }
   }
+  if (hit && crime) noteCrime();
 }
 function awayXZ(a: THREE.Vector3, b: THREE.Vector3) {
   _away.set(a.x - b.x, 0, a.z - b.z);
@@ -328,129 +382,123 @@ const NPC_PACKS = [
 ];
 
 // ---------------------------------------------------------------------------
-// NPCs: pedestrians + traffic on the real roads, with contact knockback.
+// City life: a small crowd on the active city's roads, lamps, a lookahead
+// camera so tiles stream ahead of the car, and a couple of pursuit cruisers.
 
-interface Route { pts: THREE.Vector3[]; total: number }
+interface LiveRoute { roadIndex: number; pts: THREE.Vector3[]; total: number }
 
-export function TileNpcs({ slice, center }: { slice: Slice; center: [number, number] }) {
+function toLive(list: LocalRoute[]): LiveRoute[] {
+  return list.map((route) => ({
+    roadIndex: route.roadIndex,
+    total: route.total,
+    pts: route.pts.map((p) => new THREE.Vector3(p.x, 0, p.z)),
+  }));
+}
+
+function pointOn(routes: LiveRoute[], i: number): THREE.Vector3 {
+  if (!routes.length) return new THREE.Vector3((i - 3) * 6, 0, (i % 4) * 5);
+  const route = routes[i % routes.length];
+  return route.pts[i % route.pts.length].clone();
+}
+
+export function CityLife({ roads }: { roads: Road[] | null }) {
+  return (
+    <>
+      <TilePrefetch />
+      {roads && roads.length > 0 && <TileNpcs roads={roads} />}
+      <StreetLamps roads={roads} />
+      <WantedPursuit />
+    </>
+  );
+}
+
+export function TileNpcs({ roads }: { roads: Road[] }) {
   const tiles = useContext(TilesRendererContext);
-
-  const routes = useMemo<Route[]>(() => {
-    const out: Route[] = [];
-    for (const r of slice.roads) {
-      if (!DRIVABLE.has(r.highway) || r.points.length < 2) continue;
-      const pts = r.points.map(([e, n]) => new THREE.Vector3(e, 0, -n));
-      let total = 0;
-      for (let i = 0; i < pts.length - 1; i++) total += pts[i].distanceTo(pts[i + 1]);
-      if (total > 12) out.push({ pts, total });
-    }
-    return out;
-  }, [slice]);
+  const routesRef = useRef<LiveRoute[] | null>(null);
+  if (!routesRef.current) routesRef.current = toLive(routesNear(roads, playState.anchor, new Set()));
+  const roadsRef = useRef(roads);
+  roadsRef.current = roads;
 
   const pedRefs = useRef<(THREE.Group | null)[]>([]);
   const carRefs = useRef<(THREE.Group | null)[]>([]);
-  // §2.7.3 — 50 peds. Looks come from assignPedLooks (3 builds cycling, so
-  // no two adjacent peds are ever identical); the ground-sample budget
-  // (CollisionBudget, cap 4/frame, 0.5 s interval) covers 50 peds at ~100/s.
   const pedLooks = useMemo(() => assignPedLooks(EARTH_PED_COUNT), []);
   const peds = useRef(
-    Array.from({ length: EARTH_PED_COUNT }, (_, i) => ({
-      pos: rand(center, 30), goal: rand(center, 30), heading: 0, y: 0, t: Math.random(),
-      down: 0, dead: false,
-      shirt: pedLooks[i].shirt, pants: pedLooks[i].pants, skin: pedLooks[i].skin,
-      build: pedLooks[i].build,
-      body: { pos: new THREE.Vector3(), push: new THREE.Vector3(), hit: 0 } as Body,
-    })),
+    Array.from({ length: EARTH_PED_COUNT }, (_, i) => {
+      const pos = pointOn(routesRef.current ?? [], i);
+      return {
+        pos, goal: pos.clone(), heading: 0, y: 0, t: Math.random(),
+        down: 0, dead: false,
+        shirt: pedLooks[i].shirt, pants: pedLooks[i].pants, skin: pedLooks[i].skin,
+        build: pedLooks[i].build,
+        body: { pos: new THREE.Vector3(), push: new THREE.Vector3(), hit: 0 } as Body,
+      };
+    }),
   );
   const cars = useRef(
-    Array.from({ length: 3 }, () => ({
-      route: routes.length ? Math.floor(Math.random() * routes.length) : 0,
-      fwd: Math.random() < 0.5, dist: 0, y: 0, t: Math.random(), heading: 0,
-      offset: new THREE.Vector3(), color: pick(CAR_COLORS), vtype: pick(VEHICLE_TYPES),
+    Array.from({ length: EARTH_CAR_COUNT }, (_, i) => ({
+      route: i,
+      fwd: i % 2 === 0, dist: 0, y: 0, t: Math.random(), heading: 0,
+      offset: new THREE.Vector3(),
       body: { pos: new THREE.Vector3(), push: new THREE.Vector3(), hit: 0 } as Body,
     })),
   );
-
-  // §2.7.2 — the peds walk the SHARED PedGraph (sim.sidewalkGraph, built
-  // from the slice roads by sim.bindSlice) via the shared PedestrianAI —
-  // the same class the stylized StreetLife uses. When the graph is bound,
-  // goals come from sidewalk nodes and the ped follows the graph route;
-  // when it is not yet bound (first frames), the AI falls back to open
-  // wander, so the peds still move.
-  const pedAi = useRef(new PedestrianAI({ wander: 32, speed: 1.4 }));
-  const agents = useRef<PedAgent[]>([]);
-  if (agents.current.length === 0) {
-    agents.current = peds.current.map((p, i) => ({
-      id: i, x: p.pos.x, z: p.pos.z, goalX: p.goal.x, goalZ: p.goal.z,
-      heading: 0, down: 0, dead: false, path: null, pathCursor: 0,
-    }));
-  }
 
   useEffect(() => {
     playState.peds = peds.current.map((p) => p.body);
     playState.cars = cars.current.map((c) => c.body);
-    return () => resetBodies();
+    return registerShift((dx, dz) => {
+      for (const ped of peds.current) {
+        ped.pos.x -= dx; ped.pos.z -= dz;
+        ped.goal.x -= dx; ped.goal.z -= dz;
+      }
+      const routes = routesRef.current ?? [];
+      for (const route of routes) for (const pt of route.pts) { pt.x -= dx; pt.z -= dz; }
+      const have = new Set(routes.map((r) => r.roadIndex));
+      const source = roadsRef.current;
+      if (source) routes.push(...toLive(routesNear(source, playState.anchor, have)));
+      routesRef.current = routes.filter((route) => route.pts.some((pt) => Math.hypot(pt.x, pt.z) < 3200));
+    });
   }, []);
 
+  useEffect(() => () => resetBodies(), []);
+
   useFrame((state, dt) => {
+    if (playState.paused) return;
     const parent = (pedRefs.current[0] || carRefs.current[0])?.parent;
     if (!parent) return;
+    const routes = routesRef.current ?? [];
     const step = Math.min(dt, 0.05);
     parent.updateWorldMatrix(true, false);
     const up = frameUp(parent);
-    // §2.1.1 — NPC ground samples share the frame budget (non-priority, so a
-    // crowd can't stampede the BVH); PlayerRig already began this frame.
     const now = state.clock.elapsedTime;
     tileCollision.beginFrame(now);
-
-    // §2.7.2 — drive the peds through the shared PedestrianAI: sync each
-    // agent from its ped (melee pushes + down/dead state), then let the AI
-    // move them along the shared PedGraph (or open wander when the graph
-    // is not yet bound). 2 ms budget for the AI tick.
-    const ai = pedAi.current;
-    ai.setCenter({ x: center[0], z: center[1] });
-    ai.setGraph(sim.sidewalkGraph);
-    peds.current.forEach((p, i) => {
-      const ag = agents.current[i];
-      if (!ag) return;
-      ag.x = p.pos.x;
-      ag.z = p.pos.z;
-      ag.down = p.down;
-      ag.dead = p.dead;
-    });
-    ai.update(step, { x: playState.player.pos.x, z: playState.player.pos.z }, agents.current, 2, null);
-    peds.current.forEach((p, i) => {
-      const ag = agents.current[i];
-      if (!ag) return;
-      p.pos.x = ag.x;
-      p.pos.z = ag.z;
-      p.goal.x = ag.goalX;
-      p.goal.z = ag.goalZ;
-      p.heading = ag.heading;
-    });
 
     peds.current.forEach((p, i) => {
       const g = pedRefs.current[i];
       if (!g) return;
-
-      // resolve melee hits: first hit = knocked out, hit again = killed
       if (p.body.hit > 0) {
-        if (p.dead) { /* already down for good */ }
-        else if (p.down > 0) p.dead = true;
-        else p.down = 4;
+        if (!p.dead) { if (p.down > 0) p.dead = true; else p.down = 4; }
         p.body.hit = 0;
       }
       if (p.dead || p.down > 0) {
         if (p.down > 0) p.down -= step;
         g.position.set(p.pos.x, p.y, p.pos.z);
-        g.rotation.set(Math.PI / 2, p.heading, 0); // lying on the ground
+        g.rotation.set(Math.PI / 2, p.heading, 0);
         p.body.pos.set(p.pos.x, p.y, p.pos.z);
         return;
       }
-
       if (p.body.push.lengthSq() > 0) { p.pos.add(p.body.push); p.body.push.set(0, 0, 0); }
-      // §2.7.2 — movement is driven by the shared PedestrianAI (above);
-      // the ped's position + heading now come from its agent.
+      if (routes.length && Math.hypot(p.goal.x - p.pos.x, p.goal.z - p.pos.z) < 1.4) {
+        const route = routes[Math.floor(Math.random() * routes.length)];
+        const pt = route.pts[Math.floor(Math.random() * route.pts.length)];
+        if (Math.hypot(pt.x - playState.player.pos.x, pt.z - playState.player.pos.z) < 480) p.goal.copy(pt);
+      }
+      _pedTo.set(p.goal.x - p.pos.x, 0, p.goal.z - p.pos.z);
+      if (_pedTo.lengthSq() > 0.25) {
+        _pedTo.normalize();
+        p.pos.addScaledVector(_pedTo, 1.35 * step);
+        p.heading = Math.atan2(_pedTo.x, _pedTo.z);
+      }
       p.t -= step;
       if (p.t <= 0 && tiles?.group) {
         p.t = 0.5 + Math.random() * 0.5;
@@ -472,7 +520,7 @@ export function TileNpcs({ slice, center }: { slice: Slice; center: [number, num
         c.dist += 9 * step;
         if (c.dist >= route.total) { c.fwd = !c.fwd; c.dist = 0; c.route = Math.floor(Math.random() * routes.length); }
         const along = c.fwd ? c.dist : route.total - c.dist;
-        const { point, dir } = sampleAlong(routes[c.route % routes.length], along, _alongPoint, _alongDir);
+        const { point, dir } = sampleAlong(route, along, _alongPoint, _alongDir);
         if (c.body.push.lengthSq() > 0) { c.offset.add(c.body.push); c.body.push.set(0, 0, 0); }
         c.offset.multiplyScalar(0.9);
         const px = point.x + c.offset.x, pz = point.z + c.offset.z;
@@ -499,7 +547,7 @@ export function TileNpcs({ slice, center }: { slice: Slice; center: [number, num
           <Character shirt={p.shirt} pants={p.pants} skin={p.skin} build={p.build} moving={() => !p.dead && p.down <= 0} />
         </group>
       ))}
-      {cars.current.map((c, i) => (
+      {cars.current.map((_, i) => (
         <group key={`c${i}`} ref={(el) => (carRefs.current[i] = el)}>
           <PackGLB path={NPC_PACKS[i % NPC_PACKS.length]} />
         </group>
@@ -508,12 +556,185 @@ export function TileNpcs({ slice, center }: { slice: Slice; center: [number, num
   );
 }
 
-function rand(center: [number, number], r: number) {
-  return new THREE.Vector3(center[0] + (Math.random() * 2 - 1) * r, 0, center[1] + (Math.random() * 2 - 1) * r);
+function TilePrefetch() {
+  const tiles = useContext(TilesRendererContext);
+  const cam = useRef<THREE.PerspectiveCamera>(null);
+  useEffect(() => {
+    const camera = cam.current;
+    if (!tiles || !camera) return;
+    tiles.setCamera(camera);
+    tiles.setResolution(camera, 256, 256);
+    return () => { tiles.deleteCamera(camera); };
+  }, [tiles]);
+  useFrame(() => {
+    const camera = cam.current;
+    const parent = camera?.parent;
+    if (!camera || !parent || playState.paused) return;
+    const pose = playState.player;
+    const lead = Math.min(700, 140 + pose.speed * 7);
+    const heading = pose.heading;
+    camera.position.set(
+      pose.pos.x + Math.sin(heading) * lead,
+      pose.pos.y + 18,
+      pose.pos.z + Math.cos(heading) * lead,
+    );
+    _lead.set(
+      pose.pos.x + Math.sin(heading) * (lead + 40),
+      pose.pos.y + 2,
+      pose.pos.z + Math.cos(heading) * (lead + 40),
+    );
+    parent.localToWorld(_lead);
+    camera.lookAt(_lead);
+    camera.updateMatrixWorld();
+  });
+  return <perspectiveCamera ref={cam} fov={55} near={1} far={900} />;
 }
-const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 
-function sampleAlong(route: Route, d: number, point: THREE.Vector3, dir: THREE.Vector3) {
+function EarthHeadlights() {
+  const left = useRef<THREE.SpotLight>(null);
+  const right = useRef<THREE.SpotLight>(null);
+  const tails = useRef<THREE.PointLight>(null);
+  const lt = useRef<THREE.Object3D>(null);
+  const rt = useRef<THREE.Object3D>(null);
+  useEffect(() => {
+    if (left.current && lt.current) left.current.target = lt.current;
+    if (right.current && rt.current) right.current.target = rt.current;
+  }, []);
+  useFrame(() => {
+    const night = playState.night;
+    const beam = night * 7;
+    if (left.current) left.current.intensity = beam;
+    if (right.current) right.current.intensity = beam;
+    if (tails.current) tails.current.intensity = playState.braking ? 2.2 : night * 0.45;
+  });
+  return (
+    <>
+      <object3D ref={lt} position={[0.32, 0.2, 16]} />
+      <object3D ref={rt} position={[-0.32, 0.2, 16]} />
+      <spotLight ref={left} position={[0.32, 0.65, 1.3]} angle={0.42} penumbra={0.55} distance={42} color="#fff1cc" intensity={0} />
+      <spotLight ref={right} position={[-0.32, 0.65, 1.3]} angle={0.42} penumbra={0.55} distance={42} color="#fff1cc" intensity={0} />
+      <pointLight ref={tails} position={[0, 0.5, -2.1]} color="#ff2a2a" distance={7} intensity={0} />
+    </>
+  );
+}
+
+const LAMP_COUNT = 6;
+
+function StreetLamps({ roads }: { roads: Road[] | null }) {
+  const lights = useRef<(THREE.PointLight | null)[]>([]);
+  const spots = useRef<{ x: number; z: number }[]>([]);
+  const acc = useRef(0);
+  const roadsRef = useRef(roads);
+  roadsRef.current = roads;
+  useEffect(() => registerShift((dx, dz) => {
+    for (const spot of spots.current) { spot.x -= dx; spot.z -= dz; }
+  }), []);
+  useFrame((_, dt) => {
+    acc.current -= dt;
+    if (acc.current <= 0) {
+      acc.current = 0.6;
+      const source = roadsRef.current;
+      const pose = playState.player;
+      spots.current = source
+        ? lampPoints(source, playState.anchor, pose.pos.x, pose.pos.z, LAMP_COUNT)
+        : [];
+    }
+    const night = playState.night;
+    for (let i = 0; i < LAMP_COUNT; i++) {
+      const light = lights.current[i];
+      const spot = spots.current[i];
+      if (!light) continue;
+      light.intensity = spot ? night * 2.4 : 0;
+      if (spot) light.position.set(spot.x, 7.5, spot.z);
+    }
+  });
+  return (
+    <>
+      {Array.from({ length: LAMP_COUNT }, (_, i) => (
+        <pointLight key={i} ref={(el) => { lights.current[i] = el; }} color="#ffc98a" distance={34} decay={2} intensity={0} />
+      ))}
+    </>
+  );
+}
+
+function WantedPursuit() {
+  const tiles = useContext(TilesRendererContext);
+  const refs = useRef<(THREE.Group | null)[]>([]);
+  const cars = useRef([0, 1].map(() => ({ active: false, x: 0, z: 0, y: 0, yaw: 0, t: 0, bite: 0 })));
+  useEffect(() => registerShift((dx, dz) => {
+    for (const car of cars.current) { car.x -= dx; car.z -= dz; }
+  }), []);
+  useFrame((state, dt) => {
+    if (playState.paused) return;
+    const step = Math.min(dt, 0.05);
+    const stars = useStats.getState().police;
+    const want = stars >= 3 ? 2 : stars >= 0.8 ? 1 : 0;
+    sfx.siren(want > 0);
+    const parent = refs.current[0]?.parent;
+    const up = parent ? frameUp(parent) : null;
+    const now = state.clock.elapsedTime;
+    cars.current.forEach((car, i) => {
+      const group = refs.current[i];
+      if (!group) return;
+      if (i >= want) { car.active = false; group.visible = false; return; }
+      if (!car.active) {
+        const heading = playState.player.heading;
+        car.x = playState.player.pos.x - Math.sin(heading) * (32 + i * 14);
+        car.z = playState.player.pos.z - Math.cos(heading) * (32 + i * 14);
+        car.yaw = heading;
+        car.active = true;
+      }
+      const dx = playState.player.pos.x - car.x;
+      const dz = playState.player.pos.z - car.z;
+      const dist = Math.hypot(dx, dz) || 1;
+      car.yaw = lerpAngle(car.yaw, Math.atan2(dx, dz), 1 - Math.exp(-step * 2.4));
+      const speed = dist < 9 ? 7 : 15 + Math.min(5, stars) * 1.6;
+      car.x += Math.sin(car.yaw) * speed * step;
+      car.z += Math.cos(car.yaw) * speed * step;
+      car.t -= step;
+      if (car.t <= 0 && parent && up && tiles?.group) {
+        car.t = 0.45;
+        const gy = tileCollision.sampleGround(`pursuit-${i}`, now,
+          () => groundY(parent, tiles.group, tileCollision.ray, car.x, car.z, up),
+          { interval: NPC_GROUND_INTERVAL_S });
+        if (gy !== null) car.y = gy;
+      }
+      if (dist < 6) {
+        playState.bump = 1;
+        if (car.bite <= 0) {
+          car.bite = 2;
+          const stats = useStats.getState();
+          const next = stats.health - 8;
+          if (next <= 0) {
+            stats.setHealth(40);
+            stats.heat(-5, 0);
+            stats.addCash(-Math.round(stats.cash * 0.1));
+            useToasts.getState().push("Busted. They took a cut and cut you loose.", "#ff8a8a");
+            sfx.crash(0.7);
+            car.active = false;
+          } else {
+            stats.setHealth(next);
+          }
+        }
+      }
+      car.bite = Math.max(0, car.bite - step);
+      group.visible = true;
+      group.position.set(car.x, car.y, car.z);
+      group.rotation.y = car.yaw;
+    });
+  });
+  return (
+    <>
+      {[0, 1].map((i) => (
+        <group key={i} ref={(el) => { refs.current[i] = el; }} visible={false}>
+          <PackGLB path="/packs/pack006/mid_sedan.glb" />
+        </group>
+      ))}
+    </>
+  );
+}
+
+function sampleAlong(route: LiveRoute, d: number, point: THREE.Vector3, dir: THREE.Vector3) {
   const pts = route.pts;
   let acc = 0;
   for (let i = 0; i < pts.length - 1; i++) {

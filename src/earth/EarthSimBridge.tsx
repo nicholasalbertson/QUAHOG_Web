@@ -30,6 +30,10 @@ import { useEconomy } from "../economy";
 import { useToasts } from "../store";
 import { sfx } from "../audio/sfx";
 import { playState } from "./playState";
+import { advanceArc, arcDistance, arcIndex, currentArc, finishArc, loadArc } from "./arc";
+import { straightGuide } from "./rebase";
+import { anchorIsSliceOrigin, latLonToLocal, sliceToLatLon, type LatLon } from "./geo";
+import { sunDayFactor } from "./dayNight";
 import { markerFade } from "../world/markerVisual";
 import { weatherBusinessMultiplier } from "../world/worldContinuity";
 import { saveMissionProgress, restoreMissionProgress } from "../world/GameSystems";
@@ -39,6 +43,10 @@ import { EARTH_LOCAL_KEY, parseEarthLocal, sharesStylizedFrame, type EarthLocalS
 import type { Slice } from "../slice";
 import type { Weather as EarthWeather } from "./Ambient";
 import type { Weather as SimWeather } from "../store";
+
+function missionLocal(anchor: LatLon, target: [number, number, number]) {
+  return latLonToLocal(anchor, sliceToLatLon(target[0], -target[2]));
+}
 
 // Earth weather → sim weather. The sim has no "cloudy" (its overcast state
 // is fog, a visibility state, not a cloud state), so cloudy maps to clear —
@@ -81,23 +89,45 @@ export function EarthSimBridge({ slice, weather }: { slice: Slice | null; weathe
   }, []);
 
   useFrame((_, dt) => {
+    if (playState.paused) {
+      playState.night = 1 - sunDayFactor(sim.clock.hour);
+      return;
+    }
     sim.loop.tick(dt);
     sim.beginFrame();
     sim.clock.syncFromShared(shared.day, shared.hour, earthWeatherToSim(weather));
     sim.clock.advance(dt);
+    shared.hour = sim.clock.hour;
+    shared.day = sim.clock.day;
+    playState.night = 1 - sunDayFactor(sim.clock.hour);
 
-    // Mission target wins; else no nav goal (earth has no free waypoint yet).
-    const ms = useMission.getState();
-    const step = ms.done ? null : ms.steps[ms.step];
-    if (step?.target) sim.setNavGoal({ x: step.target[0], z: step.target[2] });
-    else sim.setNavGoal(null);
+    const crimes = playState.infractions;
+    if (crimes > 0) {
+      playState.infractions = 0;
+      useStats.getState().heat(crimes, 0);
+    }
+    useStats.getState().decay(dt);
 
+    // The NB road graph is only true at the slice origin. Everywhere else
+    // (and after a rebase) guidance is the straight line to the local target.
     const p = playState.player;
-    const guidance = sim.tickNav(dt, { x: p.pos.x, z: p.pos.z }, p.heading, p.speed);
-    shared.navDist = guidance.distanceRemaining;
-    shared.navBearing = guidance.bearing;
-    shared.navWrongWay = guidance.wrongWay;
-    shared.navPath = guidance.path?.points ?? null;
+    const arc = currentArc();
+    let guide: { distanceRemaining: number; bearing: number; wrongWay: boolean } | null = null;
+    if (arc) {
+      const target = latLonToLocal(playState.anchor, arc);
+      guide = straightGuide(p.pos.x, p.pos.z, p.heading, target.x, target.z);
+    } else {
+      const ms = useMission.getState();
+      const step = ms.done ? null : ms.steps[ms.step];
+      if (step?.target) {
+        const target = missionLocal(playState.anchor, step.target);
+        guide = straightGuide(p.pos.x, p.pos.z, p.heading, target.x, target.z);
+      }
+    }
+    shared.navDist = guide?.distanceRemaining ?? 0;
+    shared.navBearing = guide?.bearing ?? 0;
+    shared.navWrongWay = guide?.wrongWay ?? false;
+    shared.navPath = null;
 
     // §2.8.3 — front income ticks in earth too (same rate as the stylized
     // build: incomePerSec over a 600 s game day, weather-adjusted). A front
@@ -116,15 +146,41 @@ export function EarthSimBridge({ slice, weather }: { slice: Slice | null; weathe
 // source (playState, not a Rapier body) and the heat input (earth has no
 // police yet — §2.8.2 — so police is 0 and noHeat steps complete).
 export function EarthMissionRunner() {
-  const step = useMission((s) => (s.done ? null : s.steps[s.step]));
   const camera = useThree((s) => s.camera);
+  const root = useRef<THREE.Group>(null);
+  const arcArm = useRef(0);
   const ring = useRef<THREE.Mesh>(null);
   const beam = useRef<THREE.Mesh>(null);
 
-  useFrame(() => {
-    const pos = useMission.getState().steps[useMission.getState().step]?.target;
-    if (pos) {
-      const fade = markerFade(Math.hypot(camera.position.x - pos[0], camera.position.z - pos[2]));
+  useFrame((_, dt) => {
+    if (playState.paused) return;
+    const p = playState.player;
+    const arc = currentArc();
+    let marker: { x: number; z: number } | null = null;
+    if (arc) {
+      marker = latLonToLocal(playState.anchor, arc);
+      arcArm.current = playState.settled ? arcArm.current + Math.min(dt, 0.05) : 0;
+      if (arcArm.current > 2 && arcDistance(playState.anchor, p.pos.x, p.pos.z, arc) <= arc.radius && (!arc.needCar || p.driving)) {
+        const done = advanceArc();
+        if (done?.reward) {
+          useStats.getState().addCash(done.reward);
+          sfx.cash();
+          useToasts.getState().push(`+$${done.reward}`, "#7CFC00");
+        }
+        const next = currentArc();
+        useToasts.getState().push(next ? next.text : "The Narrows lets you go. The campaign is open.", "#ffcf4a");
+        saveEarth();
+      }
+    }
+    const ms = useMission.getState();
+    const cur = ms.done ? null : ms.steps[ms.step];
+    if (!arc && cur?.target) marker = missionLocal(playState.anchor, cur.target);
+    if (root.current) {
+      root.current.visible = !!marker;
+      if (marker) root.current.position.set(marker.x, 0, marker.z);
+    }
+    if (marker) {
+      const fade = markerFade(Math.hypot(camera.position.x - marker.x, camera.position.z - marker.z));
       if (ring.current) {
         ring.current.visible = fade > 0.01;
         (ring.current.material as THREE.MeshBasicMaterial).opacity = 0.42 * fade;
@@ -134,17 +190,14 @@ export function EarthMissionRunner() {
         (beam.current.material as THREE.MeshBasicMaterial).opacity = 0.085 * fade;
       }
     }
-    const ms = useMission.getState();
-    if (ms.done) return;
-    const cur = ms.steps[ms.step];
-    if (!cur) return;
-    const p = playState.player;
-    const complete = stepComplete(cur, {
-      pos: { x: p.pos.x, z: p.pos.z },
-      driving: p.driving,
-      // §2.8.2 — no police system in earth yet, so heat is always 0.
-      police: useStats.getState().police,
-    });
+    // The opening arc owns the objective until it's finished. The shared
+    // campaign then uses the same completion rule, in the live local frame.
+    if (arc || !cur || ms.done) return;
+    const local = cur.target ? missionLocal(playState.anchor, cur.target) : null;
+    const complete = stepComplete(
+      local ? { ...cur, target: [local.x, 0, local.z] } : cur,
+      { pos: { x: p.pos.x, z: p.pos.z }, driving: p.driving, police: useStats.getState().police },
+    );
     if (!complete) return;
     if (cur.reward) {
       useStats.getState().addCash(cur.reward);
@@ -159,10 +212,8 @@ export function EarthMissionRunner() {
     if (oneStep && !ns.done) useToasts.getState().push(`MISSION COMPLETE — ${finishedTitle.toUpperCase()}`, "#ffcf4a");
   });
 
-  if (!step?.target) return null;
-  const [x, , z] = step.target;
   return (
-    <group position={[x, 0, z]}>
+    <group ref={root}>
       <mesh ref={beam} position={[0, 9, 0]}>
         <cylinderGeometry args={[0.65, 0.65, 18, 12, 1, true]} />
         <meshBasicMaterial color="#ffcf4a" transparent opacity={0.085} depthWrite={false} />
@@ -195,9 +246,12 @@ export function saveEarth(): void {
         x: p.pos.x,
         z: p.pos.z,
         heading: p.heading,
+        lat: playState.anchor.lat,
+        lon: playState.anchor.lon,
+        arcStep: arcIndex(),
       };
       if (parseEarthLocal(local)) saveJSON(EARTH_LOCAL_KEY, local);
-      if (sharesStylizedFrame(playState.placeId)) {
+      if (sharesStylizedFrame(playState.placeId) && anchorIsSliceOrigin(playState.anchor)) {
         saveJSON(SAVE_KEYS.pos, {
           mode: p.driving ? "car" : "foot",
           px: p.pos.x,
@@ -232,4 +286,10 @@ export function loadEarthPos(): { x: number; z: number; heading: number } | null
 export function restoreEarth(): void {
   restoreMissionProgress();
   useStats.getState().load();
+  const local = loadEarthLocal();
+  if (local?.arcStep != null) loadArc(local.arcStep);
+  else {
+    const ms = useMission.getState();
+    if (ms.done || ms.mi > 0 || ms.step > 0) finishArc();
+  }
 }

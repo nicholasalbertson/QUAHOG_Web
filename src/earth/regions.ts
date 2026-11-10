@@ -8,7 +8,7 @@
 // origin. Other towns are real civic locations so the tiles drop you in
 // the actual place.
 
-import type { LatLon } from "./geo";
+import { METERS_PER_DEG_LAT, metersPerDegLon, type LatLon } from "./geo";
 
 export type RegionId = "fallRiver" | "newBedford" | "brockton" | "cape" | "southCoast";
 
@@ -246,4 +246,25 @@ export function roadsSliceFor(place: Place): string | null {
 
 export function anchorOf(place: Place): LatLon {
   return { lat: place.lat, lon: place.lon };
+}
+
+/**
+ * Nearest town or landmark. Highway pins are skipped so a drive along I-195
+ * still resolves to the city whose streets should stream, not the exit label.
+ */
+export function nearestCity(lat: number, lon: number): Place {
+  let best = PLACES[0];
+  let bestD = Infinity;
+  const lonScale = metersPerDegLon(lat);
+  for (const place of PLACES) {
+    if (place.kind === "highway") continue;
+    const dx = (place.lon - lon) * lonScale;
+    const dy = (place.lat - lat) * METERS_PER_DEG_LAT;
+    const d = dx * dx + dy * dy;
+    if (d < bestD) {
+      bestD = d;
+      best = place;
+    }
+  }
+  return best;
 }

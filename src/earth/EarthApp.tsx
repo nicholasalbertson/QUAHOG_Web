@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Sky } from "@react-three/drei";
@@ -14,8 +14,8 @@ import { installInput } from "../input";
 import { computeSpawn } from "./follow";
 import { useContext } from "react";
 import { TilesRendererContext } from "3d-tiles-renderer/r3f";
-import { PlayerRig, TileNpcs, type View } from "./PlayWorld";
-import { EarthSimBridge, EarthMissionRunner, loadEarthLocal, loadEarthPos, restoreEarth } from "./EarthSimBridge";
+import { CityLife, PlayerRig, type Spawn, type View } from "./PlayWorld";
+import { EarthSimBridge, EarthMissionRunner, loadEarthLocal, loadEarthPos, restoreEarth, saveEarth } from "./EarthSimBridge";
 import { playState } from "./playState";
 import { useMission } from "../mission";
 import { useStats } from "../game";
@@ -31,22 +31,35 @@ import { useTileActivity } from "./useTileActivity";
 import { shouldDegrade } from "./frameLoop";
 import { faultCopy, mergeFault, type TileFault } from "./tileFault";
 import { Radio } from "../audio/Radio";
-import { EarthBigMap, EarthMinimap, usePlaceRoads } from "./EarthMap";
+import { EarthBigMap, EarthMinimap, liveRoadsAligned, useLiveCityRoads } from "./EarthMap";
 import { speedMph } from "./drive";
 import { describeLocation } from "./regionMap";
-import { DEFAULT_PLACE_ID, REGIONS, anchorOf, placeById, placesInRegion } from "./regions";
+import { DEFAULT_PLACE_ID, REGIONS, anchorOf, placeById, placesInRegion, roadsSliceFor } from "./regions";
 import { loadSliceCached } from "./sliceCache";
+import { DEG_TO_RAD } from "./enuFrame";
+import { nearestRoadSpawn } from "./rebase";
+import { SLICE_ORIGIN, type LatLon } from "./geo";
+import { currentArc, resetArc } from "./arc";
+import { actionCode, loadSettings } from "./controls";
+import { DriveHint, PauseScreen, TitleScreen } from "./EarthMenu";
+import { sfx } from "../audio/sfx";
 
 // Mount Hope on Google Photorealistic 3D Tiles. Browser fetches tiles from
 // tile.googleapis.com. Provide a Google Maps key (Map Tiles API) via
 // ?key=YOUR_KEY or VITE_GOOGLE_MAPS_API_KEY.
 
-const PED_CENTER: [number, number] = [-266, 100];
-
 function bootPlaceId(): string {
   if (typeof window === "undefined") return DEFAULT_PLACE_ID;
   const local = loadEarthLocal();
   return local && placeById(local.placeId) ? local.placeId : DEFAULT_PLACE_ID;
+}
+
+function bootAnchor(): LatLon {
+  if (typeof window === "undefined") return { ...SLICE_ORIGIN };
+  const local = loadEarthLocal();
+  if (local?.lat != null && local.lon != null) return { lat: local.lat, lon: local.lon };
+  const place = placeById(bootPlaceId());
+  return place ? anchorOf(place) : { ...SLICE_ORIGIN };
 }
 
 const KEY_STORE = "mh.googleMapsKey";
@@ -84,6 +97,12 @@ export function EarthApp() {
   const [mode, setMode] = useState<"play" | "orbit">("orbit");
   const [view, setView] = useState<View>("third");
   const [placeId, setPlaceId] = useState(bootPlaceId);
+  const [anchor, setAnchor] = useState<LatLon>(bootAnchor);
+  const [screen, setScreen] = useState<"title" | "play">("title");
+  const [paused, setPaused] = useState(false);
+  const [useResume, setUseResume] = useState(true);
+  const [snap, setSnap] = useState<Spawn | null>(null);
+  const [snapWait, setSnapWait] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   const [weather, setWeather] = useState<Weather>("clear");
   const [ready, setReady] = useState(false);
@@ -93,7 +112,7 @@ export function EarthApp() {
   // Bumping this re-mounts the tiles renderer (retry without a page reload).
   const [tilesKey, setTilesKey] = useState(0);
   // §2.2: pause the frame loop when the tab is hidden or the player is idle.
-  const activity = useTileActivity(mode === "play");
+  const activity = useTileActivity(mode === "play" && !paused);
   // §2.1.6: WebGL context loss pauses the loop and shows a HUD notice.
   const [glLost, setGlLost] = useState(false);
   // §2.1.7: frame-time watchdog drops a quality tier on sustained overrun.
@@ -111,48 +130,119 @@ export function EarthApp() {
   }, []);
 
   useEffect(() => installInput(), []);
+  useEffect(() => { sfx.setVolume(loadSettings().volume); }, []);
   // §2.8.4 — restore the shared mission progress + stats once on boot.
   useEffect(() => { restoreEarth(); }, []);
   useEffect(() => { loadSliceCached("slice-newbedford.json").then(setSlice).catch((e) => console.error(e)); }, []);
   useEffect(() => { setReady(false); setTilesProblem(false); }, [placeId, mode]); // re-gate on teleport
+  const anchorRef = useRef(anchor);
+  anchorRef.current = anchor;
+  const bootedAnchor = useRef(false);
   useEffect(() => {
-    playState.placeId = placeId;
+    const place = placeById(placeId);
+    if (!place) return;
+    playState.placeId = place.id;
+    if (!bootedAnchor.current) {
+      bootedAnchor.current = true;
+      playState.anchor = anchorRef.current;
+      return;
+    }
+    const next = anchorOf(place);
+    setAnchor(next);
+    playState.anchor = next;
     playState.settled = false;
   }, [placeId]);
+  useEffect(() => {
+    let cancel = false;
+    setSnap(null);
+    const place = placeById(placeId);
+    if (!place || place.sliceAligned) { setSnapWait(false); return; }
+    const url = roadsSliceFor(place);
+    if (!url) { setSnapWait(false); return; }
+    setSnapWait(true);
+    const timer = window.setTimeout(() => { if (!cancel) setSnapWait(false); }, 800);
+    loadSliceCached(url).then((city) => {
+      if (cancel) return;
+      const hit = nearestRoadSpawn(city.roads, anchorOf(place), false);
+      if (hit) setSnap({ x: hit.x, z: hit.z, heading: hit.heading });
+      setSnapWait(false);
+    }).catch(() => { if (!cancel) setSnapWait(false); });
+    return () => { cancel = true; window.clearTimeout(timer); };
+  }, [placeId]);
+  const onAnchor = useCallback((next: LatLon) => {
+    playState.anchor = next;
+    setAnchor(next);
+  }, []);
+  const mapRef = useRef(false);
+  const screenRef = useRef(screen);
+  screenRef.current = screen;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat) return;
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
-      if (e.code === "KeyM") setMapOpen((open) => !open);
-      if (e.code === "Escape") setMapOpen(false);
+      if (e.code === actionCode("map")) { setMapOpen((open) => !open); return; }
+      if (e.code === actionCode("camera")) { setView((v) => (v === "third" ? "first" : "third")); return; }
+      const pauseKey = actionCode("pause");
+      const isPause = e.code === "Escape" || (pauseKey !== "Escape" && e.code === pauseKey);
+      if (!isPause) return;
+      if (mapRef.current) { setMapOpen(false); return; }
+      if (screenRef.current !== "play") return;
+      setPaused((p) => { playState.paused = !p; return !p; });
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   const earthLocal = useMemo(() => (typeof window === "undefined" ? null : loadEarthLocal()), []);
   const savedPos = useMemo(() => (typeof window === "undefined" ? null : loadEarthPos()), []);
+  const weatherHold = useRef(false);
   useEffect(() => {
     const order: Weather[] = ["clear", "clear", "cloudy", "rain", "cloudy"];
     let i = 0;
-    const id = setInterval(() => { i = (i + 1) % order.length; setWeather(order[i]); }, 45000);
+    const id = setInterval(() => {
+      if (weatherHold.current) return;
+      i = (i + 1) % order.length;
+      setWeather(order[i]);
+    }, 45000);
     return () => clearInterval(id);
   }, []);
+  const { roads: liveRoads, url: liveUrl } = useLiveCityRoads(placeId);
+  mapRef.current = mapOpen;
 
   if (!apiKey && atlas) return <AtlasPreview />;
   if (!apiKey) return <NoKeyNotice />;
 
   const place = placeById(placeId) ?? placeById(DEFAULT_PLACE_ID)!;
-  const anchor = place.sliceAligned && slice ? slice.origin : anchorOf(place);
-  // Resume an earth-local pose for this place. The shared stylized save is
-  // only applied on the New Bedford frame — other anchors are different cities.
-  const defaultSpawn = place.sliceAligned && slice ? computeSpawn(slice) : { x: 0, z: 0, heading: place.heading };
-  const spawn = earthLocal && earthLocal.placeId === place.id
-      && Math.hypot(earthLocal.x - defaultSpawn.x, earthLocal.z - defaultSpawn.z) < 8000
-    ? { x: earthLocal.x, z: earthLocal.z, heading: earthLocal.heading }
-    : place.sliceAligned && savedPos && Math.hypot(savedPos.x - defaultSpawn.x, savedPos.z - defaultSpawn.z) < 5000
+  const resumedHere = useResume && !!earthLocal && earthLocal.placeId === place.id;
+  const defaultSpawn = place.sliceAligned && slice
+    ? computeSpawn(slice)
+    : snap ?? { x: 0, z: 0, heading: place.heading };
+  const spawn = resumedHere
+    ? { x: earthLocal!.x, z: earthLocal!.z, heading: earthLocal!.heading }
+    : useResume && place.sliceAligned && savedPos && Math.hypot(savedPos.x - defaultSpawn.x, savedPos.z - defaultSpawn.z) < 5000
       ? { x: savedPos.x, z: savedPos.z, heading: savedPos.heading }
       : defaultSpawn;
+  const holdForSnap = mode === "play" && !resumedHere && !place.sliceAligned && snapWait && !snap;
+  const begin = (fresh: boolean) => {
+    if (fresh) {
+      resetArc();
+      setUseResume(false);
+      const start = placeById("the-narrows") ?? place;
+      setPlaceId(start.id);
+      const next = anchorOf(start);
+      setAnchor(next);
+      playState.anchor = next;
+      playState.placeId = start.id;
+      playState.settled = false;
+    } else {
+      setUseResume(true);
+    }
+    playState.paused = false;
+    setPaused(false);
+    setScreen("play");
+    setMode("play");
+    sfx.startAmbience();
+  };
   const wx = WX[weather];
 
   return (
@@ -160,7 +250,7 @@ export function EarthApp() {
       <Canvas
         shadows
         dpr={degraded ? [1, 1] : [1, 1.5]}
-        frameloop={activity.loop === "demand" || glLost ? "demand" : "always"}
+        frameloop={paused || activity.loop === "demand" || glLost ? "demand" : "always"}
         camera={{ position: [0, 0, 2e7], near: 0.5, far: 1e8 }}
       >
         <ContextGuard onLost={() => setGlLost(true)} onRestored={() => setGlLost(false)} />
@@ -195,10 +285,12 @@ export function EarthApp() {
             </>
           ) : (
             (slice || !place.sliceAligned) && (
-              <EastNorthUpFrame key={place.id} lat={anchor.lat} lon={anchor.lon} height={0}>
+              <EastNorthUpFrame lat={anchor.lat * DEG_TO_RAD} lon={anchor.lon * DEG_TO_RAD} height={0}>
                 <group rotation={[Math.PI / 2, 0, 0]}>
-                  <PlayerRig key={place.id} spawn={spawn} view={view} onReady={() => setReady(true)} roads={place.sliceAligned ? slice?.roads ?? null : null} wet={weather === "rain"} />
-                  {place.sliceAligned && slice && <TileNpcs slice={slice} center={PED_CENTER} />}
+                  {!holdForSnap && (
+                    <PlayerRig key={place.id} spawn={spawn} view={view} onReady={() => setReady(true)} onAnchor={onAnchor} roads={liveRoads} wet={weather === "rain"} />
+                  )}
+                  <CityLife key={liveUrl ?? "none"} roads={liveRoads} />
                   {/* §2.8 — shared sim bridge + mission runner (same sim layer
                       as the stylized build; no duplicate sim stack). */}
                   <EarthSimBridge slice={slice} weather={weather} />
@@ -239,7 +331,21 @@ export function EarthApp() {
         />
       )}
       <Radio />
-      {mode === "play" && !ready && !tilesProblem && !fault && <Loading />}
+      {screen === "title" && (
+        <TitleScreen canContinue={!!earthLocal} onContinue={() => begin(false)} onNew={() => begin(true)} />
+      )}
+      {screen === "play" && paused && (
+        <PauseScreen
+          onResume={() => { playState.paused = false; setPaused(false); }}
+          onMap={() => { playState.paused = false; setPaused(false); setMapOpen(true); }}
+          onTitle={() => { playState.paused = false; setPaused(false); setMode("orbit"); setScreen("title"); }}
+          onSave={() => saveEarth()}
+          weather={weather}
+          setWeather={(w) => { weatherHold.current = true; setWeather(w); }}
+        />
+      )}
+      {screen === "play" && mode === "play" && !paused && <DriveHint />}
+      {mode === "play" && screen === "play" && !holdForSnap && !ready && !tilesProblem && !fault && <Loading />}
       {tilesProblem && !fault && <TilesProblem notice={earthFallbackNotice(null, true)} />}
       {fault && (
         <TileFaultOverlay
@@ -395,11 +501,13 @@ function Hud(props: {
   const cash = useStats((s) => s.cash);
   const health = useStats((s) => s.health);
   const police = useStats((s) => s.police);
-  const { roads, aligned } = usePlaceRoads(placeId);
-  const [live, setLive] = useState({ heading: 0, navDist: 0, carDist: Infinity, driving: false, x: 0, z: 0, speed: 0 });
+  const { roads, url } = useLiveCityRoads(placeId);
+  const aligned = liveRoadsAligned(url, anchor);
+  const [live, setLive] = useState({ heading: 0, navDist: 0, carDist: Infinity, driving: false, x: 0, z: 0, speed: 0, hour: 9, arc: "" });
   useEffect(() => {
     const id = window.setInterval(() => {
       const p = playState.player;
+      const arc = currentArc();
       setLive({
         heading: p.heading,
         navDist: shared.navDist ?? 0,
@@ -408,6 +516,8 @@ function Hud(props: {
         x: p.pos.x,
         z: p.pos.z,
         speed: p.speed,
+        hour: shared.hour,
+        arc: arc ? arc.text : "",
       });
     }, 500);
     return () => window.clearInterval(id);
@@ -415,13 +525,16 @@ function Hud(props: {
   const compass = headingToCompass(live.heading);
   const navKm = live.navDist > 0 ? (live.navDist >= 1000 ? `${(live.navDist / 1000).toFixed(1)} km` : `${Math.round(live.navDist)} m`) : null;
   const where = describeLocation(anchor, live.x, live.z, roads, aligned);
+  const enterKey = actionCode("interact").replace(/^Key/, "");
+  const brakeKey = actionCode("handbrake") === "Space" ? "Space" : actionCode("handbrake").replace(/^Key/, "");
   const prompt = mode === "play"
     ? live.driving
-      ? "E — Exit car · Space — brake"
+      ? `${enterKey} — Exit car · ${brakeKey} — brake`
       : live.carDist < 5.5
-        ? "E — Enter car"
+        ? `${enterKey} — Enter car`
         : null
     : null;
+  const clock = `${String(Math.floor(live.hour) % 24).padStart(2, "0")}:${String(Math.floor((live.hour % 1) * 60)).padStart(2, "0")}`;
   const btn = (active: boolean): React.CSSProperties => ({
     pointerEvents: "auto", cursor: "pointer", border: "1px solid #2c3a5e",
     background: active ? "#7ad9ff" : "rgba(5,7,13,.8)", color: active ? "#04121a" : "#e7e0ff",
@@ -436,6 +549,7 @@ function Hud(props: {
           <b>{where.title}</b>
           <span style={{ opacity: 0.75 }}> · {where.detail}</span>
           {live.driving && <span> · {speedMph(live.speed)} mph</span>}
+          <span> · {clock}</span>
         </div>
         <div style={{ opacity: 0.85, margin: "3px 0 8px" }}>
           {mode === "play"
@@ -448,13 +562,19 @@ function Hud(props: {
           <span>${Math.round(cash)}</span>
           <span>{compass.cardinal} {compass.bearing}°</span>
         </div>
-        {mode === "play" && !mission.done && (
+        {mode === "play" && live.arc && (
+          <div style={{ marginBottom: 6, fontSize: 11, color: "#ffcf4a" }}>
+            <b>THE NARROWS</b> — {live.arc}
+            {navKm && <span> · {navKm}</span>}
+          </div>
+        )}
+        {mode === "play" && !live.arc && !mission.done && (
           <div style={{ marginBottom: 6, fontSize: 11, color: "#ffcf4a" }}>
             <b>{mission.title}</b> — {mission.objective}
             {navKm && <span> · {navKm}</span>}
           </div>
         )}
-        {mode === "play" && mission.done && (
+        {mode === "play" && !live.arc && mission.done && (
           <div style={{ marginBottom: 6, fontSize: 11, color: "#7CFC00" }}>Campaign complete — the Narrows is yours.</div>
         )}
         {prompt && (

@@ -64,6 +64,9 @@ export function installInput() {
 
 export const isDown = (code: string) => pressed.has(code) || vheld.has(code);
 
+/** True when any physical or virtual key is held. Used so a rebound key still counts as activity. */
+export const anyHeld = () => pressed.size > 0 || vheld.size > 0;
+
 /** Hold/release a virtual key from an on-screen (touch) button (sprint, brake). */
 export const setVirtualHold = (code: string, down: boolean) => { if (down) vheld.add(code); else vheld.delete(code); };
 

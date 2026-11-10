@@ -66,6 +66,12 @@ export function sliceToFrame(
   return latLonToLocal(anchor, sliceToLatLon(east, north));
 }
 
+/** True when `anchor` is the New Bedford slice origin, within `epsilonM` meters. */
+export function anchorIsSliceOrigin(anchor: LatLon, epsilonM = 40): boolean {
+  const d = latLonToLocal(SLICE_ORIGIN, anchor);
+  return Math.hypot(d.x, d.z) <= epsilonM;
+}
+
 /** Shortest distance from a point to a segment, in the same 2D units. */
 export function distancePointToSegment(
   px: number,

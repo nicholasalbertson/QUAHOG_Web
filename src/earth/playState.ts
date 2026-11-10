@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { SLICE_ORIGIN, type LatLon } from "./geo";
 
 // Cross-component contact state for the photoreal play world. PlayerRig writes
 // the player/car position each frame; TileNpcs registers its agents' bodies and
@@ -19,12 +20,33 @@ export const playState = {
   player: { pos: new THREE.Vector3(), driving: false, heading: 0, speed: 0, carDist: Infinity },
   /** Active photoreal place. EarthApp sets this; saves read it. */
   placeId: "nb-bethel",
+  /** Live ENU anchor in degrees. Rebase moves this; teleport resets it. */
+  anchor: { ...SLICE_ORIGIN } as LatLon,
   /** False until the rig has a real pose, so a save can't record the zero vector. */
   settled: false,
+  /** 0 day, 1 night. EarthSimBridge writes this from the sim hour. */
+  night: 0,
+  /** Pause freezes the rig. The menu sets it; the frame loop also stops. */
+  paused: false,
+  /** Crimes queued this moment. The bridge turns them into police stars. */
+  infractions: 0,
+  /** True while braking, so the tail lights can brighten without a re-render. */
+  braking: false,
   peds: [] as Body[],
   cars: [] as Body[],
   bump: 0, // set when the player's car hits an NPC car (PlayerRig reads + clears)
 };
+
+let lastCrime = 0;
+
+/** Record one infraction, ignoring repeats inside the cooldown. */
+export function noteCrime(cooldown = 1.25): boolean {
+  const now = performance.now() / 1000;
+  if (now - lastCrime < cooldown) return false;
+  lastCrime = now;
+  playState.infractions += 1;
+  return true;
+}
 
 export function resetBodies() {
   playState.peds = [];

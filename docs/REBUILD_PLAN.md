@@ -6,6 +6,21 @@ The Narrows is the real gorge of the Quequechan River at the Fall River waterfro
 
 Photoreal Google 3D Tiles (`earth.html`) is the chosen world. The stylized OSM blockout (`index.html`) stays playable. Production deploys stay manual. Music never enters the repo.
 
+## Status
+
+Phase 1 is in. Phase 2 and the first playable loop are in on the same branch:
+
+- The local frame rebases under the car at about 1.8 km, and a second camera asks the tiles to stream ahead of the velocity. I-195, Route 24, US 6, and Route 25/28 are drives, not teleports. Teleport still exists.
+- Spawns outside New Bedford snap to the nearest drivable centerline. The pose save stores the live anchor, so a resume on the highway does not drop you back at the city pin.
+- Each city gets a small crowd (8 people, 4 cars) on that city's roads. The crowd shifts with the frame. It is not the old 50-ped New Bedford crowd copied four times.
+- Headlights, tail lights, and a handful of streetlights follow the sim hour. The hour runs, and the pause menu can set it.
+- An opening arc on foot at the Narrows, then Battleship Cove, then I-195 into New Bedford. After that, the existing campaign uses targets converted into the live frame, including the Brockton and Cape beats.
+- Hitting someone raises police stars. One or two cruisers chase. Stars decay. A bust takes a cut of cash.
+- Fronts from the shared economy can be bought from the pause menu. Income still ticks.
+- Title screen, pause, settings (volume, hour, weather), and control rebinding through the shared key map. Procedural SFX (engine, horn, crash, punch, siren, cash, footsteps, harbor bed). No music files.
+
+Still not a commercial release. See the note at the bottom of "After phase 1".
+
 ## What phase 1 lands
 
 - The stability pass from `ROADMAP.md` §3, wired through so a hidden tab and a bad key do not take the photoreal build down.
@@ -14,7 +29,7 @@ Photoreal Google 3D Tiles (`earth.html`) is the chosen world. The stylized OSM b
 - A driving model with coast, a service brake, a handbrake, speed-sensitive steering, wet grip, and a chase camera that lengthens with speed.
 - Resume that remembers which city you were in, and does not write a Cape-local coordinate into the shared New Bedford save.
 
-Phase 1 does **not** make one continuous drive from Brockton to Provincetown. That is the phase 2 streaming problem, described below. Teleport is how you change cities in this phase.
+Phase 1 did not make one continuous drive. The rebase below is now in the photoreal build. Teleport remains for jumping the map.
 
 ## Region coverage
 
@@ -130,9 +145,18 @@ If it still crashes, raise `errorTarget` before adding content. That is still th
 
 ### Phase 5 — hold up on a real device
 
-- A soak on iPhone Safari: context loss, memory, the rebase, and a save written in one city and loaded in another.
-- Audio beds and footstep surfaces per city.
+- A soak on iPhone Safari: context loss, memory, the rebase, and a save written in one city and loaded in another. This has not been done. A desktop unit test of the rebase is not that soak.
+- Richer audio beds per city. Footsteps already sample the road under the car's geographic position. The harbor bed is the one procedural ambience.
 - Only then talk about a production tag. Deploys stay manual.
+
+### What a commercial release still needs, and a person has to do
+
+- A Google Maps Platform key with Map Tiles API enabled, billing on, and a decision about the [Map Tiles API terms](https://developers.google.com/maps/documentation/tile). The key is not in the repo. Photoreal tiles do not draw without one.
+- Licensed or original vehicle, character, and clothing art. The current people are rigid stand-ins. The cars are pack GLBs already in the repo; their license has to be confirmed before a store build.
+- Voice, writing pass, and a real mission script. The arc and the campaign are playable text, not a performed story.
+- Store setup: age rating, privacy policy, support contact, icons, screenshots, and a host. Nothing here deploys.
+- A pass on a mid-range phone and a mid-range laptop with the tiles actually streaming. Memory caps are in code. They have not been proven on that hardware.
+- Music, if the game ships with any, stays out of this repo and has to be licensed separately.
 
 ## Out of scope until someone asks
 

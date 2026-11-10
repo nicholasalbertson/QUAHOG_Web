@@ -13,9 +13,9 @@ import {
   zoomView,
   type MapView,
 } from "./regionMap";
-import { HIGHWAYS, PLACES, REGIONS, anchorOf, placeById, regionName, roadsSliceFor, type Place } from "./regions";
+import { HIGHWAYS, PLACES, REGIONS, anchorOf, nearestCity, placeById, regionName, roadsSliceFor, type Place } from "./regions";
 import { loadSliceCached } from "./sliceCache";
-import { latLonToLocal, localToLatLon, sliceToLatLon, type LatLon } from "./geo";
+import { anchorIsSliceOrigin, latLonToLocal, localToLatLon, sliceToLatLon, type LatLon } from "./geo";
 
 export interface MapPose {
   x: number;
@@ -53,13 +53,53 @@ export function usePlaceRoads(placeId: string): { roads: Road[] | null; aligned:
   return { roads, aligned };
 }
 
+/** Roads for the city the player is actually standing in, not the last teleport. */
+export function useLiveCityRoads(placeId: string): { roads: Road[] | null; url: string | null } {
+  const [url, setUrl] = useState<string | null>(() => {
+    const place = placeById(placeId);
+    return place ? roadsSliceFor(place) : null;
+  });
+  useEffect(() => {
+    const place = placeById(placeId);
+    if (place) setUrl(roadsSliceFor(place));
+  }, [placeId]);
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (!playState.settled) return;
+      const here = localToLatLon(playState.anchor, playState.player.pos.x, playState.player.pos.z);
+      const next = roadsSliceFor(nearestCity(here.lat, here.lon));
+      setUrl((cur) => (cur === next ? cur : next));
+    }, 2000);
+    return () => window.clearInterval(id);
+  }, []);
+  const [roads, setRoads] = useState<Road[] | null>(null);
+  useEffect(() => {
+    if (!url) {
+      setRoads(null);
+      return;
+    }
+    let cancel = false;
+    loadSliceCached(url).then((slice) => {
+      if (!cancel) setRoads(slice.roads);
+    }).catch(() => {
+      if (!cancel) setRoads(null);
+    });
+    return () => { cancel = true; };
+  }, [url]);
+  return { roads, url };
+}
+
+export function liveRoadsAligned(url: string | null, anchor: LatLon): boolean {
+  return url === "slice-newbedford.json" && anchorIsSliceOrigin(anchor);
+}
+
 export function EarthMinimap({ anchor, placeId, pose }: { anchor: LatLon; placeId: string; pose?: MapPose }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const { roads, aligned } = usePlaceRoads(placeId);
+  const { roads, url } = useLiveCityRoads(placeId);
   const roadsRef = useRef(roads);
-  const alignedRef = useRef(aligned);
+  const urlRef = useRef(url);
   roadsRef.current = roads;
-  alignedRef.current = aligned;
+  urlRef.current = url;
   const poseRef = useRef(pose);
   poseRef.current = pose;
   const anchorRef = useRef(anchor);
@@ -69,7 +109,10 @@ export function EarthMinimap({ anchor, placeId, pose }: { anchor: LatLon; placeI
   useEffect(() => {
     const tick = () => {
       const poseNow = poseRef.current ?? livePose();
-      setCaption(describeLocation(anchorRef.current, poseNow.x, poseNow.z, roadsRef.current, alignedRef.current));
+      setCaption(describeLocation(
+        anchorRef.current, poseNow.x, poseNow.z, roadsRef.current,
+        liveRoadsAligned(urlRef.current, anchorRef.current),
+      ));
     };
     tick();
     const id = window.setInterval(tick, 400);
@@ -108,7 +151,7 @@ export function EarthMinimap({ anchor, placeId, pose }: { anchor: LatLon; placeI
       const sy = (z: number) => r + (z - pz) * ppm;
 
       const segs = roadsRef.current
-        ? roadSegmentsNear(roadsRef.current, anchorNow, px, pz, MINI_RANGE, alignedRef.current)
+        ? roadSegmentsNear(roadsRef.current, anchorNow, px, pz, MINI_RANGE, liveRoadsAligned(urlRef.current, anchorNow))
         : [];
       for (const seg of segs) {
         ctx.beginPath();
@@ -330,11 +373,11 @@ export function EarthBigMap(props: {
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
   const poseRef = useRef(props.pose);
   poseRef.current = props.pose;
-  const { roads, aligned } = usePlaceRoads(placeId);
+  const { roads } = usePlaceRoads(placeId);
   const roadsRef = useRef(roads);
   roadsRef.current = roads;
-  const alignedRef = useRef(aligned);
-  alignedRef.current = aligned;
+  const sliceUrlRef = useRef<string | null>(null);
+  sliceUrlRef.current = placeById(placeId) ? roadsSliceFor(placeById(placeId)!) : null;
   const anchorRef = useRef(anchor);
   anchorRef.current = anchor;
   const [cursorPlace, setCursorPlace] = useState<string | null>(null);
@@ -342,7 +385,10 @@ export function EarthBigMap(props: {
   useEffect(() => {
     const tick = () => {
       const pose = poseRef.current ?? livePose();
-      setWhere(describeLocation(anchorRef.current, pose.x, pose.z, roadsRef.current, alignedRef.current));
+      setWhere(describeLocation(
+        anchorRef.current, pose.x, pose.z, roadsRef.current,
+        liveRoadsAligned(sliceUrlRef.current, anchorRef.current),
+      ));
     };
     tick();
     const id = window.setInterval(tick, 400);
