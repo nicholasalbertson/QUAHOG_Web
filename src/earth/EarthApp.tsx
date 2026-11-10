@@ -9,15 +9,14 @@ import {
   EastNorthUpFrame,
 } from "3d-tiles-renderer/r3f";
 import { WGS84_ELLIPSOID } from "3d-tiles-renderer/three";
-import { loadSlice, type Slice } from "../slice";
+import { type Slice } from "../slice";
 import { installInput } from "../input";
 import { computeSpawn } from "./follow";
 import { useContext } from "react";
 import { TilesRendererContext } from "3d-tiles-renderer/r3f";
 import { PlayerRig, TileNpcs, type View } from "./PlayWorld";
-import { EarthSimBridge, EarthMissionRunner, loadEarthPos, restoreEarth } from "./EarthSimBridge";
+import { EarthSimBridge, EarthMissionRunner, loadEarthLocal, loadEarthPos, restoreEarth } from "./EarthSimBridge";
 import { playState } from "./playState";
-import { Minimap } from "../Minimap";
 import { useMission } from "../mission";
 import { useStats } from "../game";
 import { shared } from "../shared";
@@ -32,22 +31,23 @@ import { useTileActivity } from "./useTileActivity";
 import { shouldDegrade } from "./frameLoop";
 import { faultCopy, mergeFault, type TileFault } from "./tileFault";
 import { Radio } from "../audio/Radio";
+import { EarthBigMap, EarthMinimap, usePlaceRoads } from "./EarthMap";
+import { speedMph } from "./drive";
+import { describeLocation } from "./regionMap";
+import { DEFAULT_PLACE_ID, REGIONS, anchorOf, placeById, placesInRegion } from "./regions";
+import { loadSliceCached } from "./sliceCache";
 
 // Mount Hope on Google Photorealistic 3D Tiles. Browser fetches tiles from
 // tile.googleapis.com. Provide a Google Maps key (Map Tiles API) via
 // ?key=YOUR_KEY or VITE_GOOGLE_MAPS_API_KEY.
 
-const FALLBACK = { lat: 41.636, lon: -70.9205 };
 const PED_CENTER: [number, number] = [-266, 100];
 
-// Spawn picker spots. New Bedford uses the slice origin (so the OSM road network
-// + NPCs line up); the others re-anchor the ENU frame on the landmark.
-const SPOTS = [
-  { name: "New Bedford", sub: "Seamen's Bethel", nb: true, lat: 41.636, lon: -70.9205 },
-  { name: "Battleship Cove", sub: "USS Massachusetts", nb: false, lat: 41.7044, lon: -71.1641 },
-  { name: "Lizzie Borden", sub: "230 Second St", nb: false, lat: 41.6993, lon: -71.1558 },
-  { name: "Fall River", sub: "Downtown", nb: false, lat: 41.7015, lon: -71.1547 },
-];
+function bootPlaceId(): string {
+  if (typeof window === "undefined") return DEFAULT_PLACE_ID;
+  const local = loadEarthLocal();
+  return local && placeById(local.placeId) ? local.placeId : DEFAULT_PLACE_ID;
+}
 
 const KEY_STORE = "mh.googleMapsKey";
 
@@ -79,10 +79,12 @@ const WX: Record<Weather, { sun: number; sunColor: string; bg: string; fog: [num
 
 export function EarthApp() {
   const apiKey = typeof window !== "undefined" ? getApiKey() : null;
+  const atlas = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("atlas") === "1";
   const [slice, setSlice] = useState<Slice | null>(null);
   const [mode, setMode] = useState<"play" | "orbit">("orbit");
   const [view, setView] = useState<View>("third");
-  const [spotIdx, setSpotIdx] = useState(0);
+  const [placeId, setPlaceId] = useState(bootPlaceId);
+  const [mapOpen, setMapOpen] = useState(false);
   const [weather, setWeather] = useState<Weather>("clear");
   const [ready, setReady] = useState(false);
   const [tilesProblem, setTilesProblem] = useState(false);
@@ -111,8 +113,25 @@ export function EarthApp() {
   useEffect(() => installInput(), []);
   // §2.8.4 — restore the shared mission progress + stats once on boot.
   useEffect(() => { restoreEarth(); }, []);
-  useEffect(() => { loadSlice().then(setSlice).catch((e) => console.error(e)); }, []);
-  useEffect(() => { setReady(false); setTilesProblem(false); }, [spotIdx, mode]); // re-gate on teleport
+  useEffect(() => { loadSliceCached("slice-newbedford.json").then(setSlice).catch((e) => console.error(e)); }, []);
+  useEffect(() => { setReady(false); setTilesProblem(false); }, [placeId, mode]); // re-gate on teleport
+  useEffect(() => {
+    playState.placeId = placeId;
+    playState.settled = false;
+  }, [placeId]);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.repeat) return;
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+      if (e.code === "KeyM") setMapOpen((open) => !open);
+      if (e.code === "Escape") setMapOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  const earthLocal = useMemo(() => (typeof window === "undefined" ? null : loadEarthLocal()), []);
+  const savedPos = useMemo(() => (typeof window === "undefined" ? null : loadEarthPos()), []);
   useEffect(() => {
     const order: Weather[] = ["clear", "clear", "cloudy", "rain", "cloudy"];
     let i = 0;
@@ -120,19 +139,20 @@ export function EarthApp() {
     return () => clearInterval(id);
   }, []);
 
+  if (!apiKey && atlas) return <AtlasPreview />;
   if (!apiKey) return <NoKeyNotice />;
 
-  const spot = SPOTS[spotIdx];
-  const anchor = spot.nb && slice ? slice.origin : { lat: spot.lat, lon: spot.lon };
-  // §2.8.4 — resume a saved position when one exists (same save key as the
-  // stylized build), but only when it is near this spot's default spawn — a
-  // save from a different spot must not teleport the player across the map.
-  // The restore of the mission + stats runs once on mount (below).
-  const savedPos = useMemo(() => loadEarthPos(), []);
-  const defaultSpawn = spot.nb && slice ? computeSpawn(slice) : { x: 0, z: 0, heading: 0 };
-  const spawn = savedPos && Math.hypot(savedPos.x - defaultSpawn.x, savedPos.z - defaultSpawn.z) < 5000
-    ? { x: savedPos.x, z: savedPos.z, heading: savedPos.heading }
-    : defaultSpawn;
+  const place = placeById(placeId) ?? placeById(DEFAULT_PLACE_ID)!;
+  const anchor = place.sliceAligned && slice ? slice.origin : anchorOf(place);
+  // Resume an earth-local pose for this place. The shared stylized save is
+  // only applied on the New Bedford frame — other anchors are different cities.
+  const defaultSpawn = place.sliceAligned && slice ? computeSpawn(slice) : { x: 0, z: 0, heading: place.heading };
+  const spawn = earthLocal && earthLocal.placeId === place.id
+      && Math.hypot(earthLocal.x - defaultSpawn.x, earthLocal.z - defaultSpawn.z) < 8000
+    ? { x: earthLocal.x, z: earthLocal.z, heading: earthLocal.heading }
+    : place.sliceAligned && savedPos && Math.hypot(savedPos.x - defaultSpawn.x, savedPos.z - defaultSpawn.z) < 5000
+      ? { x: savedPos.x, z: savedPos.z, heading: savedPos.heading }
+      : defaultSpawn;
   const wx = WX[weather];
 
   return (
@@ -158,7 +178,7 @@ export function EarthApp() {
         {/* errorTarget: the higher it is, the coarser/faster tiles load. Street-
             level (play) cameras need this raised or the deepest LOD never streams
             in and the ground stays blank. */}
-        <TilesRenderer key={`${apiKey}:${tilesKey}`} errorTarget={degraded ? 48 : 32}>
+        <TilesRenderer key={`${apiKey}:${tilesKey}`} errorTarget={degraded ? 48 : 32} enabled={activity.tilesEnabled && !glLost}>
           {/* §2.1.3/2.1.5/2.3: auth plugin with guarded dispose, memory caps
               (maxDepth 24, LRU byte/count bounds, job limits), classified tile
               faults, and a redacting log guard — replaces the bare TilesPlugin. */}
@@ -174,11 +194,11 @@ export function EarthApp() {
               <GlobeControls enableDamping />
             </>
           ) : (
-            (slice || !spot.nb) && (
-              <EastNorthUpFrame key={spot.name} lat={anchor.lat} lon={anchor.lon} height={0}>
+            (slice || !place.sliceAligned) && (
+              <EastNorthUpFrame key={place.id} lat={anchor.lat} lon={anchor.lon} height={0}>
                 <group rotation={[Math.PI / 2, 0, 0]}>
-                  <PlayerRig key={spot.name} spawn={spawn} view={view} onReady={() => setReady(true)} roads={slice?.roads ?? null} wet={weather === "rain"} />
-                  {spot.nb && slice && <TileNpcs slice={slice} center={PED_CENTER} />}
+                  <PlayerRig key={place.id} spawn={spawn} view={view} onReady={() => setReady(true)} roads={place.sliceAligned ? slice?.roads ?? null : null} wet={weather === "rain"} />
+                  {place.sliceAligned && slice && <TileNpcs slice={slice} center={PED_CENTER} />}
                   {/* §2.8 — shared sim bridge + mission runner (same sim layer
                       as the stylized build; no duplicate sim stack). */}
                   <EarthSimBridge slice={slice} weather={weather} />
@@ -205,10 +225,19 @@ export function EarthApp() {
       <Hud
         mode={mode} setMode={setMode}
         view={view} setView={setView}
-        spotIdx={spotIdx} setSpotIdx={setSpotIdx}
+        placeId={placeId} setPlaceId={setPlaceId}
         weather={weather}
-        slice={slice}
+        anchor={anchor}
+        onOpenMap={() => setMapOpen(true)}
       />
+      {mapOpen && (
+        <EarthBigMap
+          anchor={anchor}
+          placeId={place.id}
+          onClose={() => setMapOpen(false)}
+          onTeleport={(id) => { setPlaceId(id); setMode("play"); setMapOpen(false); }}
+        />
+      )}
       <Radio />
       {mode === "play" && !ready && !tilesProblem && !fault && <Loading />}
       {tilesProblem && !fault && <TilesProblem notice={earthFallbackNotice(null, true)} />}
@@ -352,11 +381,12 @@ function FlyTo({ lat, lon }: { lat: number; lon: number }) {
 function Hud(props: {
   mode: "play" | "orbit"; setMode: (m: "play" | "orbit") => void;
   view: View; setView: (v: View) => void;
-  spotIdx: number; setSpotIdx: (i: number) => void;
+  placeId: string; setPlaceId: (id: string) => void;
   weather: Weather;
-  slice: Slice | null;
+  anchor: { lat: number; lon: number };
+  onOpenMap: () => void;
 }) {
-  const { mode, setMode, view, setView, spotIdx, setSpotIdx, weather, slice } = props;
+  const { mode, setMode, view, setView, placeId, setPlaceId, weather, anchor, onOpenMap } = props;
   // §2.5 — HUD parity: the reactive values come from the shared stores
   // (useMission, useStats); the per-frame values (heading, nav distance,
   // car distance) are polled at 2 Hz — fast enough for a HUD, cheap enough
@@ -365,25 +395,29 @@ function Hud(props: {
   const cash = useStats((s) => s.cash);
   const health = useStats((s) => s.health);
   const police = useStats((s) => s.police);
-  const [live, setLive] = useState({ heading: 0, navDist: 0, navBearing: 0, carDist: Infinity, driving: false });
+  const { roads, aligned } = usePlaceRoads(placeId);
+  const [live, setLive] = useState({ heading: 0, navDist: 0, carDist: Infinity, driving: false, x: 0, z: 0, speed: 0 });
   useEffect(() => {
     const id = window.setInterval(() => {
       const p = playState.player;
       setLive({
         heading: p.heading,
         navDist: shared.navDist ?? 0,
-        navBearing: shared.navBearing ?? 0,
         carDist: p.carDist,
         driving: p.driving,
+        x: p.pos.x,
+        z: p.pos.z,
+        speed: p.speed,
       });
     }, 500);
     return () => window.clearInterval(id);
   }, []);
   const compass = headingToCompass(live.heading);
   const navKm = live.navDist > 0 ? (live.navDist >= 1000 ? `${(live.navDist / 1000).toFixed(1)} km` : `${Math.round(live.navDist)} m`) : null;
+  const where = describeLocation(anchor, live.x, live.z, roads, aligned);
   const prompt = mode === "play"
     ? live.driving
-      ? "E — Exit car"
+      ? "E — Exit car · Space — brake"
       : live.carDist < 5.5
         ? "E — Enter car"
         : null
@@ -395,19 +429,23 @@ function Hud(props: {
   });
   return (
     <div style={{ position: "fixed", inset: 0, pointerEvents: "none", font: "12px/1.5 'Courier New', monospace", color: "#e7e0ff" }}>
-      <div style={{ position: "absolute", top: 12, left: 12, background: "rgba(5,7,13,.82)", border: "1px solid #2c3a5e", borderRadius: 8, padding: "10px 12px", maxWidth: 340 }}>
-        <b style={{ color: "#7ad9ff" }}>MOUNT HOPE · photoreal</b>
+      <div style={{ position: "absolute", top: 12, left: 12, background: "rgba(5,7,13,.82)", border: "1px solid #2c3a5e", borderRadius: 8, padding: "10px 12px", maxWidth: 380 }}>
+        <b style={{ color: "#7ad9ff" }}>THE NARROWS</b>
+        <span style={{ opacity: 0.7 }}> · photoreal</span>
+        <div style={{ marginTop: 2 }}>
+          <b>{where.title}</b>
+          <span style={{ opacity: 0.75 }}> · {where.detail}</span>
+          {live.driving && <span> · {speedMph(live.speed)} mph</span>}
+        </div>
         <div style={{ opacity: 0.85, margin: "3px 0 8px" }}>
           {mode === "play"
-            ? `WASD move · Shift run · E car · weather: ${weather}`
-            : "Orbit: drag to look, scroll to zoom."}
+            ? `WASD · Shift run · H horn · M map · weather: ${weather}`
+            : "Orbit: drag to look, scroll to zoom. M opens the map."}
         </div>
-        {/* §2.5.3/2.5.4/2.5.6 — health, wanted stars, cash, mission (shared stores). */}
         <div style={{ display: "flex", gap: 12, marginBottom: 6, fontSize: 11 }}>
           <span>♥ {Math.round(health)}</span>
           <span>{"★".repeat(Math.round(police))}{"☆".repeat(5 - Math.round(police))}</span>
           <span>${Math.round(cash)}</span>
-          {/* §2.5.2 — compass (heading from the earth player pose). */}
           <span>{compass.cardinal} {compass.bearing}°</span>
         </div>
         {mode === "play" && !mission.done && (
@@ -427,32 +465,48 @@ function Hud(props: {
           <button style={btn(mode === "orbit")} onClick={() => setMode("orbit")}>ORBIT</button>
           <button style={btn(view === "third")} onClick={() => setView("third")}>3RD</button>
           <button style={btn(view === "first")} onClick={() => setView("first")}>1ST</button>
+          <button style={btn(false)} onClick={onOpenMap}>MAP</button>
         </div>
-        <div style={{ opacity: 0.7, fontSize: 10, marginBottom: 3 }}>TELEPORT</div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {SPOTS.map((sp, i) => (
-            <button key={sp.name} style={btn(spotIdx === i)} onClick={() => { setSpotIdx(i); setMode("play"); }} title={sp.sub}>
-              {sp.name.toUpperCase()}
-            </button>
+        <label style={{ display: "block", opacity: 0.7, fontSize: 10, marginBottom: 3 }}>GO TO</label>
+        <select
+          value={placeId}
+          onChange={(e) => { setPlaceId(e.target.value); setMode("play"); }}
+          style={{ pointerEvents: "auto", width: "100%", background: "#0c0f1a", color: "#e7e0ff", border: "1px solid #2c3a5e", borderRadius: 6, padding: "6px 8px", font: "12px 'Courier New', monospace" }}
+        >
+          {REGIONS.map((region) => (
+            <optgroup key={region.id} label={region.name}>
+              {placesInRegion(region.id).map((p) => (
+                <option key={p.id} value={p.id}>{p.name} — {p.detail}</option>
+              ))}
+            </optgroup>
           ))}
-        </div>
+        </select>
         <div style={{ opacity: 0.55, fontSize: 9, marginTop: 8 }}>
-          Tiles © Google · Player character model: Franklin
+          Tiles © Google · Roads © OpenStreetMap
         </div>
       </div>
-      {/* §2.5.1 — minimap (the shared Minimap, fed the earth slice + pose). */}
-      {mode === "play" && slice && (
-        <div style={{ position: "absolute", right: 12, bottom: 12, border: "1px solid #2c3a5e", borderRadius: 8, overflow: "hidden", pointerEvents: "none" }}>
-          <Minimap
-            slice={slice}
-            pose={() => {
-              const p = playState.player;
-              return { x: p.pos.x, z: p.pos.z, heading: p.heading };
-            }}
-          />
+      {mode === "play" && (
+        <div style={{ position: "absolute", right: 12, bottom: 12 }}>
+          <EarthMinimap anchor={anchor} placeId={placeId} />
         </div>
       )}
     </div>
+  );
+}
+
+function AtlasPreview() {
+  const [id, setId] = useState("the-narrows");
+  const place = placeById(id) ?? placeById("the-narrows")!;
+  return (
+    <EarthBigMap
+      anchor={anchorOf(place)}
+      placeId={place.id}
+      pose={{ x: 0, z: 0, heading: place.heading }}
+      onClose={() => {}}
+      onTeleport={setId}
+      showClose={false}
+      notice="Atlas preview. Open /earth.html and paste a Google Maps key to drive the photoreal world."
+    />
   );
 }
 

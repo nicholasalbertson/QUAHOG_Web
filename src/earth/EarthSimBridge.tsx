@@ -35,6 +35,7 @@ import { weatherBusinessMultiplier } from "../world/worldContinuity";
 import { saveMissionProgress, restoreMissionProgress } from "../world/GameSystems";
 import { loadJSON, saveJSON } from "../storage";
 import { SAVE_KEYS } from "../registries";
+import { EARTH_LOCAL_KEY, parseEarthLocal, sharesStylizedFrame, type EarthLocalSave } from "./earthLocal";
 import type { Slice } from "../slice";
 import type { Weather as EarthWeather } from "./Ambient";
 import type { Weather as SimWeather } from "../store";
@@ -185,21 +186,39 @@ export function saveEarth(): void {
   try {
     saveMissionProgress();
     const p = playState.player;
-    saveJSON(SAVE_KEYS.pos, {
-      mode: p.driving ? "car" : "foot",
-      px: p.pos.x,
-      py: p.pos.y,
-      pz: p.pos.z,
-      heading: p.heading,
-      day: shared.day,
-      hour: shared.hour,
-      savedAtMs: Date.now(),
-    });
+    // A Cape or Brockton pose is in that place's local frame. Writing it into
+    // the shared New Bedford save would resume the stylized build in the wrong
+    // city. The earth-local blob remembers the anchor instead.
+    if (playState.settled) {
+      const local: EarthLocalSave = {
+        placeId: playState.placeId,
+        x: p.pos.x,
+        z: p.pos.z,
+        heading: p.heading,
+      };
+      if (parseEarthLocal(local)) saveJSON(EARTH_LOCAL_KEY, local);
+      if (sharesStylizedFrame(playState.placeId)) {
+        saveJSON(SAVE_KEYS.pos, {
+          mode: p.driving ? "car" : "foot",
+          px: p.pos.x,
+          py: p.pos.y,
+          pz: p.pos.z,
+          heading: p.heading,
+          day: shared.day,
+          hour: shared.hour,
+          savedAtMs: Date.now(),
+        });
+      }
+    }
     useStats.getState().save();
     useEconomy.getState().save();
   } catch {
     // A failed autosave must never crash the game loop.
   }
+}
+
+export function loadEarthLocal(): EarthLocalSave | null {
+  return parseEarthLocal(loadJSON<unknown>(EARTH_LOCAL_KEY, null));
 }
 
 /** Saved earth/stylized position, or null when there is no save. */

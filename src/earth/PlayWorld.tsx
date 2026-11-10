@@ -16,6 +16,7 @@ import { Character } from "../world/Character";
 import { slewHeading, stepJump, type JumpState } from "../world/locomotion";
 import { consumeTap, isDown, moveAxis } from "../input";
 import { DRIVABLE, followCam, forwardHit, frameUp, groundY, lerpAngle, sanitizePosition } from "./follow";
+import { EARTH_TUNING, chaseForSpeed, stepEarthDrive } from "./drive";
 import { NPC_GROUND_INTERVAL_S, WALL_INTERVAL_S, tileCollision } from "./raycastBudget";
 import { playState, resetBodies, type Body } from "./playState";
 import { VEHICLE_TYPES } from "./vehicleTypes";
@@ -33,6 +34,12 @@ const _right = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 const _probe = new THREE.Vector3();
 const _pedTo = new THREE.Vector3(); // §12.3.2 — TileNpcs ped steering (was a per-ped-per-frame allocation)
+const _away = new THREE.Vector3();
+const _fpHead = new THREE.Vector3();
+const _fpLook = new THREE.Vector3();
+const _fpFwd = new THREE.Vector3();
+const _alongPoint = new THREE.Vector3();
+const _alongDir = new THREE.Vector3();
 
 const CAR_COLORS = ["#9c3a3a", "#2f6f7a", "#caa24a", "#3a5a9c", "#5a5a5a"];
 
@@ -98,11 +105,11 @@ export function PlayerRig({ spawn, view, onReady, roads, wet }: {
         { priority: true });
       st.wait += step;
       if (gy !== null) {
-        st.pos.y = gy; st.carPos.y = gy; st.ready = true; onReady?.();
+        st.pos.y = gy; st.carPos.y = gy; st.ready = true; playState.settled = true; onReady?.();
       } else if (st.wait > 3) {
         // tiles still haven't streamed a surface — don't strand the player in the
         // air; drop near sea level and let per-frame raycasts correct once tiles load
-        st.pos.y = 3; st.carPos.y = 3; st.ready = true; onReady?.();
+        st.pos.y = 3; st.carPos.y = 3; st.ready = true; playState.settled = true; onReady?.();
       } else {
         if (player.current) player.current.visible = false;
         if (car.current) car.current.visible = false;
@@ -183,6 +190,7 @@ export function PlayerRig({ spawn, view, onReady, roads, wet }: {
       player.current!.rotation.y = st.heading;
       car.current!.position.copy(st.carPos);
       car.current!.rotation.y = st.carYaw;
+      car.current!.rotation.z = 0;
       if (consumeTap("KeyE") && planar(st.pos, st.carPos) < 5.5) { st.mode = "car"; sfx.door(); }
 
       st.camYaw = lerpAngle(st.camYaw, st.heading, 1 - Math.exp(-step * 3));
@@ -200,8 +208,14 @@ export function PlayerRig({ spawn, view, onReady, roads, wet }: {
       playState.player.carDist = planar(st.pos, st.carPos);
     } else {
       if (player.current) player.current.visible = false;
-      st.carSpeed = THREE.MathUtils.lerp(st.carSpeed, ax.y * 22, 1 - Math.exp(-step * 2.5));
-      if (Math.abs(st.carSpeed) > 0.5) st.carYaw -= ax.x * 1.3 * step * Math.sign(st.carSpeed);
+      const driven = stepEarthDrive(
+        { yaw: st.carYaw, speed: st.carSpeed, skidding: false },
+        ax,
+        step,
+        { handbrake: isDown("Space"), wet: !!wet },
+      );
+      st.carYaw = driven.yaw;
+      st.carSpeed = driven.speed;
       const cf = _fwd.set(Math.sin(st.carYaw), 0, Math.cos(st.carYaw));
 
       const moveDist = st.carSpeed * step;
@@ -210,7 +224,7 @@ export function PlayerRig({ spawn, view, onReady, roads, wet }: {
         const probe = tileCollision.sampleWall("player-wall", now,
           () => forwardHit(parent, tiles?.group, tileCollision.ray, _probe.copy(st.carPos).setY(st.carPos.y + 1.0), pdir, Math.abs(moveDist) + 2.6),
           { priority: true, interval: WALL_INTERVAL_S });
-        if (probe < Math.abs(moveDist) + 2.6) st.carSpeed = 0; // wall ahead
+        if (probe < Math.abs(moveDist) + 2.4) st.carSpeed *= 0.2; // bump, don't tunnel
         else st.carPos.addScaledVector(cf, moveDist);
       }
       const gy = tileCollision.sampleGround("player", now,
@@ -233,6 +247,8 @@ export function PlayerRig({ spawn, view, onReady, roads, wet }: {
 
       car.current!.position.copy(st.carPos);
       car.current!.rotation.y = st.carYaw;
+      const lean = Math.min(1, Math.abs(st.carSpeed) / 20);
+      car.current!.rotation.z = -ax.x * lean * (driven.skidding ? 0.09 : 0.045);
       st.pos.copy(st.carPos);
       if (consumeTap("KeyE")) {
         st.mode = "foot";
@@ -243,10 +259,11 @@ export function PlayerRig({ spawn, view, onReady, roads, wet }: {
       }
       // §2.9.3 — engine hum (speed fraction of the 22 m/s earth car max)
       // + horn on H, matching the stylized car.
-      sfx.engine(Math.min(1, Math.abs(st.carSpeed) / 22), true);
+      sfx.engine(Math.min(1, Math.abs(st.carSpeed) / EARTH_TUNING.maxSpeed), true);
       if (consumeTap("KeyH")) sfx.horn();
-      st.camYaw = lerpAngle(st.camYaw, st.carYaw, 1 - Math.exp(-step * 3));
-      if (view === "third") followCam(camera, parent, up, st.carPos, st.camYaw, 11, 5, 1 - Math.exp(-step * 5));
+      const chase = chaseForSpeed(st.carSpeed);
+      st.camYaw = lerpAngle(st.camYaw, st.carYaw, 1 - Math.exp(-step * chase.follow));
+      if (view === "third") followCam(camera, parent, up, st.carPos, st.camYaw, chase.dist, chase.height, 1 - Math.exp(-step * chase.follow));
       else firstPerson(camera, parent, up, _probe.copy(st.carPos).addScaledVector(cf, 0.2), st.carYaw, 1.6);
       playState.player.driving = true;
       playState.player.pos.copy(st.carPos);
@@ -259,6 +276,7 @@ export function PlayerRig({ spawn, view, onReady, roads, wet }: {
     // flying the camera/player to infinity.
     sanitizePosition(st.pos, spawn);
     sanitizePosition(st.carPos, spawn);
+    playState.settled = true;
   });
 
   return (
@@ -288,16 +306,16 @@ function knockPeds(center: THREE.Vector3, r: number) {
   }
 }
 function awayXZ(a: THREE.Vector3, b: THREE.Vector3) {
-  const v = new THREE.Vector3(a.x - b.x, 0, a.z - b.z);
-  return v.lengthSq() > 1e-6 ? v.normalize() : v.set(1, 0, 0);
+  _away.set(a.x - b.x, 0, a.z - b.z);
+  return _away.lengthSq() > 1e-6 ? _away.normalize() : _away.set(1, 0, 0);
 }
 
 function firstPerson(camera: THREE.Camera, parent: THREE.Object3D, up: THREE.Vector3, posLocal: THREE.Vector3, heading: number, eye: number) {
-  const head = posLocal.clone().add(new THREE.Vector3(0, eye, 0));
-  const f = new THREE.Vector3(Math.sin(heading), 0, Math.cos(heading));
+  _fpHead.copy(posLocal).setY(posLocal.y + eye);
+  _fpFwd.set(Math.sin(heading), 0, Math.cos(heading));
   camera.up.copy(up);
-  camera.position.copy(parent.localToWorld(head.clone()));
-  camera.lookAt(parent.localToWorld(head.clone().addScaledVector(f, 12)));
+  camera.position.copy(parent.localToWorld(_fpHead));
+  camera.lookAt(parent.localToWorld(_fpLook.copy(posLocal).setY(posLocal.y + eye).addScaledVector(_fpFwd, 12)));
 }
 
 // Stream A (2026-11-03): the primitive-box CarMesh is deleted. Tile NPC
@@ -454,7 +472,7 @@ export function TileNpcs({ slice, center }: { slice: Slice; center: [number, num
         c.dist += 9 * step;
         if (c.dist >= route.total) { c.fwd = !c.fwd; c.dist = 0; c.route = Math.floor(Math.random() * routes.length); }
         const along = c.fwd ? c.dist : route.total - c.dist;
-        const { point, dir } = sampleAlong(routes[c.route % routes.length], along);
+        const { point, dir } = sampleAlong(routes[c.route % routes.length], along, _alongPoint, _alongDir);
         if (c.body.push.lengthSq() > 0) { c.offset.add(c.body.push); c.body.push.set(0, 0, 0); }
         c.offset.multiplyScalar(0.9);
         const px = point.x + c.offset.x, pz = point.z + c.offset.z;
@@ -495,19 +513,18 @@ function rand(center: [number, number], r: number) {
 }
 const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
 
-function sampleAlong(route: Route, d: number) {
+function sampleAlong(route: Route, d: number, point: THREE.Vector3, dir: THREE.Vector3) {
   const pts = route.pts;
   let acc = 0;
   for (let i = 0; i < pts.length - 1; i++) {
     const seg = pts[i].distanceTo(pts[i + 1]);
     if (acc + seg >= d || i === pts.length - 2) {
       const t = seg > 1e-4 ? THREE.MathUtils.clamp((d - acc) / seg, 0, 1) : 0;
-      return {
-        point: new THREE.Vector3().lerpVectors(pts[i], pts[i + 1], t),
-        dir: new THREE.Vector3().subVectors(pts[i + 1], pts[i]).normalize(),
-      };
+      point.lerpVectors(pts[i], pts[i + 1], t);
+      dir.subVectors(pts[i + 1], pts[i]).normalize();
+      return { point, dir };
     }
     acc += seg;
   }
-  return { point: pts[0].clone(), dir: new THREE.Vector3(0, 0, 1) };
+  return { point: point.copy(pts[0]), dir: dir.set(0, 0, 1) };
 }

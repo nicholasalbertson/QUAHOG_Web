@@ -17,6 +17,10 @@ export const playState = {
   // without a Rapier body. heading is the movement heading (radians),
   // speed is m/s (0 when idle).
   player: { pos: new THREE.Vector3(), driving: false, heading: 0, speed: 0, carDist: Infinity },
+  /** Active photoreal place. EarthApp sets this; saves read it. */
+  placeId: "nb-bethel",
+  /** False until the rig has a real pose, so a save can't record the zero vector. */
+  settled: false,
   peds: [] as Body[],
   cars: [] as Body[],
   bump: 0, // set when the player's car hits an NPC car (PlayerRig reads + clears)
