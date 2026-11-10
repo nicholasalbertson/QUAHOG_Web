@@ -1,15 +1,14 @@
-import "./textSetup";
 import "./ui/game.css";
 import "./ui/hud.css";
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App";
+import { BootGate } from "./boot/BootGate";
 import { ErrorBoundary } from "./ui/ErrorBoundary";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <App />
+      <BootGate app="street" />
     </ErrorBoundary>
   </React.StrictMode>,
 );

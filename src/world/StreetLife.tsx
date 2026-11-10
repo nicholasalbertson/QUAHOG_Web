@@ -5,7 +5,8 @@ import { mobileBudget } from "../mobile/profile";
 import { useGame } from "../store";
 import { pushOutOfBuildings } from "./buildingAvoid";
 import { RiggedPedestrian } from "../actors/RiggedPedestrian";
-import { TrafficPackCar } from "../actors/TrafficPackCar";
+import { LicensedHuman } from "../actors/LicensedHuman";
+import { Cc0Vehicle } from "../actors/Cc0Vehicle";
 import { VEHICLE_TYPES } from "../earth/vehicleTypes";
 import { shared, raiseAlarm, addPickup, type Body, type TrafficCar } from "../shared";
 import { useStats } from "../game";
@@ -530,12 +531,18 @@ function Pedestrians({ center, count }: { center: [number, number]; count: numbe
         // x 7 skin tones, before the existing 0.9–1.18 scale range.
         return (
           <group key={i} ref={(el) => (refs.current[i] = el)} position={p.pos} scale={p.scale}>
-            <RiggedPedestrian
-              body={p.look.body}
-              garment={p.look.garment}
-              headgear={p.look.headgear}
-              skin={p.look.skin}
+            <LicensedHuman
+              slot={i}
               moving={() => !p.dead && p.down <= 0}
+              fallback={
+                <RiggedPedestrian
+                  body={p.look.body}
+                  garment={p.look.garment}
+                  headgear={p.look.headgear}
+                  skin={p.look.skin}
+                  moving={() => !p.dead && p.down <= 0}
+                />
+              }
             />
           </group>
         );
@@ -682,18 +689,11 @@ function Traffic({ routes, count, center }: { routes: Route[]; count: number; ce
 
   return (
     <group>
-      {state.current.map((c, i) => {
-        const pack = c.pack ?? `/packs/pack006/${TRAFFIC_PACK_MODEL[c.vtype] ?? "economy_sedan"}.glb`;
-        return (
-          <group key={i} ref={(el) => (refs.current[i] = el)}>
-            <TrafficPackCar
-              pack={pack}
-              wheelR={trafficWheelR(pack)}
-              getSpeed={() => c.speed}
-            />
-          </group>
-        );
-      })}
+      {state.current.map((c, i) => (
+        <group key={i} ref={(el) => (refs.current[i] = el)}>
+          <Cc0Vehicle slot={i} />
+        </group>
+      ))}
     </group>
   );
 }

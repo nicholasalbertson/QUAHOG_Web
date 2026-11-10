@@ -90,6 +90,7 @@ export function TitleScreen({ canContinue, onContinue, onNew, onSettings }: {
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {canContinue && <button style={button} onClick={onContinue}>Continue</button>}
           <button style={button} onClick={onNew}>{canContinue ? "New drive" : "Drive"}</button>
+          <a href="./index.html" style={{ ...button, textAlign: "center", textDecoration: "none" }}>Street map</a>
           <button style={button} onClick={() => setSettings(true)}>Settings</button>
           <div style={{ opacity: 0.55, fontSize: 11, marginTop: 8 }}>
             WASD to move. The car is parked beside you. M is the map.

@@ -11,6 +11,8 @@ import { sfx } from "../audio/sfx";
 import { surfaceAt } from "../world/surfaceSample";
 import type { Road } from "../slice";
 import { Character } from "../world/Character";
+import { LicensedHuman } from "../actors/LicensedHuman";
+import { Cc0Vehicle } from "../actors/Cc0Vehicle";
 import { slewHeading, stepJump, type JumpState } from "../world/locomotion";
 import { consumeTap, gamepadDrive, isDown, moveAxis } from "../input";
 import { actionDown, actionTap } from "./controls";
@@ -21,13 +23,11 @@ import { noteCrime, playState, resetBodies, type Body } from "./playState";
 import { lampsFromRoutes, planRebase, registerShift, scanRoutes, shiftLocals, type LocalRoute } from "./rebase";
 import { stepLanes, followRoad, roadblockPoint, type LaneState } from "./traffic";
 import { junctionsFromRoutes, laneOffset, laneShift, pedReaction, signalOpen } from "./signals";
-import { ProceduralCar } from "./ProceduralCar";
 import { applyImpact, powerFor, repairBill } from "./damage";
 import { writeEastNorthUp } from "./enuFrame";
 import { SLICE_ORIGIN, latLonToLocal, localToLatLon, type LatLon } from "./geo";
 import { useStats } from "../game";
 import { TrafficPackCar } from "../actors/TrafficPackCar";
-import { PackGLB } from "../actors/PackGLB";
 import { useToasts } from "../store";
 
 export type View = "third" | "first";
@@ -635,12 +635,16 @@ export function TileNpcs({ roads }: { roads: Road[] }) {
     <group>
       {peds.current.map((p, i) => (
         <group key={`p${i}`} ref={(el) => (pedRefs.current[i] = el)}>
-          <Character shirt={p.shirt} pants={p.pants} skin={p.skin} hair={p.hair} hat={p.hat} coat={p.coat} build={p.build} moving={() => !p.dead && p.down <= 0} />
+          <LicensedHuman
+            slot={i}
+            moving={() => !p.dead && p.down <= 0}
+            fallback={<Character shirt={p.shirt} pants={p.pants} skin={p.skin} hair={p.hair} hat={p.hat} coat={p.coat} build={p.build} moving={() => !p.dead && p.down <= 0} />}
+          />
         </group>
       ))}
       {cars.current.map((_, i) => (
         <group key={`c${i}`} ref={(el) => (carRefs.current[i] = el)}>
-          <ProceduralCar style={cars.current[i].style} />
+          <Cc0Vehicle slot={cars.current[i].style} />
         </group>
       ))}
     </group>
@@ -855,7 +859,10 @@ function WantedPursuit() {
     <>
       {[0, 1].map((i) => (
         <group key={i} ref={(el) => { refs.current[i] = el; }} visible={false}>
-          <PackGLB path="/packs/pack006/mid_sedan.glb" />
+          <Cc0Vehicle slot={3} />
+          <group position={[1.8, 0, 0]}>
+            <LicensedHuman slot={i + 1} moving={() => false} fallback={null} scale={1} />
+          </group>
         </group>
       ))}
     </>

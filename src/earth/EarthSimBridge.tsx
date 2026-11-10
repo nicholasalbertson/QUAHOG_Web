@@ -32,6 +32,8 @@ import { sfx } from "../audio/sfx";
 import { playState } from "./playState";
 import { advanceArc, arcDistance, arcIndex, currentArc, finishArc, loadArc } from "./arc";
 import { advanceJob, chasePoint, currentJob, jobClock, jobSnapshot, loadJobs, tickJob } from "./jobs";
+import { LicensedHuman } from "../actors/LicensedHuman";
+import { Character } from "../world/Character";
 import { bedFor } from "./ambience";
 import { nearestCity } from "./regions";
 import { straightGuide } from "./rebase";
@@ -262,6 +264,7 @@ export function EarthMissionRunner() {
         <ringGeometry args={[2.0, 2.25, 28]} />
         <meshBasicMaterial color="#ffcf4a" transparent opacity={0.42} depthWrite={false} />
       </mesh>
+      <LicensedHuman slot={1} moving={() => false} fallback={<Character shirt="#c4552a" pants="#2c2f3a" moving={() => false} />} />
     </group>
   );
 }

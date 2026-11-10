@@ -45,6 +45,8 @@ credentials*
 # Fetched at runtime on an rsync host. Never commit it.
 public/tiles-key.json
 tiles-key.json
+# Licensed packs fetched by scripts/fetch_licensed_packs.mjs (CC0). Not committed.
+public/vendor/cc0/files/
 
 # --- Test / coverage / logs ---
 coverage/

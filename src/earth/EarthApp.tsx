@@ -1,3 +1,4 @@
+import "../textSetup";
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
@@ -22,6 +23,7 @@ import { useStats } from "../game";
 import { shared } from "../shared";
 import { headingToCompass } from "../world/compass";
 import { Ambient, type Weather } from "./Ambient";
+import { EnvLight } from "../world/EnvLight";
 import { sunPositionForHour, sunDayFactor } from "./dayNight";
 import { shouldShowFallbackGround, FALLBACK_GROUND_SIZE, earthFallbackNotice } from "./fallbacks";
 import {
@@ -54,6 +56,7 @@ import { formatCrash } from "./crashReport";
 import { advanceLine, currentJob, currentLine } from "./jobs";
 import { CONTROLS_TEXT, nextHint, tutorialStep } from "./tutorial";
 import { DriveHint, PauseScreen, TitleScreen } from "./EarthMenu";
+import { peekBoot, clearBoot } from "../boot/intent";
 import { sfx } from "../audio/sfx";
 
 // Mount Hope on Google Photorealistic 3D Tiles. Browser fetches tiles from
@@ -104,6 +107,7 @@ export function EarthApp() {
   const [placeId, setPlaceId] = useState(bootPlaceId);
   const [anchor, setAnchor] = useState<LatLon>(bootAnchor);
   const [screen, setScreen] = useState<"title" | "play">("title");
+  const [worldOn, setWorldOn] = useState(false);
   const [paused, setPaused] = useState(false);
   const [useResume, setUseResume] = useState(true);
   const [snap, setSnap] = useState<Spawn | null>(null);
@@ -180,7 +184,37 @@ export function EarthApp() {
   }, []);
   // §2.8.4 — restore the shared mission progress + stats once on boot.
   useEffect(() => { restoreEarth(); }, []);
-  useEffect(() => { loadSliceCached("slice-newbedford.json").then(setSlice).catch((e) => console.error(e)); }, []);
+  useEffect(() => {
+    if (!apiKey) return;
+    const intent = peekBoot();
+    if (intent !== "earth-new" && intent !== "earth-continue") return;
+    clearBoot();
+    if (intent === "earth-new") {
+      resetArc();
+      setUseResume(false);
+      const start = placeById("the-narrows");
+      if (start) {
+        setPlaceId(start.id);
+        const next = anchorOf(start);
+        setAnchor(next);
+        playState.anchor = next;
+        playState.placeId = start.id;
+        playState.settled = false;
+      }
+    } else {
+      setUseResume(true);
+    }
+    playState.paused = false;
+    setPaused(false);
+    setScreen("play");
+    setMode("play");
+    setWorldOn(true);
+    sfx.startAmbience();
+  }, [apiKey]);
+  useEffect(() => {
+    if (!worldOn) return;
+    loadSliceCached("slice-newbedford.json").then(setSlice).catch((e) => console.error(e));
+  }, [worldOn]);
   useEffect(() => { setReady(false); setTilesProblem(false); }, [placeId, mode]); // re-gate on teleport
   const anchorRef = useRef(anchor);
   anchorRef.current = anchor;
@@ -202,6 +236,7 @@ export function EarthApp() {
   useEffect(() => {
     let cancel = false;
     setSnap(null);
+    if (!worldOn) { setSnapWait(false); return; }
     const place = placeById(placeId);
     if (!place || place.sliceAligned) { setSnapWait(false); return; }
     const url = roadsSliceFor(place);
@@ -215,7 +250,7 @@ export function EarthApp() {
       setSnapWait(false);
     }).catch(() => { if (!cancel) setSnapWait(false); });
     return () => { cancel = true; window.clearTimeout(timer); };
-  }, [placeId]);
+  }, [placeId, worldOn]);
   const onAnchor = useCallback((next: LatLon) => {
     playState.anchor = next;
     setAnchor(next);
@@ -264,7 +299,7 @@ export function EarthApp() {
     }, 45000);
     return () => clearInterval(id);
   }, []);
-  const { roads: liveRoads, url: liveUrl } = useLiveCityRoads(placeId);
+  const { roads: liveRoads, url: liveUrl } = useLiveCityRoads(placeId, worldOn);
   mapRef.current = mapOpen;
 
   if (!apiKey && atlas) return <AtlasPreview />;
@@ -300,12 +335,14 @@ export function EarthApp() {
     setPaused(false);
     setScreen("play");
     setMode("play");
+    setWorldOn(true);
     sfx.startAmbience();
   };
   const wx = WX[weather];
 
   return (
     <>
+      {worldOn && (
       <Canvas
         shadows
         dpr={[1, QUALITY_PRESET[tier].dprMax]}
@@ -326,6 +363,7 @@ export function EarthApp() {
         {wx.sky && <Sky sunPosition={dayNight.sunPos} turbidity={weather === "cloudy" ? 8 : 3} rayleigh={1.2} />}
         <hemisphereLight args={["#dceaff", "#8a8678", 0.9 * (0.3 + 0.7 * dayNight.day)]} />
         <directionalLight position={dayNight.sunPos} intensity={wx.sun * (0.05 + 0.95 * dayNight.day)} color={wx.sunColor} castShadow />
+        <EnvLight />
 
         <Suspense fallback={null}>
         {/* errorTarget: the higher it is, the coarser/faster tiles load. Street-
@@ -377,6 +415,7 @@ export function EarthApp() {
         </TilesRenderer>
         </Suspense>
       </Canvas>
+      )}
 
       <Hud
         mode={mode} setMode={setMode}
@@ -919,6 +958,10 @@ function NoKeyNotice({ onLaunch }: { onLaunch: (key: string) => void }) {
         <p style={{ opacity: 0.6, fontSize: 11, marginTop: 10 }}>
           Developers can pass <code style={{ color: "#9fd8ff" }}>?key=</code> for this browser tab only.
           Google bills per tile session and its terms govern use.
+        </p>
+        <p style={{ marginTop: 14 }}>
+          <a href="./index.html" style={{ color: "#d2b782" }}>Street map</a>
+          {" · "}this page is the 3D Tiles build
         </p>
       </div>
     </div>

@@ -1,0 +1,70 @@
+{
+  "packs": [
+    {
+      "id": "quaternius-human",
+      "role": "character",
+      "author": "Quaternius",
+      "license": "CC0-1.0",
+      "commercial": true,
+      "source": "https://quaternius.com/packs/universalbasecharacters.html",
+      "download": "https://github.com/UMRAM-Bilkent/supine-human-model/raw/main/assets/human.glb",
+      "dest": "characters/quaternius-human.glb",
+      "note": "Rigged CC0 human with idle and walk clips from Quaternius Universal Base Characters, redistributed in the public-domain UMRAM-Bilkent supine-human-model repository."
+    },
+    {
+      "id": "polyhaven-kloofendal",
+      "role": "hdri",
+      "author": "Poly Haven",
+      "license": "CC0-1.0",
+      "commercial": true,
+      "source": "https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky",
+      "download": "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/kloofendal_48d_partly_cloudy_puresky_1k.hdr",
+      "dest": "hdri/kloofendal_1k.hdr",
+      "note": "1K HDRI used as image-based light for local meshes. It is not a Google map tile and is not a substitute for the tiles."
+    },
+    {
+      "id": "kenney-sedan",
+      "role": "vehicle",
+      "author": "Kenney",
+      "license": "CC0-1.0",
+      "commercial": true,
+      "source": "https://kenney.nl/assets/car-kit",
+      "download": null,
+      "dest": "/vendor/kenney/car-kit/Models/GLB format/sedan.glb",
+      "note": "Already fetched by scripts/download_cc0_packs.mjs. Used for traffic variety on both builds."
+    },
+    {
+      "id": "kenney-suv",
+      "role": "vehicle",
+      "author": "Kenney",
+      "license": "CC0-1.0",
+      "commercial": true,
+      "source": "https://kenney.nl/assets/car-kit",
+      "download": null,
+      "dest": "/vendor/kenney/car-kit/Models/GLB format/suv.glb",
+      "note": "Already fetched by scripts/download_cc0_packs.mjs."
+    },
+    {
+      "id": "kenney-van",
+      "role": "vehicle",
+      "author": "Kenney",
+      "license": "CC0-1.0",
+      "commercial": true,
+      "source": "https://kenney.nl/assets/car-kit",
+      "download": null,
+      "dest": "/vendor/kenney/car-kit/Models/GLB format/van.glb",
+      "note": "Already fetched by scripts/download_cc0_packs.mjs."
+    },
+    {
+      "id": "kenney-police",
+      "role": "vehicle",
+      "author": "Kenney",
+      "license": "CC0-1.0",
+      "commercial": true,
+      "source": "https://kenney.nl/assets/car-kit",
+      "download": null,
+      "dest": "/vendor/kenney/car-kit/Models/GLB format/police.glb",
+      "note": "Already fetched by scripts/download_cc0_packs.mjs. Patrol car on the tiles build."
+    }
+  ]
+}

@@ -54,15 +54,17 @@ export function usePlaceRoads(placeId: string): { roads: Road[] | null; aligned:
 }
 
 /** Roads for the city the player is actually standing in, not the last teleport. */
-export function useLiveCityRoads(placeId: string): { roads: Road[] | null; url: string | null } {
+export function useLiveCityRoads(placeId: string, enabled = true): { roads: Road[] | null; url: string | null } {
   const [url, setUrl] = useState<string | null>(() => {
+    if (!enabled) return null;
     const place = placeById(placeId);
     return place ? roadsSliceFor(place) : null;
   });
   useEffect(() => {
+    if (!enabled) { setUrl(null); return; }
     const place = placeById(placeId);
     if (place) setUrl(roadsSliceFor(place));
-  }, [placeId]);
+  }, [placeId, enabled]);
   useEffect(() => {
     const id = window.setInterval(() => {
       if (!playState.settled) return;

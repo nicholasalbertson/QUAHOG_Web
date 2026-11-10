@@ -4,9 +4,11 @@
 
 The Narrows is the real gorge of the Quequechan River at the Fall River waterfront, under the Braga Bridge and beside Battleship Cove. The game is an open-world urban exploration and driving game on that coast: Fall River, New Bedford, Brockton, Cape Cod, the towns between them, and the highways that tie them together.
 
-Photoreal Google 3D Tiles (`earth.html`) is the chosen world. The stylized OSM blockout (`index.html`) stays playable. Production deploys stay manual. Music never enters the repo.
+Photoreal Google 3D Tiles (`earth.html`) and the OSM street map (`index.html`) are built together. Neither one is a side mode. Production deploys stay manual. Music never enters the repo.
 
 ## Status
+
+Both builds are peers. `earth.html` is the 3D Tiles coast. `index.html` is the street map. The first screen on each page links to the other, and the heavy world (tiles, the city slice, three.js) waits until Play. The street map runs the same chapter list, the same damage curve, gamepad triggers, and a frame ladder that only steps down. Pedestrians, the station officer, and story guides use the fetched Quaternius body. Traffic uses the Kenney car kit. Licenses are in `docs/THIRD_PARTY_NOTICES.md`. Load numbers are in `docs/LOAD_REPORT.md`.
 
 Phase 1 is in. Phase 2 and the first playable loop are in on the same branch:
 
@@ -26,7 +28,7 @@ Phase 1 is in. Phase 2 and the first playable loop are in on the same branch:
 
 - Traffic reads lane counts and route refs from the slices. I-195, Route 24, US 6, and Route 3 are at least two lanes, and a car changes lanes when another is ahead. Where a slice has no signal tag, a freeway is open, a primary meeting is a signal, and a local meeting is a stop. Pedestrians wait for a closing car and step aside when it is on them.
 - The five jobs are one campaign. Mira Costa, Lena Duarte, Eddie Vara, Nia Perry, and Jonah Ellis speak on the subtitle line. Steps include deliveries, a chase, escapes, timed runs, and photo stops. A failed timer or a blown escape returns to the last checkpoint. Finishing a chapter unlocks the next and cuts the price of one front.
-- Ambient people grow a coat, a hat, and a hair color from code. Ambient cars are original box bodies in four silhouettes, not new downloaded models.
+- Ambient people use the fetched Quaternius body when it is on disk, with the older body as the fallback. Ambient cars use the Kenney CC0 car kit.
 - Three save slots. Autosave writes the active one. Pause has a stats and achievements page.
 - The first drive asks you to walk, enter the car, and open the map. F1 lists the controls. Hints mention repair, heat, and the story.
 

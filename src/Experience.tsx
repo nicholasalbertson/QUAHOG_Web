@@ -95,6 +95,8 @@ import { MissionRunner } from "./world/MissionRunner";
 import { ObjectiveBeacon } from "./world/ObjectiveBeacon";
 import { RenderDiagnostics } from "./world/RenderDiagnostics";
 import { Effects } from "./world/Effects";
+import { CoastCampaign } from "./campaign/CoastCampaign";
+import { AutoQuality } from "./perf/AutoQuality";
 import { SimBootstrap } from "./sim/SimBootstrap";
 import { ContactWiring } from "./sim/ContactWiring";
 import { Player } from "./actors/Player";
@@ -309,6 +311,8 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       <EnvLight />
       <CinematicExposure />
       <GameSystems />
+      <AutoQuality />
+      <CoastCampaign />
       <ShopInteract />
       <SimBootstrap />
       <MissionRunner />

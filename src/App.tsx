@@ -1,3 +1,4 @@
+import "./textSetup";
 import { Component, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
 import * as THREE from "three";
 import { Canvas, useThree } from "@react-three/fiber";
@@ -65,6 +66,14 @@ import { DebugCapture } from "./debug/DebugCapture";
 import { PerfProbe } from "./ui/PerfProbe";
 import { AssetLoadNotice } from "./assets/AssetLoadNotice";
 import { StartMenu } from "./ui/StartMenu";
+import { peekBoot, clearBoot } from "./boot/intent";
+import { clearAllSaves } from "./sim/SaveGame";
+import { useStats } from "./game";
+import { useMission } from "./mission";
+import { useEconomy } from "./economy";
+import { useInventory } from "./inventory";
+import { worldJournal } from "./world/worldJournal";
+import { sfx } from "./audio/sfx";
 import { Radio } from "./audio/Radio";
 import { installInput } from "./input";
 import { useGame, useToasts } from "./store";
@@ -79,6 +88,25 @@ export default function App() {
   const [sliceName, setSliceName] = useState("loading…");
   const [progress, setProgress] = useState(0);
   const quality = useGame((s) => s.quality);
+  const started = useGame((s) => s.started);
+  const booting = useState(() => (peekBoot() ?? "").startsWith("street"))[0];
+
+  useEffect(() => {
+    const intent = peekBoot();
+    if (intent !== "street-new" && intent !== "street-continue") return;
+    clearBoot();
+    if (intent === "street-new") {
+      clearAllSaves();
+      useStats.getState().reset();
+      useMission.getState().reset();
+      useEconomy.setState({ owned: {} });
+      useInventory.getState().reset();
+      worldJournal.reset();
+      useGame.getState().resetSession();
+    }
+    sfx.setVolume(0.5);
+    useGame.getState().setStarted(true);
+  }, []);
 
   // stable callbacks so the Experience loader effect doesn't re-run each render
   // Fall River integration (2026-11-03): onReady also fires the deferred
@@ -112,6 +140,7 @@ export default function App() {
 
   return (
     <>
+      {started && (
       <Canvas
         shadows="soft"
         frameloop="never"
@@ -133,6 +162,9 @@ export default function App() {
           </SceneBoundary>
         </Suspense>
       </Canvas>
+      )}
+      {started && (
+        <>
       <HUD sliceName={sliceName} />
       <Minimap />
       <BigMap />
@@ -144,7 +176,14 @@ export default function App() {
       <DebugStats />
       <DebugOverlay />
       <AssetLoadNotice />
-      <StartMenu sliceName={sliceName} progress={progress} />
+        </>
+      )}
+      {(booting || started) && sliceName === "loading…" && (
+        <div id="world-loading" style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(9,24,31,.72)", color: "#e9e8df", fontFamily: "system-ui, sans-serif", zIndex: 20, pointerEvents: "none" }}>
+          Loading the coast… {Math.round(progress * 100)}%
+        </div>
+      )}
+      {!(booting && !started && sliceName === "loading…") && <StartMenu sliceName={sliceName} progress={progress} canPlay />}
     </>
   );
 }
