@@ -5,20 +5,18 @@ import { useMission } from "../mission";
 import { useEconomy } from "../economy";
 import { useInventory } from "../inventory";
 import { sfx } from "../audio/sfx";
-import { clearAllSaves } from "../sim/SaveGame";
-import { getItem } from "../storage";
+import { canContinue, clearAllSaves } from "../sim/SaveGame";
 import { worldJournal } from "../world/worldJournal";
 import { t, tf, STRINGS } from "../i18n/strings";
 
-// A save exists if EITHER the stats key or the position key is present.
-// (2026-11-07, streamer-stability diagnosis Q3.) The old gate required the
-// stats key alone; a short session killed before the first autosave (the old
-// autosave ran on capped sim dt, so it could take ~80 wall-seconds on a
-// struggling phone) left no stats key and the menu reported "Continue
-// unavailable · missing stats" even though the position key existed. The
-// restore tolerates a missing stats key (load() coerces to defaults), so a
-// pos-only save still continues — at the saved position, with default stats.
-const hasSave = () => !!getItem("mounthope.save.v1") || !!getItem("mounthope.pos.v1");
+// Continue availability comes from ONE place: canContinue() in
+// sim/SaveGame.ts (see its doc comment for the contract). The menu used to
+// carry its own OR-check on raw key literals, which disagreed with the
+// sim-side gate and offered Continue for a game that was never started.
+// Position-only saves (2026-11-07, streamer-stability diagnosis Q3) still
+// continue — that case is part of the contract and covered by
+// continueContract.test.ts.
+const readGate = () => canContinue();
 
 // Title / start screen (§22). Shown over the loading world until the player
 // presses Play; doubles as the first user gesture that unlocks audio.
@@ -27,14 +25,15 @@ const hasSave = () => !!getItem("mounthope.save.v1") || !!getItem("mounthope.pos
 export function StartMenu({ sliceName, progress = 0 }: { sliceName: string; progress?: number }) {
   const started = useGame((s) => s.started);
   const [tip] = useState(() => STRINGS.menu.tips[Math.floor(Math.random() * STRINGS.menu.tips.length)]);
-  const [save, setSave] = useState(hasSave);
+  const [gate, setGate] = useState(readGate);
+  const save = gate.ok;
   // The menu is always mounted and returns null while playing, so the
   // useState initializer above runs ONCE at app mount. Re-check the gate
   // every time the menu becomes visible (quit-to-title mid-session, or a
   // reload) — otherwise the Continue button can be stale relative to saves
   // written since mount.
   useEffect(() => {
-    if (!started) setSave(hasSave());
+    if (!started) setGate(readGate());
   }, [started]);
   const loaded = sliceName !== "loading…";
   if (started) return null;
@@ -74,8 +73,17 @@ export function StartMenu({ sliceName, progress = 0 }: { sliceName: string; prog
         </button>
       </div>
 
-      {!save && (
-        <div style={{ marginTop: 18, fontSize: 12, opacity: 0.6 }}>{t("menu", "continueUnavailable")}</div>
+      {/* Fresh install: say nothing. A save that exists but cannot be used:
+          say why. A usable save with a degraded domain: say what falls back. */}
+      {!save && gate.reason !== "no saved game" && (
+        <div role="status" style={{ marginTop: 18, fontSize: 12, opacity: 0.6 }}>
+          {tf(t("menu", "continueUnavailable"), { reason: gate.reason ?? "" })}
+        </div>
+      )}
+      {save && !!gate.notes?.length && (
+        <div role="status" style={{ marginTop: 18, fontSize: 12, opacity: 0.6, maxWidth: 420 }}>
+          {tf(t("menu", "continueDegraded"), { notes: gate.notes.join(" · ") })}
+        </div>
       )}
 
       {!loaded && (

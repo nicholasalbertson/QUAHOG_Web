@@ -1,4 +1,54 @@
-# QUAHOG / The Narrows — single-conversation working baseline
+# QUAHOG / Mount Hope: The Narrows — current checkpoint
+
+## Checkpoint 2026-11-09 20:20 America/New_York — Continue contract slice
+
+Status tags: VERIFIED-NOW (run in this session), SOURCE-INSPECTED, UNVERIFIED, BLOCKED.
+
+### Source
+- VERIFIED-NOW `QUAHOG_Web-main 3.zip` SHA-256 `54e71b667f61776c3a048e6fccc737b4c4b1a7e07c178fcf05b92a35e1ba3501`, 7,280 entries.
+- VERIFIED-NOW GitHub `nicholasalbertson/QUAHOG_Web` `main` = `755404442fd362ff6e2ea5beac4fc6899bc0587d` (2026-11-08, CobbleCurbPads inside `<Physics>`). Repository readable anonymously (public).
+- VERIFIED-NOW `diff -rq` of the extracted ZIP against a clean checkout of that commit: **0 differences**. The ZIP is `main@7554044`.
+- VERIFIED-NOW PR #26 head `10e0362d5c2e518fa479c083c281328b7c45016c` (`FullStackAssets/graphics-upgrade-d5da`) still open (a `refs/pull/26/merge` ref exists). Not reviewed in this slice.
+- Work branch (local only): `claude/continue-contract`, one commit on top of `7554044`. **NO UPSTREAM CHANGE** — this session has read-only git access.
+
+### Changed
+- `src/sim/SaveGame.ts` — `canContinue()` rewritten as the single Continue contract (doc comment holds the rules); `ContinueGate` gains `restores` and `notes`; new `autosaveDue()` / `AUTOSAVE_INTERVAL_MS`.
+- `src/ui/StartMenu.tsx` — own `hasSave()` OR-check on key literals removed; uses `canContinue()`. Fresh install shows no "unavailable" line; unusable save shows the real reason; degraded save says what falls back.
+- `src/world/GameSystems.tsx` — wall-clock autosave gated on `started` via `autosaveDue()`; first STARTED frame saves immediately; key literals replaced by `SAVE_KEYS`.
+- `src/game.ts` — stats key from `SAVE_KEYS.stats`.
+- `src/i18n/strings.ts` — `menu.continueUnavailable` is now `"Continue unavailable · {reason}"`; new `menu.continueDegraded`.
+- Tests: new `src/__tests__/sim/continueContract.test.ts` (15 tests); `saveGame.test.ts` and `i18n.test.ts` updated to the contract.
+- Persistence: no key renamed, no schema change, no migration needed; the gate only reads and never deletes.
+
+### Bugs this closes (both reproduced on `main@7554044` in headless Chrome before the fix)
+1. Phantom Continue: the title screen's first rendered frame wrote `mounthope.save.v1`; after a reload the menu offered CONTINUE for a game never started.
+2. Fresh install displayed "Continue unavailable · missing stats".
+3. `StartMenu.hasSave()` (stats OR pos) disagreed with `canContinue()` (stats AND pos, blocked on malformed mission).
+
+### Verified (VERIFIED-NOW, Node v22.23.4, Linux container)
+- `npm ci` exit 0 · `npx tsc --noEmit` exit 0
+- `npm test` — baseline 100 files / 691 tests pass; after change 101 files / 706 tests pass
+- `npm run test:blizzard` exit 0 · `npm run check:sim-rng` exit 0 · `npm run assets:audit` exit 0 · `npm run build` exit 0
+- `npm run test:production-assets` exit 1 — **pre-existing on untouched main** (37/39): `production-fulltree-preflight.test.mjs` and `production-preflight.test.mjs` (ENOENT `src/earth/Vehicles.tsx`).
+- `bash scripts/check-no-music.sh` exit 1 — **pre-existing**: 11 `public/music/*/host/manifest.json` not in `.audio-allowlist`. The 44 tracked MP3s are allowlisted radio-host lines (`line-01..04.mp3`, 4.0 MB total). Nothing added, removed or republished.
+- Browser smoke, built bundle, Google Chrome headless + SwiftShader, 844x390: fresh title → no save keys after 6 s, no "unavailable" line; reload → still NEW GAME only; New Game → `pos`/`save`/`settings` keys written; reload → CONTINUE + NEW GAME; Continue → restored to the saved position (-256.0, 106.0); 0 page errors. Screenshots timed out under software GL — none collected.
+- SOURCE-INSPECTED: `CobbleCurbPads` inside `<Physics>` on main (commit subject + scene booted in the smoke).
+
+### Unverified / blocked
+- UNVERIFIED: any physical iPhone / Safari behaviour, FPS, thermals, touch. The smoke is desktop Chrome software rendering.
+- UNVERIFIED: production/staging build lineage; music/host-line rights; `pending-commercial` asset rows.
+- UNVERIFIED: walk/drive/mission/Earth-mode flows beyond boot + save + Continue; the seven Blizzard/003A invariants beyond their unit suites.
+- BLOCKED: push / PR (read-only git in this session).
+
+### Release
+No deployment performed. Staging, production, DNS, secrets, repository visibility untouched.
+
+### Next slice
+Repair the two pre-existing `test:production-assets` failures (start at `scripts/tests/production-preflight.test.mjs:23`, which copies a `src/earth/Vehicles.tsx` that no longer exists), so the P0 gate set is green before touching PR #26.
+
+---
+
+# Historical baseline (2026-11-01) — superseded by the checkpoint above
 
 Date: 2026-11-01T18:55:04+00:00 (UTC)
 Scope: game implementation and coordination, this QUAHOG project conversation.

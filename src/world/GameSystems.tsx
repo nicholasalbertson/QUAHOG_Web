@@ -13,12 +13,13 @@ import { sfx } from "../audio/sfx";
 import { radio } from "../audio/radioEngine";
 import { loadJSON, saveJSON } from "../storage";
 import { SAVE_KEYS } from "../registries";
+import { autosaveDue } from "../sim/SaveGame";
 import { catchUpWorldClock } from "./worldContinuity";
 import type { WorldEventKind } from "./worldContinuity";
 import { worldJournal } from "./worldJournal";
 import { requestGuardedSpawn } from "./SpawnGuard";
 
-const POS_KEY = "mounthope.pos.v1";
+const POS_KEY = SAVE_KEYS.pos;
 
 export function saveMissionProgress() {
   const m = useMission.getState();
@@ -135,7 +136,7 @@ export function GameSystems() {
   // pagehide/visibilitychange save below. A reload cannot tear a single
   // localStorage key (setItem is synchronous/atomic per key) — the failure
   // mode was a never-written key, not a corrupt one.
-  const lastSaveWall = useRef(0);
+  const lastSaveWall = useRef(Number.NEGATIVE_INFINITY);
   const prevStars = useRef(0);
   const restored = useRef(false);
   const skidCool = useRef(0);
@@ -194,7 +195,7 @@ export function GameSystems() {
     // Harbor ambience distance fade continues in the frame loop (#45).
     // restore settings (§26)
     {
-      const s = loadJSON<Record<string, unknown>>("mounthope.settings.v1", {});
+      const s = loadJSON<Record<string, unknown>>(SAVE_KEYS.settings, {});
       const g = useGame.getState();
       if (typeof s.fxOn === "boolean" && s.fxOn !== g.fxOn) g.toggleFx();
       if (typeof s.shadows === "boolean" && s.shadows !== g.shadows) g.toggleShadows();
@@ -209,7 +210,7 @@ export function GameSystems() {
       if (!g.started) return;
       savePos(); useStats.getState().save(); useEconomy.getState().save();
       saveMissionProgress();
-      saveJSON("mounthope.settings.v1", {fxOn:g.fxOn,shadows:g.shadows,fov:g.fov,reduceShake:g.reduceShake,weather:g.weather,quality:g.quality});
+      saveJSON(SAVE_KEYS.settings, {fxOn:g.fxOn,shadows:g.shadows,fov:g.fov,reduceShake:g.reduceShake,weather:g.weather,quality:g.quality});
     };
     window.addEventListener("pagehide", onHide);
     const onVisibility = () => { if (document.hidden) onHide(); };
@@ -302,16 +303,21 @@ export function GameSystems() {
     prevStars.current = stars;
     st.decay(dt);
     // Wall-clock autosave (see the ref comment above): 20 s of REAL time,
-    // not 20 s of capped sim time. lastSaveWall starts at 0, so the first
-    // frame of the session saves immediately — the stats key exists from
-    // the start of any session, however short.
+    // not 20 s of capped sim time. Gated on `started` (2026-11-09): the old
+    // gate also fired on the first TITLE-SCREEN frame, writing a default
+    // stats key for a game nobody had started — a phantom "Continue" after a
+    // reload — and it burned the 20 s window so the first real save came up
+    // to 20 s after Play. lastSaveWall starts at -Infinity, so the first
+    // STARTED frame saves immediately. (The restore block above runs first
+    // in this same frame and parks the bodies at the saved target, so this
+    // save records the restored position, not the default spawn.)
+    const g = useGame.getState();
     const nowWall = performance.now();
-    if (nowWall - lastSaveWall.current > 20000) {
+    if (autosaveDue({ started: g.started, nowMs: nowWall, lastMs: lastSaveWall.current })) {
       lastSaveWall.current = nowWall;
       st.save();
-      if (useGame.getState().started) savePos();
-      const g = useGame.getState();
-      saveJSON("mounthope.settings.v1", { fxOn: g.fxOn, shadows: g.shadows, fov: g.fov, reduceShake: g.reduceShake, weather: g.weather, quality: g.quality });
+      savePos();
+      saveJSON(SAVE_KEYS.settings, { fxOn: g.fxOn, shadows: g.shadows, fov: g.fov, reduceShake: g.reduceShake, weather: g.weather, quality: g.quality });
     }
   });
   return null;

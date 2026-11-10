@@ -43,7 +43,8 @@ export const STRINGS = {
     title: "Mount Hope: The Narrows",
     subtitle: "New Bedford · Fall River · the Narrows",
     photoreal: "🛰 PHOTOREAL MODE (3D TILES)",
-    continueUnavailable: "Continue unavailable · missing stats",
+    continueUnavailable: "Continue unavailable · {reason}",
+    continueDegraded: "Continue: {notes}",
     loadingDistrict: "LOADING NEW BEDFORD",
     tips: [
       "WASD to move · Shift to sprint · E to grab a car.",

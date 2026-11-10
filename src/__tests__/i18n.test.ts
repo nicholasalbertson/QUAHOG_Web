@@ -66,7 +66,7 @@ describe("§16.1 string catalog", () => {
 describe("§16.1 full pass — HUD + StartMenu complete", () => {
   it("t() resolves every new HUD/StartMenu key", () => {
     expect(t("menu", "tip")).toBe("TIP: {tip}");
-    expect(t("menu", "continueUnavailable")).toContain("missing stats");
+    expect(tf(t("menu", "continueUnavailable"), { reason: "corrupt save" })).toBe("Continue unavailable · corrupt save");
     expect(t("hud", "currentObjective")).toBe("Current objective");
     expect(t("hud", "gamePanels")).toBe("Game panels");
     expect(t("hud", "blizzard")).toContain("Blizzard");
@@ -123,7 +123,7 @@ describe("§16.1 full pass — HUD + StartMenu complete", () => {
     collect(STRINGS, "");
     const used = new Set([
       "common.southcoast", "common.loading", "common.continue", "common.newGame", "common.newGameSave",
-      "menu.eyebrow", "menu.title", "menu.subtitle", "menu.photoreal", "menu.continueUnavailable",
+      "menu.eyebrow", "menu.title", "menu.subtitle", "menu.photoreal", "menu.continueUnavailable", "menu.continueDegraded",
       "menu.loadingDistrict", "menu.tips", "menu.tip", "menu.footer",
       "hud.photoMode", "hud.wasted", "hud.busted", "hud.missionComplete", "hud.openMenu", "hud.health",
       "hud.stamina", "hud.policeHeat", "hud.factionHeat", "hud.fronts", "hud.scrimshaw", "hud.keyboardControls",
@@ -141,6 +141,6 @@ describe("§16.1 full pass — HUD + StartMenu complete", () => {
     const missing = [...used].filter((k) => !found.has(k));
     expect(unused, `unused catalog keys: ${unused.join(", ")}`).toEqual([]);
     expect(missing, `used keys missing from catalog: ${missing.join(", ")}`).toEqual([]);
-    expect(found.size).toBe(70);
+    expect(found.size).toBe(71);
   });
 });

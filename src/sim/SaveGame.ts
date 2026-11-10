@@ -31,32 +31,87 @@ export interface SaveBlobV2 {
 
 export interface ContinueGate {
   ok: boolean;
+  /** Why Continue is refused (only when !ok). */
   reason?: string;
+  /** Which domains the restore will actually bring back (only when ok). */
+  restores?: { position: boolean; stats: boolean; mission: boolean };
+  /** Player-facing degradations: Continue works, but a domain falls back. */
+  notes?: string[];
 }
 
-/** Required keys for Continue — stats + position; mission is preferred but
- *  optional so legacy live-lineage saves (pre-mission key) still resume. */
-export function canContinue(): ContinueGate {
-  const stats = getItem(SAVE_KEYS.stats);
-  const pos = getItem(SAVE_KEYS.pos);
-  const mission = getItem(SAVE_KEYS.mission);
-  if (!stats) return { ok: false, reason: "missing stats" };
-  if (!pos) return { ok: false, reason: "missing position" };
+const fin = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+
+type Probe = "absent" | "usable" | "unusable";
+
+function probe(key: string, usable: (o: Record<string, unknown>) => boolean): { state: Probe; parsed: boolean } {
+  const raw = getItem(key);
+  if (!raw) return { state: "absent", parsed: false };
   try {
-    const p = JSON.parse(pos) as Record<string, unknown>;
-    if (typeof p.px !== "number" && typeof p.carx !== "number" && typeof p.boatx !== "number") {
-      return { ok: false, reason: "position incomplete" };
-    }
-    if (mission) {
-      const m = JSON.parse(mission) as Record<string, unknown>;
-      if (typeof m.mi !== "number" || typeof m.step !== "number") {
-        return { ok: false, reason: "mission incomplete" };
-      }
-    }
+    const o = JSON.parse(raw) as unknown;
+    if (!o || typeof o !== "object" || Array.isArray(o)) return { state: "unusable", parsed: false };
+    return { state: usable(o as Record<string, unknown>) ? "usable" : "unusable", parsed: true };
   } catch {
-    return { ok: false, reason: "corrupt save" };
+    return { state: "unusable", parsed: false };
   }
-  return { ok: true };
+}
+
+/**
+ * THE Continue acceptance contract (2026-11-09). Single authority for the
+ * title menu (StartMenu), the schema-2 migration (loadUnified) and the
+ * acceptance harness. It mirrors what the live restore actually does
+ * (GameSystems applyRestore / restoreMissionProgress / useStats.load), which
+ * is tolerant per domain — so the gate is too:
+ *
+ * 1. A game "was started" iff a position key or a well-formed mission key
+ *    exists. Both are only ever written after Play. The stats key alone is
+ *    NOT evidence (it could be written by the title screen) → "no saved game".
+ * 2. Given that evidence, Continue is offered when at least one domain is
+ *    usable. Every other domain degrades instead of blocking:
+ *      position unusable → resume at the district spawn (note),
+ *      stats absent/unusable → default stats,
+ *      mission malformed → campaign start (note).
+ *    Hiding Continue over one bad domain would leave New Game — which wipes
+ *    everything — as the only button.
+ * 3. Evidence present but nothing usable → refused as "corrupt save".
+ * 4. The gate only reads. It never deletes or rewrites a save.
+ */
+export function canContinue(): ContinueGate {
+  const stats = probe(SAVE_KEYS.stats, () => true);
+  const pos = probe(
+    SAVE_KEYS.pos,
+    (p) => (fin(p.px) && fin(p.pz)) || (fin(p.carx) && fin(p.carz)) || fin(p.boatx),
+  );
+  const mission = probe(SAVE_KEYS.mission, (m) => fin(m.mi) && fin(m.step));
+
+  const started = pos.state !== "absent" || mission.state === "usable";
+  if (!started) {
+    if (mission.state === "unusable") return { ok: false, reason: "corrupt save" };
+    return { ok: false, reason: stats.state === "absent" ? "no saved game" : "missing position" };
+  }
+  const restores = {
+    position: pos.state === "usable",
+    stats: stats.state === "usable",
+    mission: mission.state === "usable",
+  };
+  // A parsed-but-coordinate-less position record is what savePos() writes
+  // before the physics bodies exist: a real (very short) session.
+  const anything = restores.position || restores.stats || restores.mission || pos.parsed;
+  if (!anything) return { ok: false, reason: "corrupt save" };
+  const notes: string[] = [];
+  if (!restores.position) notes.push("position unreadable — resuming at the district spawn");
+  if (mission.state === "unusable") notes.push("mission progress unreadable — campaign restarts");
+  if (stats.state === "unusable") notes.push("stats unreadable — default cash and health");
+  return { ok: true, restores, notes };
+}
+
+export const AUTOSAVE_INTERVAL_MS = 20000;
+
+/** Wall-clock autosave gate. Never fires on the title screen (a save written
+ *  there is a phantom "Continue" for a game nobody started); fires on the
+ *  first started frame when lastMs is -Infinity. */
+export function autosaveDue(a: { started: boolean; nowMs: number; lastMs: number; intervalMs?: number }): boolean {
+  if (!a.started) return false;
+  return a.nowMs - a.lastMs > (a.intervalMs ?? AUTOSAVE_INTERVAL_MS);
 }
 
 /** Assemble a V2 blob from currently-scattered localStorage keys. */

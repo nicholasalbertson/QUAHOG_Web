@@ -10,7 +10,7 @@ import { saveJSON, removeItem } from "../../storage";
 import { SAVE_KEYS } from "../../registries";
 
 describe("SaveGame", () => {
-  it("canContinue requires stats + pos (mission optional for legacy)", () => {
+  it("canContinue requires a position record (stats + mission degrade; see continueContract.test.ts)", () => {
     clearAllSaves();
     expect(canContinue().ok).toBe(false);
     saveJSON(SAVE_KEYS.stats, { cash: 1, health: 100, police: 0, faction: 0 });
@@ -20,7 +20,10 @@ describe("SaveGame", () => {
     saveJSON(SAVE_KEYS.mission, { mi: 0, step: 0, done: false });
     expect(canContinue().ok).toBe(true);
     saveJSON(SAVE_KEYS.mission, { done: false });
-    expect(canContinue().reason).toMatch(/mission/i);
+    // A malformed mission no longer hides Continue (New Game would wipe the
+    // rest of the save); it degrades with a note instead.
+    expect(canContinue().ok).toBe(true);
+    expect(canContinue().notes?.join(" ")).toMatch(/mission/i);
     removeItem(SAVE_KEYS.mission);
     removeItem(SAVE_KEYS.pos);
     expect(canContinue().reason).toMatch(/position/i);
