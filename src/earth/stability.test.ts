@@ -174,6 +174,8 @@ describe("google tile faults", () => {
     expect(denied.kind).toBe("unauthorized");
     expect(JSON.stringify(denied)).not.toContain(key);
     expect(classifyTileError({ status: 403 }).kind).toBe("unauthorized");
+    expect(classifyTileError({ status: 400, message: "API key not valid. Please pass a valid API key." }).kind).toBe("unauthorized");
+    expect(classifyTileError({ status: 400, message: "malformed tile url" }).kind).toBe("unknown");
     expect(classifyTileError({ code: 429 }).kind).toBe("quota");
     expect(classifyTileEvent({ error: { status: 503 }, url: `https://tile.googleapis.com/x?key=${key}` }).kind).toBe("unavailable");
     expect(classifyTileError(new Error("Failed to fetch")).kind).toBe("unavailable");

@@ -24,6 +24,14 @@ import { headingToCompass } from "../world/compass";
 import { Ambient, type Weather } from "./Ambient";
 import { sunPositionForHour, sunDayFactor } from "./dayNight";
 import { shouldShowFallbackGround, FALLBACK_GROUND_SIZE, earthFallbackNotice } from "./fallbacks";
+import {
+  DEV_TILES_KEY,
+  fetchTilesKey,
+  normalizeTilesKey,
+  pickTilesKey,
+  takeDevOverride,
+  type TilesKeySource,
+} from "./tilesKey";
 import { sim } from "../sim/SimRuntime";
 import { TilesBVH } from "./bvh";
 import { GoogleTilesAuth } from "./GoogleTilesAuth";
@@ -45,8 +53,9 @@ import { DriveHint, PauseScreen, TitleScreen } from "./EarthMenu";
 import { sfx } from "../audio/sfx";
 
 // Mount Hope on Google Photorealistic 3D Tiles. Browser fetches tiles from
-// tile.googleapis.com. Provide a Google Maps key (Map Tiles API) via
-// ?key=YOUR_KEY or VITE_GOOGLE_MAPS_API_KEY.
+// tile.googleapis.com. The key comes from the site (Vercel /api/tiles-key,
+// a build-time VITE_ var, or tiles-key.json). ?key= is a dev override for
+// this tab only. See ENV.md. Players never need a key in the URL.
 
 function bootPlaceId(): string {
   if (typeof window === "undefined") return DEFAULT_PLACE_ID;
@@ -64,24 +73,13 @@ function bootAnchor(): LatLon {
 
 const KEY_STORE = "mh.googleMapsKey";
 
-function getApiKey(): string | null {
-  const params = new URLSearchParams(window.location.search);
-  const fromUrl = params.get("key");
-  if (fromUrl) {
-    // persist a URL-provided key so it survives reloads/teleports
-    try { localStorage.setItem(KEY_STORE, fromUrl); } catch { /* private mode */ }
-    // scrub ?key= from the address bar so the secret doesn't linger in history,
-    // referrers, or screenshots (it's saved now)
-    try {
-      params.delete("key");
-      const q = params.toString();
-      window.history.replaceState(null, "", window.location.pathname + (q ? `?${q}` : "") + window.location.hash);
-    } catch { /* no-op */ }
-    return fromUrl;
-  }
-  const fromEnv = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
-  if (fromEnv) return fromEnv;
-  try { return localStorage.getItem(KEY_STORE); } catch { return null; }
+function viteTilesKey(): string | null {
+  const env = import.meta.env;
+  return normalizeTilesKey(env.VITE_GOOGLE_MAP_TILES_KEY) || normalizeTilesKey(env.VITE_GOOGLE_MAPS_API_KEY);
+}
+
+function readBrowserTilesKey(): { key: string; source: TilesKeySource } | null {
+  return pickTilesKey({ dev: takeDevOverride(), build: viteTilesKey() });
 }
 
 const WX: Record<Weather, { sun: number; sunColor: string; bg: string; fog: [number, number]; sky: boolean }> = {
@@ -91,8 +89,11 @@ const WX: Record<Weather, { sun: number; sunColor: string; bg: string; fog: [num
 };
 
 export function EarthApp() {
-  const apiKey = typeof window !== "undefined" ? getApiKey() : null;
   const atlas = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("atlas") === "1";
+  const [keyBoot] = useState(() => (typeof window === "undefined" ? null : readBrowserTilesKey()));
+  const [apiKey, setApiKey] = useState<string | null>(keyBoot?.key ?? null);
+  const [keySource, setKeySource] = useState<TilesKeySource | null>(keyBoot?.source ?? null);
+  const [keyPending, setKeyPending] = useState(() => typeof window !== "undefined" && !keyBoot && !atlas);
   const [slice, setSlice] = useState<Slice | null>(null);
   const [mode, setMode] = useState<"play" | "orbit">("orbit");
   const [view, setView] = useState<View>("third");
@@ -129,6 +130,24 @@ export function EarthApp() {
     return () => window.clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    if (apiKey || atlas) return;
+    let cancel = false;
+    (async () => {
+      const api = await fetchTilesKey("/api/tiles-key");
+      const file = api ? null : await fetchTilesKey("./tiles-key.json");
+      let stored: string | null = null;
+      try { stored = localStorage.getItem(KEY_STORE); } catch { /* private mode */ }
+      const picked = pickTilesKey({ api, file, local: stored });
+      if (cancel) return;
+      if (picked) {
+        setApiKey(picked.key);
+        setKeySource(picked.source);
+      }
+      setKeyPending(false);
+    })();
+    return () => { cancel = true; };
+  }, [apiKey, atlas]);
   useEffect(() => installInput(), []);
   useEffect(() => { sfx.setVolume(loadSettings().volume); }, []);
   // §2.8.4 — restore the shared mission progress + stats once on boot.
@@ -210,7 +229,8 @@ export function EarthApp() {
   mapRef.current = mapOpen;
 
   if (!apiKey && atlas) return <AtlasPreview />;
-  if (!apiKey) return <NoKeyNotice />;
+  if (!apiKey && keyPending) return <KeyLoading />;
+  if (!apiKey) return <NoKeyNotice onLaunch={(key) => { setApiKey(key); setKeySource("local"); }} />;
 
   const place = placeById(placeId) ?? placeById(DEFAULT_PLACE_ID)!;
   const resumedHere = useResume && !!earthLocal && earthLocal.placeId === place.id;
@@ -350,7 +370,8 @@ export function EarthApp() {
       {fault && (
         <TileFaultOverlay
           fault={fault}
-          notice={earthFallbackNotice(fault, tilesProblem)}
+          notice={fault.kind === "unauthorized" || fault.kind === "quota" ? null : earthFallbackNotice(fault, tilesProblem)}
+          canRekey={keySource === "dev" || keySource === "local"}
           onRetry={() => { setFault(null); setTilesProblem(false); setTilesKey((k) => k + 1); }}
           onDismiss={() => setFault(null)}
         />
@@ -430,32 +451,46 @@ function FrameWatchdog({ degraded, onDegrade }: { degraded: boolean; onDegrade: 
 // §2.3: distinct copy per fault kind + a retry that re-mounts the tiles
 // renderer without a page reload. The canvas is never blank: movement still
 // runs on the fallback ground (§2.10) while this overlay is up.
-function TileFaultOverlay({ fault, notice, onRetry, onDismiss }: { fault: TileFault; notice: string | null; onRetry: () => void; onDismiss: () => void }) {
+function TileFaultOverlay({ fault, notice, canRekey, onRetry, onDismiss }: { fault: TileFault; notice: string | null; canRekey: boolean; onRetry: () => void; onDismiss: () => void }) {
   const copy = faultCopy(fault);
-  // §2.3.1 — a 401/403 means the stored key is wrong or revoked: offer to
-  // clear it and re-enter a key (lands on the NoKeyNotice after reload).
+  const blocking = fault.kind === "unauthorized" || fault.kind === "quota";
+  // A pasted or ?key= override can be cleared. A key served by the site
+  // cannot — reloading would just fetch the same one.
   const rekey = () => {
     try { localStorage.removeItem(KEY_STORE); } catch { /* private mode */ }
+    try { sessionStorage.removeItem(DEV_TILES_KEY); } catch { /* private mode */ }
     location.reload();
   };
-  return (
-    <div style={{ position: "fixed", left: "50%", bottom: 24, transform: "translateX(-50%)", zIndex: 5, maxWidth: 480, background: "rgba(40,10,10,.92)", border: "1px solid #7a2c2c", borderRadius: 8, padding: "12px 16px", color: "#ffd9d9", font: "12px/1.5 'Courier New', monospace", textAlign: "center" }}>
+  const card = (
+    <div id="tiles-fault" style={{ maxWidth: 480, background: "#1c0c0c", border: "1px solid #7a2c2c", borderRadius: 10, padding: "16px 18px", color: "#ffd9d9", font: "13px/1.5 'Courier New', monospace", textAlign: "center", boxShadow: "0 16px 48px rgba(0,0,0,.45)" }}>
       <b>{copy.title}</b>
-      <div style={{ margin: "4px 0 10px", opacity: 0.9 }}>{copy.body}</div>
-      {notice && <div style={{ margin: "0 0 10px", opacity: 0.95 }}>{notice}</div>}
+      <div style={{ margin: "6px 0 12px", opacity: 0.95 }}>{copy.body}</div>
+      {notice && <div style={{ margin: "0 0 12px", opacity: 0.95 }}>{notice}</div>}
       <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
         <button onClick={onRetry} style={{ cursor: "pointer", border: "1px solid #7a2c2c", background: "#7ad9ff", color: "#04121a", fontWeight: 700, padding: "6px 14px", borderRadius: 6, font: "12px 'Courier New', monospace" }}>
           RETRY TILES
         </button>
-        {fault.kind === "unauthorized" && (
+        {canRekey && fault.kind === "unauthorized" && (
           <button onClick={rekey} style={{ cursor: "pointer", border: "1px solid #7a2c2c", background: "transparent", color: "#ffd9d9", padding: "6px 14px", borderRadius: 6, font: "12px 'Courier New', monospace" }}>
-            RE-ENTER KEY
+            USE A DIFFERENT KEY
           </button>
         )}
         <button onClick={onDismiss} style={{ cursor: "pointer", border: "1px solid #7a2c2c", background: "transparent", color: "#ffd9d9", padding: "6px 14px", borderRadius: 6, font: "12px 'Courier New', monospace" }}>
           KEEP PLAYING (NO TILES)
         </button>
       </div>
+    </div>
+  );
+  if (blocking) {
+    return (
+      <div style={{ position: "fixed", inset: 0, zIndex: 30, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(5,7,13,.55)", padding: 24 }}>
+        {card}
+      </div>
+    );
+  }
+  return (
+    <div style={{ position: "fixed", left: "50%", bottom: 24, transform: "translateX(-50%)", zIndex: 5 }}>
+      {card}
     </div>
   );
 }
@@ -625,7 +660,7 @@ function AtlasPreview() {
       onClose={() => {}}
       onTeleport={setId}
       showClose={false}
-      notice="Atlas preview. Open /earth.html and paste a Google Maps key to drive the photoreal world."
+      notice="Atlas preview. This chart does not need a map key."
     />
   );
 }
@@ -640,31 +675,38 @@ function Loading() {
   );
 }
 
-function NoKeyNotice() {
+function KeyLoading() {
+  return (
+    <div style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#e7e0ff", background: "#05070d", font: "14px 'Courier New', monospace" }}>
+      Connecting to the map…
+    </div>
+  );
+}
+
+function NoKeyNotice({ onLaunch }: { onLaunch: (key: string) => void }) {
   const [val, setVal] = useState("");
+  const [bad, setBad] = useState(false);
   const save = () => {
-    const k = val.trim();
-    if (!k) return;
+    const k = normalizeTilesKey(val);
+    if (!k) { setBad(true); return; }
     try { localStorage.setItem(KEY_STORE, k); } catch { /* private mode */ }
-    location.reload();
+    onLaunch(k);
   };
   return (
-    <div style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#e7e0ff", background: "#05070d", font: "14px/1.6 'Courier New', monospace", padding: 24, textAlign: "center" }}>
+    <div id="tiles-key-missing" style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#e7e0ff", background: "#05070d", font: "14px/1.6 'Courier New', monospace", padding: 24, textAlign: "center" }}>
       <div style={{ maxWidth: 560 }}>
-        <h2 style={{ color: "#7ad9ff" }}>Mount Hope (photoreal) — needs a Google API key</h2>
-        <p>Renders Google's Photorealistic 3D Tiles. Needs a Google Maps Platform key with the <b>Map Tiles API</b> enabled.</p>
+        <h2 style={{ color: "#7ad9ff" }}>Photoreal streets need a map key</h2>
+        <p>This page looks for a Map Tiles key configured for the site. None was found, so the 3D map stays off. You do not put a key in the address bar.</p>
         <p style={{ textAlign: "left", background: "#0c0f1a", padding: 12, borderRadius: 8 }}>
-          1. Google Cloud → enable <b>Map Tiles API</b> (and turn on billing).<br />
-          2. Restrict the key to your site's domain.<br />
-          3. Paste the key below — it's saved in this browser only.
+          Playing on your own machine? Paste a Map Tiles key below. It stays in this browser only.
+          The site itself is configured in <b>ENV.md</b> — a Vercel env var, a build-time <b>VITE_</b> var, or a <b>tiles-key.json</b> file beside this page.
         </p>
-        {/* paste-and-go: persists to localStorage, no URL editing / rebuild needed */}
         <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
           <input
             value={val}
             onChange={(e) => setVal(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") save(); }}
-            placeholder="Paste Google Maps API key"
+            placeholder="Paste a Map Tiles key"
             spellCheck={false} autoCapitalize="off" autoCorrect="off"
             style={{ flex: 1, background: "#0c0f1a", color: "#e7e0ff", border: "1px solid #2c3a5e", borderRadius: 6, padding: "8px 10px", font: "13px 'Courier New', monospace" }}
           />
@@ -672,8 +714,9 @@ function NoKeyNotice() {
             LAUNCH
           </button>
         </div>
+        {bad && <p style={{ color: "#ffb4b4" }}>That doesn't look like a Map Tiles key.</p>}
         <p style={{ opacity: 0.6, fontSize: 11, marginTop: 10 }}>
-          Or open <code style={{ color: "#9fd8ff" }}>/earth.html?key=YOUR_KEY</code>, or set <code>VITE_GOOGLE_MAPS_API_KEY</code> at build time.
+          Developers can pass <code style={{ color: "#9fd8ff" }}>?key=</code> for this browser tab only.
           Google bills per tile session and its terms govern use.
         </p>
       </div>

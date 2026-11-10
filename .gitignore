@@ -41,6 +41,10 @@ music/
 *.token
 credentials*
 *secret*
+# Photorealistic 3D Tiles browser key dropped beside earth.html (see ENV.md).
+# Fetched at runtime on an rsync host. Never commit it.
+public/tiles-key.json
+tiles-key.json
 
 # --- Test / coverage / logs ---
 coverage/

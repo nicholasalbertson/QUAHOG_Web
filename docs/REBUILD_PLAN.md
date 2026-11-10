@@ -18,6 +18,7 @@ Phase 1 is in. Phase 2 and the first playable loop are in on the same branch:
 - Hitting someone raises police stars. One or two cruisers chase. Stars decay. A bust takes a cut of cash.
 - Fronts from the shared economy can be bought from the pause menu. Income still ticks.
 - Title screen, pause, settings (volume, hour, weather), and control rebinding through the shared key map. Procedural SFX (engine, horn, crash, punch, siren, cash, footsteps, harbor bed). No music files.
+- Players open `earth.html` with no `?key=`. Vercel serves the browser key from `GOOGLE_MAP_TILES_KEY` (`/api/tiles-key`). An rsync of `dist/` uses a build-time `VITE_GOOGLE_MAP_TILES_KEY` or a gitignored `tiles-key.json`. A missing, refused (401/403, or 400 when Google says the key is invalid), or over-quota (429) key shows an overlay. How to create and restrict the key is in `ENV.md`. `?key=` is a one-tab developer override.
 
 Still not a commercial release. See the note at the bottom of "After phase 1".
 
@@ -151,7 +152,7 @@ If it still crashes, raise `errorTarget` before adding content. That is still th
 
 ### What a commercial release still needs, and a person has to do
 
-- A Google Maps Platform key with Map Tiles API enabled, billing on, and a decision about the [Map Tiles API terms](https://developers.google.com/maps/documentation/tile). The key is not in the repo. Photoreal tiles do not draw without one.
+- A Google Maps Platform key with Map Tiles API enabled, billing on, HTTP referrers for `quahog.fullstackassets.com` and the Vercel domains, and a decision about the [Map Tiles API terms](https://developers.google.com/maps/documentation/tile). The page already requests it (`ENV.md`). The key is not in the repo. Photoreal tiles do not draw until someone sets it on the host.
 - Licensed or original vehicle, character, and clothing art. The current people are rigid stand-ins. The cars are pack GLBs already in the repo; their license has to be confirmed before a store build.
 - Voice, writing pass, and a real mission script. The arc and the campaign are playable text, not a performed story.
 - Store setup: age rating, privacy policy, support contact, icons, screenshots, and a host. Nothing here deploys.

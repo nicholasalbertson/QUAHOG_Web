@@ -78,10 +78,16 @@ function detailOf(error: unknown): string {
   return "";
 }
 
+function keyWasRefused(status: number | null, detail: string): boolean {
+  if (status === 401 || status === 403) return true;
+  // An invalid browser key comes back as 400 API_KEY_INVALID, not 401.
+  return status === 400 && /api[_\s-]?key/i.test(detail);
+}
+
 export function classifyTileError(error: unknown): TileFault {
   const status = statusOf(error);
   const detail = detailOf(error);
-  if (status === 401 || status === 403) {
+  if (keyWasRefused(status, detail)) {
     return { kind: "unauthorized", status, summary: "Google refused the map key.", detail };
   }
   if (status === 429) {
@@ -126,14 +132,14 @@ export function faultCopy(fault: TileFault): { title: string; body: string } {
   if (fault.kind === "unauthorized") {
     const code = fault.status ? ` (${fault.status})` : "";
     return {
-      title: "Google refused the map key",
-      body: `The tiles request was rejected${code}. Check that this browser key has the Map Tiles API enabled and that this site is an allowed referrer, then reload.${billing}`,
+      title: "The map key was refused",
+      body: `Google refused this site's Map Tiles key${code}. Photoreal streets stay off until the key is valid for this address. You can keep driving on the plain ground.${billing}`,
     };
   }
   if (fault.kind === "quota") {
     return {
-      title: "Google tile quota",
-      body: `Google returned ${fault.status ?? 429}. Photoreal tiles may stop until that quota window resets. Reload later to try again.${billing}`,
+      title: "Map tiles are over quota",
+      body: `Google returned ${fault.status ?? 429}. Photoreal streets pause until that quota window resets. You can keep driving on the plain ground, and reload later to try again.${billing}`,
     };
   }
   if (fault.kind === "unavailable") {
