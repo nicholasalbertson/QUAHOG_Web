@@ -243,13 +243,17 @@ export function EarthApp() {
     if (!url) { setSnapWait(false); return; }
     setSnapWait(true);
     const timer = window.setTimeout(() => { if (!cancel) setSnapWait(false); }, 800);
+    let frame = 0;
     loadSliceCached(url).then((city) => {
-      if (cancel) return;
-      const hit = nearestRoadSpawn(city.roads, anchorOf(place), false);
-      if (hit) setSnap({ x: hit.x, z: hit.z, heading: hit.heading });
-      setSnapWait(false);
+      // The slice parse and the road search stay on different frames.
+      frame = window.requestAnimationFrame(() => {
+        if (cancel) return;
+        const hit = nearestRoadSpawn(city.roads, anchorOf(place), false);
+        if (hit) setSnap({ x: hit.x, z: hit.z, heading: hit.heading });
+        setSnapWait(false);
+      });
     }).catch(() => { if (!cancel) setSnapWait(false); });
-    return () => { cancel = true; window.clearTimeout(timer); };
+    return () => { cancel = true; window.clearTimeout(timer); if (frame) window.cancelAnimationFrame(frame); };
   }, [placeId, worldOn]);
   const onAnchor = useCallback((next: LatLon) => {
     playState.anchor = next;

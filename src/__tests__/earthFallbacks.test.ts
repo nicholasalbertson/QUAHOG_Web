@@ -21,6 +21,9 @@ describe("§2.10 earth fallbacks", () => {
     expect(earthFallbackNotice(five, false)).toBe(fallbackNotice("tile-500"));
     expect(earthFallbackNotice(null, true)).toMatch(/fallback|Network/i);
     expect(earthFallbackNotice(null, false)).toBeNull();
+    const missingSession: TileFault = { kind: "unknown", status: 400, summary: "400", detail: "invalid argument" };
+    expect(earthFallbackNotice(missingSession, false)).not.toMatch(/environment map/i);
+    expect(earthFallbackNotice(missingSession, false)).toMatch(/network|fallback/i);
   });
 
   it("PackGLB renders a fallback vehicle on load failure (not nothing)", async () => {

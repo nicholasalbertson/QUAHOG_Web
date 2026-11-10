@@ -20,7 +20,7 @@ import { followCam, forwardHit, frameUp, groundY, lerpAngle, sanitizePosition } 
 import { EARTH_TUNING, chaseForSpeed, stepEarthDrive } from "./drive";
 import { NPC_GROUND_INTERVAL_S, WALL_INTERVAL_S, tileCollision } from "./raycastBudget";
 import { noteCrime, playState, resetBodies, type Body } from "./playState";
-import { lampsFromRoutes, planRebase, registerShift, scanRoutes, shiftLocals, type LocalRoute } from "./rebase";
+import { CAR_ENTER_M, lampsFromRoutes, parkedCar, planRebase, registerShift, scanRoutes, shiftLocals, type LocalRoute } from "./rebase";
 import { stepLanes, followRoad, roadblockPoint, type LaneState } from "./traffic";
 import { junctionsFromRoutes, laneOffset, laneShift, pedReaction, signalOpen } from "./signals";
 import { applyImpact, powerFor, repairBill } from "./damage";
@@ -91,7 +91,7 @@ export function PlayerRig({ spawn, view, onReady, onAnchor, roads, wet }: {
     stepAcc: 0,
     // §2.4.5 — jump state (y = height above ground, 0 = grounded).
     jump: { y: 0, vy: 0, grounded: true } as JumpState,
-    carPos: new THREE.Vector3(spawn.x + 5, 0, spawn.z),
+    carPos: new THREE.Vector3(parkedCar(spawn).x, 0, parkedCar(spawn).z),
     carYaw: spawn.heading,
   });
 
@@ -101,9 +101,14 @@ export function PlayerRig({ spawn, view, onReady, onAnchor, roads, wet }: {
     spawnRef.current = spawn;
     if (prev.x === spawn.x && prev.z === spawn.z && prev.heading === spawn.heading) return;
     const st = s.current;
-    if (Math.hypot(st.pos.x - prev.x, st.pos.z - prev.z) > 12) return;
+    const wandered = Math.hypot(st.pos.x - prev.x, st.pos.z - prev.z);
+    const jump = Math.hypot(spawn.x - st.pos.x, spawn.z - st.pos.z);
+    // A late highway snap is a real move. Ignore only a small correction
+    // after the player has already walked away from the previous pin.
+    if (jump <= 30 && wandered > 12) return;
+    const parked = parkedCar(spawn);
     st.pos.set(spawn.x, st.pos.y, spawn.z);
-    st.carPos.set(spawn.x + 5, st.carPos.y, spawn.z);
+    st.carPos.set(parked.x, st.carPos.y, parked.z);
     st.heading = spawn.heading;
     st.carYaw = spawn.heading;
     st.camYaw = spawn.heading;
@@ -223,7 +228,7 @@ export function PlayerRig({ spawn, view, onReady, onAnchor, roads, wet }: {
       car.current!.position.copy(st.carPos);
       car.current!.rotation.y = st.carYaw;
       car.current!.rotation.z = 0;
-      if (actionTap("interact") && planar(st.pos, st.carPos) < 5.5) { st.mode = "car"; sfx.door(); }
+      if (actionTap("interact") && planar(st.pos, st.carPos) < CAR_ENTER_M) { st.mode = "car"; sfx.door(); }
 
       st.camYaw = lerpAngle(st.camYaw, st.heading, 1 - Math.exp(-step * 3));
       if (view === "third") followCam(camera, parent, up, st.pos, st.camYaw, 7, 4, 1 - Math.exp(-step * 6));

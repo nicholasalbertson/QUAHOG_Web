@@ -7,7 +7,7 @@
 // the highways stay drivable.
 
 import { DRIVABLE } from "./follow";
-import { anchorIsSliceOrigin, localToLatLon, sliceToFrame, type LatLon } from "./geo";
+import { SLICE_ORIGIN, anchorIsSliceOrigin, latLonToLocal, localToLatLon, sliceToFrame, type LatLon } from "./geo";
 
 export const REBASE_DISTANCE_M = 1800;
 
@@ -50,6 +50,20 @@ export interface RoadSpawn {
   heading: number;
 }
 
+/** How close the player has to be to get in. A car length, not a point. */
+export const CAR_ENTER_M = 8;
+
+/**
+ * Park on the centerline ahead of the player. A sideways offset puts the car
+ * off the highway, so walking along the road leaves the enter radius.
+ */
+export function parkedCar(spawn: RoadSpawn, ahead = 3.5): { x: number; z: number } {
+  return {
+    x: spawn.x + Math.sin(spawn.heading) * ahead,
+    z: spawn.z + Math.cos(spawn.heading) * ahead,
+  };
+}
+
 type RoadLine = {
   highway: string;
   points: [number, number][];
@@ -71,8 +85,26 @@ export function nearestRoadSpawn(
 ): RoadSpawn | null {
   let best = maxDist;
   let hit: RoadSpawn | null = null;
+  const anchorLocal = latLonToLocal(SLICE_ORIGIN, anchor);
+  const east0 = anchorLocal.x;
+  const north0 = -anchorLocal.z;
   for (const road of roads) {
     if (!DRIVABLE.has(road.highway) || road.points.length < 2) continue;
+    // Reject from the slice-meter bounds. A segment cannot be closer than
+    // its box, and this skips the trig on the rest of a city slice.
+    let minE = Infinity;
+    let maxE = -Infinity;
+    let minN = Infinity;
+    let maxN = -Infinity;
+    for (const [e, n] of road.points) {
+      if (e < minE) minE = e;
+      if (e > maxE) maxE = e;
+      if (n < minN) minN = n;
+      if (n > maxN) maxN = n;
+    }
+    const de = east0 < minE ? minE - east0 : east0 > maxE ? east0 - maxE : 0;
+    const dn = north0 < minN ? minN - north0 : north0 > maxN ? north0 - maxN : 0;
+    if (Math.hypot(de, dn) > best) continue;
     for (let i = 0; i < road.points.length - 1; i++) {
       const a = sliceToFrame(anchor, road.points[i][0], road.points[i][1], aligned);
       const b = sliceToFrame(anchor, road.points[i + 1][0], road.points[i + 1][1], aligned);

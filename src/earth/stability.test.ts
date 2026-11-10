@@ -176,6 +176,10 @@ describe("google tile faults", () => {
     expect(classifyTileError({ status: 403 }).kind).toBe("unauthorized");
     expect(classifyTileError({ status: 400, message: "API key not valid. Please pass a valid API key." }).kind).toBe("unauthorized");
     expect(classifyTileError({ status: 400, message: "malformed tile url" }).kind).toBe("unknown");
+    const missingSession = classifyTileError({ status: 400, message: "Request contains an invalid argument." });
+    expect(faultCopy(missingSession).body).toContain("400");
+    expect(faultCopy(missingSession).body.toLowerCase()).toContain("session");
+    expect(faultCopy(missingSession).body).not.toContain("No Google status");
     expect(classifyTileError({ code: 429 }).kind).toBe("quota");
     expect(classifyTileEvent({ error: { status: 503 }, url: `https://tile.googleapis.com/x?key=${key}` }).kind).toBe("unavailable");
     expect(classifyTileError(new Error("Failed to fetch")).kind).toBe("unavailable");
@@ -221,6 +225,15 @@ describe("google tile faults", () => {
     await quiet("https://tile.googleapis.com/ok");
     expect(other).toEqual([]);
     expect(isGoogleTileUrl("/root.json")).toBe(false);
+    expect(isGoogleTileUrl("/v1/3dtiles/datasets/abc/files/tile.glb")).toBe(true);
+    const relative: string[] = [];
+    const relativeFetch = observeTileFetch(async () => new Response("bad session", { status: 400 }), (fault) => {
+      relative.push(faultCopy(fault).body);
+    });
+    await relativeFetch("/v1/3dtiles/datasets/abc/files/tile.glb?key=AIzaSyTHISKEYMUSTNOTLEAK");
+    expect(relative).toHaveLength(1);
+    expect(relative[0]).toContain("400");
+    expect(relative[0]).not.toContain("AIza");
   });
 
   it("ignores dispose before init and a dispose that throws", () => {

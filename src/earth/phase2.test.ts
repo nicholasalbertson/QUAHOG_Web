@@ -5,7 +5,9 @@ import { OPENING_ARC, arcDistance, loadArc, currentArc, resetArc } from "./arc";
 import { nearestCity } from "./regions";
 import {
   lampPoints,
+  CAR_ENTER_M,
   nearestRoadSpawn,
+  parkedCar,
   planRebase,
   routesNear,
   shiftXZ,
@@ -67,6 +69,30 @@ describe("road spawn and local traffic routes", () => {
     expect(hit).not.toBeNull();
     expect(hit!.x).toBeCloseTo(120, 3);
     expect(hit!.z).toBeCloseTo(0, 3);
+  });
+
+  it("parks the car ahead on the heading, inside the enter radius", () => {
+    const spawn = { x: 10, z: 4, heading: 0.4 };
+    const car = parkedCar(spawn);
+    const dist = Math.hypot(car.x - spawn.x, car.z - spawn.z);
+    expect(dist).toBeGreaterThan(2);
+    expect(dist).toBeLessThan(CAR_ENTER_M);
+    const step = 1.2;
+    const walked = Math.hypot(car.x - (spawn.x + Math.sin(spawn.heading) * step), car.z - (spawn.z + Math.cos(spawn.heading) * step));
+    expect(walked).toBeLessThan(dist);
+  });
+
+  it("skips a far road's points when the bounds are outside the search", () => {
+    const far = {
+      highway: "residential" as const,
+      points: Array.from({ length: 20000 }, (_, i) => [9000 + i * 0.01, 9000] as [number, number]),
+    };
+    const near = { highway: "primary" as const, points: [[12, 0], [12, 30]] as [number, number][] };
+    const started = performance.now();
+    const hit = nearestRoadSpawn([far, near], SLICE_ORIGIN, false);
+    expect(performance.now() - started).toBeLessThan(80);
+    expect(hit).not.toBeNull();
+    expect(hit!.x).toBeCloseTo(12, 0);
   });
 
   it("builds routes near the anchor and skips ones already in the set", () => {

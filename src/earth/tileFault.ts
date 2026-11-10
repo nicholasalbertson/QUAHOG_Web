@@ -25,6 +25,7 @@ export function redactSecrets(message: string): string {
 }
 
 export function isGoogleTileUrl(url: string): boolean {
+  if (url.startsWith("/v1/3dtiles") || url.startsWith("v1/3dtiles")) return true;
   try {
     return new URL(url).hostname === "tile.googleapis.com";
   } catch {
@@ -33,7 +34,7 @@ export function isGoogleTileUrl(url: string): boolean {
 }
 
 function statusFromMessage(message: string): number | null {
-  const named = message.match(/\b(401|403|429|408|500|502|503|504)\b/);
+  const named = message.match(/\b(400|401|403|429|408|500|502|503|504)\b/);
   if (named) return Number(named[1]);
   if (/UNAUTHENTICATED|PERMISSION_DENIED/i.test(message)) return 403;
   if (/RESOURCE_EXHAUSTED|quota/i.test(message)) return 429;
@@ -99,6 +100,9 @@ export function classifyTileError(error: unknown): TileFault {
   if (/failed to fetch|network|timeout|aborted/i.test(detail)) {
     return { kind: "unavailable", status, summary: "The tiles request did not complete.", detail };
   }
+  if (status === 400) {
+    return { kind: "unknown", status, summary: "Google returned 400. The tile session was missing or rejected.", detail };
+  }
   return { kind: "unknown", status, summary: "A tile request failed without a Google status.", detail };
 }
 
@@ -147,6 +151,15 @@ export function faultCopy(fault: TileFault): { title: string; body: string } {
     return {
       title: "Google tiles are unavailable",
       body: `The tiles service did not complete the request${code}. Movement still runs; reload to try again.`,
+    };
+  }
+  if (fault.status != null) {
+    const session = fault.status === 400
+      ? " A 400 after the map key was accepted usually means the tile session was missing from the request."
+      : "";
+    return {
+      title: "Photoreal tiles haven't arrived",
+      body: `Google returned ${fault.status}.${session} Street movement still runs.`,
     };
   }
   return {
