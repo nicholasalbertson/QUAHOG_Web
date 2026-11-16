@@ -85,3 +85,25 @@ test('committed baseline, when stale, blocks with an explicit reason (never pass
   assert.equal(report.verdict,'BLOCK_PRODUCTION_UNRECONCILED');
  }finally{rmSync(scratch,{recursive:true,force:true});}
 });
+
+// Codex review on PR #28 (P2): lineage of an added file removed by an earlier
+// rebaseline must survive later rebaselines, so its live copy still verifies.
+test('full-tree rebaseline keeps lineage of an already-removed added file across generations',()=>{
+ const scratch=mkdtempSync(join(tmpdir(),'quahog-fulltree-rerebase-'));
+ try{
+  const gone='docs/__removed_fixture__.md';
+  const prior=committed();
+  const h='0'.repeat(63)+'1';
+  prior.added[gone]=h;
+  const p0=join(scratch,'p0.json'),g1=join(scratch,'g1.json'),g2=join(scratch,'g2.json');
+  writeFileSync(p0,JSON.stringify(prior));
+  assert.equal(run(rebaseline,'--kind','fulltree','--from',p0,'--out',g1).status,0);
+  assert.equal(run(rebaseline,'--kind','fulltree','--from',g1,'--out',g2).status,0);
+  for(const f of [g1,g2]){
+   const m=JSON.parse(readFileSync(f,'utf8'));
+   assert.ok(m.removed.includes(gone),`${f}: removed entry lost`);
+   assert.deepEqual(m.addedIntermediates[gone],[h],`${f}: lineage lost`);
+  }
+  assert.equal(readFileSync(g1,'utf8').replace(/"packageFileCount".*\n/,''),readFileSync(g2,'utf8').replace(/"packageFileCount".*\n/,''));
+ }finally{rmSync(scratch,{recursive:true,force:true});}
+});

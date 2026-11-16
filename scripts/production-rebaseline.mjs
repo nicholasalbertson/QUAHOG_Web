@@ -48,6 +48,7 @@ if(kind==='fulltree'){
  }
  for(const p of files){
   if(p in prior.before)continue;
+  removed.delete(p);
   added[p]=sha(join(root,p));
   const lineage=uniq([...asList(prior.addedIntermediates?.[p]),prior.added?.[p]],added[p]);
   if(lineage.length)addedIntermediates[p]=lineage;
@@ -56,6 +57,13 @@ if(kind==='fulltree'){
   if(inPackage.has(p))continue;
   removed.add(p);
   addedIntermediates[p]=uniq([...asList(prior.addedIntermediates?.[p]),h]);
+ }
+ // Paths removed by an EARLIER rebaseline are in neither `before` nor
+ // `added` any more; keep their authenticated lineage while they stay removed.
+ for(const p of prior.removed??[]){
+  if(p in prior.before||p in (prior.added??{})||inPackage.has(p))continue;
+  const lineage=uniq(asList(prior.addedIntermediates?.[p]));
+  if(lineage.length)addedIntermediates[p]=lineage;
  }
  next={schemaVersion:2,basePackage:prior.basePackage,scope:prior.scope,
   generator:'scripts/production-rebaseline.mjs',packageFileCount:files.length,
@@ -72,6 +80,7 @@ if(kind==='fulltree'){
  }
  const expectedAdded=[];
  for(const p of prior.expectedAdded){if(hashOf(p))expectedAdded.push(p);else retired.add(p);}
+ for(const p of [...retired])if(hashOf(p))retired.delete(p);
  next={schemaVersion:2,baselineArchiveName:prior.baselineArchiveName,baselineArchiveSHA256:prior.baselineArchiveSHA256,
   generator:'scripts/production-rebaseline.mjs',approvedR3:prior.approvedR3,
   expectedModified:sorted(expectedModified),expectedAdded:expectedAdded.sort(),

@@ -61,6 +61,19 @@ for(const relative of manifest.expectedAdded){
  }
  report.intentionalAdditions.push({path:relative,status:existsSync(observed)?'already_applied':'new'});
 }
+// Paths the package deliberately stopped shipping (production-rebaseline.mjs
+// `retired`): the package must not contain them, and a live copy must be
+// absent or carry an authenticated lineage hash. Without this a removed file
+// could hold an unmerged live edit and still pass.
+report.retiredChecked=0;
+for(const relative of manifest.retired??[]){
+ const shipped=join(pkg,relative),observed=join(live,relative);
+ if(existsSync(shipped)){report.conflicts.push({path:relative,reason:'declared_retired_file_present_in_package'});continue;}
+ if(existsSync(observed)&&(!statSync(observed).isFile()||!approved(relative).includes(sha(observed)))){
+  report.conflicts.push({path:relative,reason:'retired_path_live_version_not_in_authenticated_lineage'});continue;
+ }
+ report.retiredChecked++;
+}
 report.verdict=report.conflicts.length?'blocked_pending_reconciliation':'sources_compatible_review_and_checks_still_required';
 console.log(JSON.stringify(report,null,2));
 if(report.conflicts.length)process.exitCode=1;
