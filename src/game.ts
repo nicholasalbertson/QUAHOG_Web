@@ -1,10 +1,11 @@
 import { create } from "zustand";
+import { SAVE_KEYS } from "./registries";
 
 // Core gameplay stats (§15): wallet, health, and the dual-axis Heat system —
 // Axis A = police (0..5 badges), Axis B = faction aggro (0..5). Persisted to
 // localStorage.
 
-const KEY = "mounthope.save.v1";
+const KEY = SAVE_KEYS.stats;
 
 interface Stats {
   cash: number;
