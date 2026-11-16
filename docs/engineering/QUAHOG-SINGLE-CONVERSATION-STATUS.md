@@ -1,5 +1,17 @@
 # QUAHOG / Mount Hope: The Narrows — current checkpoint
 
+## Checkpoint 2026-11-15 — production-preflight test repair (slice 2)
+
+- VERIFIED-NOW `main` still `755404442fd362ff6e2ea5beac4fc6899bc0587d`; this branch is two commits on top of it.
+- Root cause: both preflight tests ran against committed baselines that pin the exact bytes of the 2026-11-02 release package. Every later source commit made them red. `src/earth/Vehicles.tsx` (renamed to `src/earth/vehicleTypes.ts` on 2026-11-03) was the first visible symptom; against an identical copy of current main the full-tree tool reported 134 conflicts and the focused tool 9.
+- Changed:
+  - `scripts/production-lineage.mjs` (new): shared `PROTECTED_PATHS` (now `src/earth/vehicleTypes.ts`), `sha`, file listing, arg parsing.
+  - `scripts/production-rebaseline.mjs` (new): deterministic generator for the package side of either baseline. Keeps `before`/prior-handoff hashes verbatim, moves every superseded hash into a lineage list, declares dropped paths in `removed`/`retired`. Writes only `--out`.
+  - `scripts/production-preflight.mjs`, `scripts/production-fulltree-preflight.mjs`: optional `--manifest`; accept hash lists; full-tree tool enforces `removed` (package must not ship it; live copy absent or in lineage). With the committed baselines their verdicts are unchanged (still BLOCK, fail closed).
+  - Tests now generate a baseline from the tree under test, and add: lineage never dropped, generator deterministic, removed-path live edit blocks, missing live file blocks, stale committed baseline blocks.
+- NOT changed: the committed `scripts/production-baseline.json` and `scripts/production-fulltree-baseline.json`. Regenerating them is a release decision (they authenticate a live tree); run the generator and review the diff at release time.
+- VERIFIED-NOW `npm run test:production-assets` exit 0, 42/42 (was 37/39).
+
 ## Checkpoint 2026-11-09 20:20 America/New_York — Continue contract slice
 
 Status tags: VERIFIED-NOW (run in this session), SOURCE-INSPECTED, UNVERIFIED, BLOCKED.
@@ -44,7 +56,7 @@ Status tags: VERIFIED-NOW (run in this session), SOURCE-INSPECTED, UNVERIFIED, B
 No deployment performed. Staging, production, DNS, secrets, repository visibility untouched.
 
 ### Next slice
-Repair the two pre-existing `test:production-assets` failures (start at `scripts/tests/production-preflight.test.mjs:23`, which copies a `src/earth/Vehicles.tsx` that no longer exists), so the P0 gate set is green before touching PR #26.
+Done in slice 2 above. Next: fix `scripts/check-no-music.sh` (11 host `manifest.json` files not in `.audio-allowlist`) without adding or removing any audio, then review PR #26.
 
 ---
 
