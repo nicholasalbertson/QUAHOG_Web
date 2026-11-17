@@ -1,8 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
-import { TrafficPackCar } from "../actors/TrafficPackCar";
-import { trafficWheelR } from "./StreetLife";
+import { Cc0Vehicle } from "../actors/Cc0Vehicle";
 import { shared, type Cop } from "../shared";
 import { useStats } from "../game";
 import { useGame } from "../store";
@@ -12,6 +11,8 @@ import { desiredCops, heatTier } from "../sim/HeatTiers";
 import { escalateHeat } from "../sim/HeatEscalation";
 import { sim } from "../sim";
 import { useInventory } from "../inventory";
+import { LicensedHuman } from "../actors/LicensedHuman";
+import { Character } from "./Character";
 
 // Police pursuit (§14): REMOVED 2026-11-02 per Nic — the pursuit homed
 // straight onto the player with no standoff distance and no colliders, so
@@ -175,6 +176,9 @@ export function Police() {
           <cylinderGeometry args={[0.12, 0.12, 9, 6]} />
           <meshStandardMaterial color="#2a3550" />
         </mesh>
+        <group position={[1.6, 0, 0]}>
+          <LicensedHuman slot={4} moving={() => false} fallback={<Character shirt="#1d3f8a" pants="#1a1c22" moving={() => false} />} />
+        </group>
       </group>
 
       {units.current.map((_, i) => (
@@ -184,11 +188,7 @@ export function Police() {
               to the procedural infiniti's roof; verify against the cruiser
               GLB in-game when pursuit is re-enabled (system is currently
               POLICE_ENABLED=false and unmounted in Experience). */}
-          <TrafficPackCar
-            pack="/packs/pack006/patrol_cruiser.glb"
-            wheelR={trafficWheelR("/packs/pack006/patrol_cruiser.glb")}
-            getSpeed={() => (units.current[i]?.active ? SPEED : 0)}
-          />
+          <Cc0Vehicle slot={3} />
           {/* roof lightbar */}
           <mesh ref={(el) => (lightL.current[i] = el)} position={[-0.28, 1.7, -0.1]}>
             <boxGeometry args={[0.3, 0.14, 0.3]} />

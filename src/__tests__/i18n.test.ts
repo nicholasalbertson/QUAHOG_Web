@@ -136,11 +136,13 @@ describe("§16.1 full pass — HUD + StartMenu complete", () => {
       "hud.helpMove", "hud.helpSprint", "hud.helpEnterExit", "hud.helpBrake", "hud.helpMelee", "hud.helpDraw",
       "hud.helpClickFire", "hud.helpView", "hud.helpHorn", "hud.helpMap", "hud.helpCharacter", "hud.helpWeather",
       "hud.helpRadio", "hud.helpWeapons", "hud.helpPhoto",
+      "coast.discovery", "coast.empty", "coast.take", "coast.fareOffer", "coast.raceOffer",
+      "coast.fareActive", "coast.raceActive", "coast.found",
     ]);
     const unused = [...found].filter((k) => !used.has(k));
     const missing = [...used].filter((k) => !found.has(k));
     expect(unused, `unused catalog keys: ${unused.join(", ")}`).toEqual([]);
     expect(missing, `used keys missing from catalog: ${missing.join(", ")}`).toEqual([]);
-    expect(found.size).toBe(70);
+    expect(found.size).toBe(78);
   });
 });

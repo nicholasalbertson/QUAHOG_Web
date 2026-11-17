@@ -102,3 +102,13 @@ Settings → Environment Variables** and redeploy:
 
 Without these (or on local `vite dev`, which doesn't run the function) it falls
 back silently to the procedural ground. Imagery © Google.
+
+## Photoreal streets (Map Tiles)
+
+`earth.html` loads Google Photorealistic 3D Tiles. Players open the page with
+no `?key=`. On Vercel, set `GOOGLE_MAP_TILES_KEY` (a referrer-restricted Map
+Tiles browser key) and the page reads it from `/api/tiles-key`. A manual rsync
+of `dist/` has no `/api`, so that host needs the key baked in with
+`VITE_GOOGLE_MAP_TILES_KEY` at build time, or a gitignored `tiles-key.json`
+beside `earth.html`. The exact referrer list, API restriction, and rsync
+exclude are in `ENV.md`. `?key=` is a one-tab developer override.

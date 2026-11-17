@@ -1,4 +1,6 @@
+import "./textSetup";
 import { Component, Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
+import { contextLostPlan } from "./perf/sceneBudget";
 import * as THREE from "three";
 import { Canvas, useThree } from "@react-three/fiber";
 import { FrameDriver } from "./mobile/FrameDriver";
@@ -10,9 +12,29 @@ import { Experience } from "./Experience";
 // and menus (outside the Canvas) keep working.
 class SceneBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
+  private retries = 0;
   static getDerivedStateFromError() { return { failed: true }; }
-  componentDidCatch(e: unknown) { console.error("[scene] component error:", e); }
-  render() { return this.state.failed ? null : this.props.children; }
+  componentDidCatch(e: unknown) {
+    console.error("[scene] component error:", e);
+    try { useGame.getState().setQuality(contextLostPlan().quality); } catch { /* recovery must still paint */ }
+    if (this.retries < 1) {
+      this.retries += 1;
+      setTimeout(() => this.setState({ failed: false }), 400);
+    }
+  }
+  render() {
+    if (!this.state.failed) return this.props.children;
+    // A lit ground, not an empty canvas. The HUD stays up either way.
+    return (
+      <>
+        <ambientLight intensity={0.85} />
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
+          <planeGeometry args={[400, 400]} />
+          <meshStandardMaterial color="#3d4338" />
+        </mesh>
+      </>
+    );
+  }
 }
 
 // WebGL context guard (2026-11-07, streamer-stability diagnosis). Nic's 52 s
@@ -31,7 +53,9 @@ function ContextGuard() {
   useEffect(() => {
     const c = gl.domElement;
     const onLost = (e: Event) => {
-      e.preventDefault(); // required — without it the context cannot be restored
+      const plan = contextLostPlan();
+      if (plan.preventDefault) e.preventDefault();
+      try { useGame.getState().setQuality(plan.quality); } catch { /* drop load even if the toast store is down */ }
       console.error("[context] WebGL context lost — world unloaded (GPU/memory pressure suspected); attempting restore");
       try {
         useToasts.getState().push("GRAPHICS RESTARTED — the world is reloading", "#ffb0b0");
@@ -65,9 +89,20 @@ import { DebugCapture } from "./debug/DebugCapture";
 import { PerfProbe } from "./ui/PerfProbe";
 import { AssetLoadNotice } from "./assets/AssetLoadNotice";
 import { StartMenu } from "./ui/StartMenu";
+import { peekBoot, clearBoot } from "./boot/intent";
+import { clearAllSaves } from "./sim/SaveGame";
+import { useStats } from "./game";
+import { useMission } from "./mission";
+import { useEconomy } from "./economy";
+import { useInventory } from "./inventory";
+import { worldJournal } from "./world/worldJournal";
+import { sfx } from "./audio/sfx";
 import { Radio } from "./audio/Radio";
 import { installInput } from "./input";
 import { useGame, useToasts } from "./store";
+import { shared } from "./shared";
+import { SLICE_ORIGIN, localToLatLon } from "./earth/geo";
+import { CoastExtras } from "./ui/CoastExtras";
 import { requestGuardedSpawn } from "./world/SpawnGuard";
 import { applyReviewStore } from "./dev/visualReview";
 
@@ -79,6 +114,25 @@ export default function App() {
   const [sliceName, setSliceName] = useState("loading…");
   const [progress, setProgress] = useState(0);
   const quality = useGame((s) => s.quality);
+  const started = useGame((s) => s.started);
+  const booting = useState(() => (peekBoot() ?? "").startsWith("street"))[0];
+
+  useEffect(() => {
+    const intent = peekBoot();
+    if (intent !== "street-new" && intent !== "street-continue") return;
+    clearBoot();
+    if (intent === "street-new") {
+      clearAllSaves();
+      useStats.getState().reset();
+      useMission.getState().reset();
+      useEconomy.setState({ owned: {} });
+      useInventory.getState().reset();
+      worldJournal.reset();
+      useGame.getState().resetSession();
+    }
+    sfx.setVolume(0.5);
+    useGame.getState().setStarted(true);
+  }, []);
 
   // stable callbacks so the Experience loader effect doesn't re-run each render
   // Fall River integration (2026-11-03): onReady also fires the deferred
@@ -112,6 +166,7 @@ export default function App() {
 
   return (
     <>
+      {started && (
       <Canvas
         shadows="soft"
         frameloop="never"
@@ -133,18 +188,36 @@ export default function App() {
           </SceneBoundary>
         </Suspense>
       </Canvas>
+      )}
+      {started && (
+        <>
       <HUD sliceName={sliceName} />
       <Minimap />
       <BigMap />
       <CharacterMenu />
       <PauseMenu />
       <TouchControls />
+      <CoastExtras pose={() => {
+        const game = useGame.getState();
+        const body = game.mode === "car" ? shared.car : shared.player;
+        const at = body?.translation();
+        if (!at) return null;
+        const ll = localToLatLon(SLICE_ORIGIN, at.x, at.z);
+        return { lat: ll.lat, lon: ll.lon, driving: game.mode === "car", paused: game.paused };
+      }} />
       <Toasts />
       <Radio />
       <DebugStats />
       <DebugOverlay />
       <AssetLoadNotice />
-      <StartMenu sliceName={sliceName} progress={progress} />
+        </>
+      )}
+      {(booting || started) && sliceName === "loading…" && (
+        <div id="world-loading" style={{ position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(9,24,31,.72)", color: "#e9e8df", fontFamily: "system-ui, sans-serif", zIndex: 20, pointerEvents: "none" }}>
+          Loading the coast… {Math.round(progress * 100)}%
+        </div>
+      )}
+      {!(booting && !started && sliceName === "loading…") && <StartMenu sliceName={sliceName} progress={progress} canPlay />}
     </>
   );
 }

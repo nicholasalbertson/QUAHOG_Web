@@ -14,14 +14,22 @@
     <meta name="apple-mobile-web-app-title" content="The Narrows" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
-    <title>The Narrows — South Coast</title>
+    <title>The Narrows — Street map</title>
     <style>
       html, body, #root { margin: 0; height: 100%; background: #0a0a14; overflow: hidden; }
       * { box-sizing: border-box; }
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div style="min-height:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:#e9e8df;font-family:Georgia,serif">
+        <div>
+          <div style="letter-spacing:6px;color:#d2b782;font-size:12px">SOUTHCOAST</div>
+          <h1 style="font-size:48px;margin:8px 0">The Narrows</h1>
+          <p><a href="./earth.html" style="color:#9fe0ff">3D Tiles</a> · <a href="./index.html" style="color:#d2b782">Street map</a></p>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

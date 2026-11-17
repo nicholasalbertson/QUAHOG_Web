@@ -5,6 +5,7 @@ import { guardPluginLifecycle } from "./googleAuth";
 import { applyTileMemoryCaps, type TileMemoryHost } from "./tileCaps";
 import { observeTileFetch, type TileFault } from "./tileFault";
 import { installTileLogGuard } from "./tileLog";
+import { createTileAuth, knownTileSession } from "./googleSession";
 
 // Registers the Google auth plugin once per tiles session. Recommended settings
 // are off so the plugin cannot overwrite errorTarget. Dispose is guarded, tile
@@ -28,8 +29,15 @@ export function GoogleTilesAuth({ apiToken, onFault }: { apiToken: string; onFau
     const plugin = new GoogleCloudAuthPlugin({
       apiToken,
       useRecommendedSettings: false,
-      autoRefreshToken: false,
+      autoRefreshToken: true,
     });
+    const auth = plugin as unknown as { auth: { fetch: (url: string, init?: RequestInit) => Promise<unknown>; sessionToken: string | null } };
+    const sessioned = createTileAuth({ apiToken, autoRefreshToken: true });
+    auth.auth.fetch = (url, init) => sessioned.fetch(url, init).then((res) => {
+      auth.auth.sessionToken = knownTileSession(apiToken);
+      return res;
+    });
+    auth.auth.sessionToken = knownTileSession(apiToken);
     const lifecycle = plugin as unknown as { init: (tiles: unknown) => void; dispose: () => void };
     guardPluginLifecycle(lifecycle);
     const host = tiles as unknown as {

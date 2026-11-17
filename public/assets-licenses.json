@@ -179,6 +179,15 @@
       "license": "CC0-1.0",
       "status": "cleared",
       "attribution": "Poly Haven textures \u2014 Creative Commons CC0 1.0"
+    },
+    {
+      "id": "fetched-cc0",
+      "globs": [
+        "vendor/cc0/files/**/*"
+      ],
+      "license": "CC0-1.0",
+      "status": "cleared",
+      "attribution": "Fetched by npm run assets:fetch-licensed. Quaternius Universal Base Characters and Poly Haven Kloofendal HDRI, both CC0 1.0. Files are gitignored; see docs/THIRD_PARTY_NOTICES.md."
     }
   ]
 }

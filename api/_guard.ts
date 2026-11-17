@@ -1,7 +1,8 @@
 // Shared hardening helpers for the public Vercel serverless proxies
-// (/api/tts and /api/staticmap). These endpoints call *paid* upstream APIs
-// (ElevenLabs, Google Maps) using server-side keys, so without any gating an
-// anonymous caller could hammer them and run up the bill ("denial of wallet").
+// (/api/tts, /api/staticmap, and /api/tiles-key). The first two call *paid*
+// upstream APIs (ElevenLabs, Google Maps) using server-side keys. tiles-key
+// returns a referrer-restricted browser key. Without gating, an anonymous
+// caller could hammer them or read the key from another site.
 //
 // This module provides two cheap, dependency-free mitigations:
 //   1. sameOriginOk() — reject cross-site callers by checking Origin/Referer

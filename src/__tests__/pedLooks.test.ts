@@ -35,8 +35,9 @@ describe("§2.7 pedestrian looks", () => {
     expect(looksIdentical(looks[0], { ...looks[0], shirt: "#000000" })).toBe(false);
   });
 
-  it("earth spawns 50 peds (§2.7.3)", () => {
-    expect(EARTH_PED_COUNT).toBe(50);
+  it("earth keeps a small crowd so every city can have one", () => {
+    expect(EARTH_PED_COUNT).toBeGreaterThan(0);
+    expect(EARTH_PED_COUNT).toBeLessThanOrEqual(12);
   });
 
   it("build scales keep feet on the ground (y-scale only changes height, x/z only width)", () => {

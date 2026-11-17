@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { CuboidCollider, RigidBody, useRapier, type RapierRigidBody } from "@react-three/rapier";
-import { consumeTap, isDown, moveAxis } from "../input";
+import { consumeTap, gamepadDrive, isDown, moveAxis } from "../input";
+import { powerFor } from "../earth/damage";
 import type { VehicleType } from "../earth/vehicleTypes";
 import { TrafficPackCar } from "./TrafficPackCar";
 import { TRAFFIC_PACK_MODEL, trafficWheelR } from "../world/StreetLife";
@@ -127,6 +128,8 @@ export function Car() {
     if (game.mode !== "car") { shared.skid = false; shared.carSpeed = 0; shared.steerVisual = 0; sfx.engine(0, false); return; }
 
     const ax = moveAxis();
+    const driveY = Math.max(-1, Math.min(1, ax.y + gamepadDrive().y));
+    const engine = powerFor(100 - shared.carDamage);
     const winter = game.weather === "snow";
     // T1: per-type handling scales the snow limits' inputs, so winter and
     // type multipliers compose instead of fighting.
@@ -160,15 +163,15 @@ export function Car() {
     // NB slice improvements (2026-11-03, T5/T6): eager launch (2.6/s),
     // faster coast decay (1.5/s), and a real brake — S brakes to 0 while
     // moving forward instead of instantly targeting reverse.
-    const braking = ax.y < 0 && vForward > 2;
+    const braking = driveY < 0 && vForward > 2;
 
     // publish driving signals (§13): speed for camera FOV, skid for tire marks
     shared.carSpeed = vForward;
     shared.skid = (handbrake && Math.abs(vForward) > 6) || (Math.abs(ax.x) > 0.6 && Math.abs(vForward) > 18);
     shared.carBraking = handbrake || braking;
     const target =
-      handbrake ? 0 : ax.y > 0 ? traction.forward * ax.y * grip : braking ? 0 : ax.y < 0 ? -traction.reverse * -ax.y * grip : 0;
-    const rate = handbrake ? 4.5 * traction.handbrakeResponse : ax.y !== 0 ? 2.6 * traction.throttleResponse * handling.accel : 1.5 * traction.throttleResponse;
+      handbrake ? 0 : driveY > 0 ? traction.forward * driveY * grip * engine : braking ? 0 : driveY < 0 ? -traction.reverse * -driveY * grip * engine : 0;
+    const rate = handbrake ? 4.5 * traction.handbrakeResponse : driveY !== 0 ? 2.6 * traction.throttleResponse * handling.accel : 1.5 * traction.throttleResponse;
     let nf = THREE.MathUtils.lerp(vForward, target, 1 - Math.exp(-dt * rate));
 
     const nfwd = _nfwd.set(Math.sin(yaw), 0, Math.cos(yaw));

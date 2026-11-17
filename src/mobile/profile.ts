@@ -1,4 +1,5 @@
 import type { Quality } from "../quality";
+import { sceneCaps } from "../perf/sceneBudget";
 
 export function isMobileDevice(): boolean {
   if (typeof window === "undefined") return false;
@@ -16,7 +17,9 @@ export function mobileBudget(q: Quality, mobile = isMobileDevice()) {
     // Density cut (2026-11-07): traffic localized near player in StreetLife;
     // Medium parked/ped kept high enough for Johnny Cake Hill review cams.
     parkedCars: [24, 40, 60][q],
-    pedestrians: [16, 28, 44][q],
+    // Skinned crowd is capped (12 high / 8 medium / 6 low, and 6 on a phone)
+    // so one district cannot upload a character per sidewalk.
+    pedestrians: sceneCaps(q, mobile).skinned,
     traffic: [16, 28, 40][q],
     shadows: q > 0,
   };

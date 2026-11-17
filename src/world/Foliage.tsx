@@ -1,5 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
+import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { lodCount } from "../perf/lod";
 import { sampleRoadEdges } from "./roadSamples";
 import { buildFreewayCorridor } from "./freeway";
 import { buildRoadIndex } from "./placement";
@@ -71,6 +73,11 @@ export function Foliage({ roads, center }: { roads: Road[]; center: [number, num
     place(bush.current, L.bushes, 0.6);
     place(tuft.current, L.tufts, 0.3);
   }, [L]);
+  useFrame(({ camera }) => {
+    const distance = Math.hypot(camera.position.x - center[0], camera.position.z - center[1]);
+    if (bush.current) bush.current.count = lodCount(L.bushes.length, distance);
+    if (tuft.current) tuft.current.count = lodCount(L.tufts.length, distance);
+  });
 
   return (
     <group>

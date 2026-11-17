@@ -17,9 +17,11 @@ describe("visual P0/P1 audit fixes", () => {
     }
   });
 
-  it("raises Medium parked/ped budgets for street life near Bethel", () => {
+  it("keeps parked cars near Bethel and caps the skinned crowd", () => {
     expect(mobileBudget(1, false).parkedCars).toBeGreaterThanOrEqual(36);
-    expect(mobileBudget(1, false).pedestrians).toBeGreaterThanOrEqual(28);
+    expect(mobileBudget(2, false).pedestrians).toBe(12);
+    expect(mobileBudget(1, false).pedestrians).toBe(8);
+    expect(mobileBudget(0, true).pedestrians).toBe(6);
   });
 
   it("keeps Johnny Cake Hill as cobble (sidewalk apron added in Roads)", () => {

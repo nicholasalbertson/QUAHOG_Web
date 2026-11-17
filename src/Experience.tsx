@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useThree } from "@react-three/fiber";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
+import { AssetBoundary } from "./perf/AssetBoundary";
+import { SceneGovernor } from "./perf/SceneGovernor";
 import { mobileBudget } from "./mobile/profile";
 import { Physics } from "@react-three/rapier";
 import { loadSlice, type Building, type Landmark, type Slice } from "./slice";
@@ -94,7 +96,9 @@ import { ShopInteract } from "./world/ShopInteract";
 import { MissionRunner } from "./world/MissionRunner";
 import { ObjectiveBeacon } from "./world/ObjectiveBeacon";
 import { RenderDiagnostics } from "./world/RenderDiagnostics";
-import { Effects } from "./world/Effects";
+const Effects = lazy(() => import("./world/Effects").then((mod) => ({ default: mod.Effects })));
+import { CoastCampaign } from "./campaign/CoastCampaign";
+import { AutoQuality } from "./perf/AutoQuality";
 import { SimBootstrap } from "./sim/SimBootstrap";
 import { ContactWiring } from "./sim/ContactWiring";
 import { Player } from "./actors/Player";
@@ -107,7 +111,7 @@ import { FollowCamera } from "./actors/FollowCamera";
 function FxGate() {
   const on = useGame((s) => s.fxOn);
   const quality = useGame((s) => s.quality);
-  return on && quality > 0 ? <Effects /> : null;
+  return on && quality > 0 ? <Suspense fallback={null}><Effects /></Suspense> : null;
 }
 
 // Shadow rendering toggle (§26) — a real perf lever for low-end / mobile: when
@@ -175,6 +179,8 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
   const [corridor, setCorridor] = useState<Slice | null>(null);
   const center = district.center; // slice [east, north]
   const world = worldCenter(district); // world [x, z]
+  const [focus, setFocus] = useState<[number, number]>(center);
+  useEffect(() => { setFocus(center); }, [center]);
   const isNB = district.id === "newBedford";
   // Tier-1 approved-model mount (batches 2 + 3, Nic 2026-11-03): the 10
   // replaced generic extrusions are filtered out of the fallback list so
@@ -309,6 +315,10 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       <EnvLight />
       <CinematicExposure />
       <GameSystems />
+      <AutoQuality />
+      <SceneGovernor />
+      <FocusTracker onMove={setFocus} />
+      <CoastCampaign />
       <ShopInteract />
       <SimBootstrap />
       <MissionRunner />
@@ -329,13 +339,17 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
         <Boat />
         {slice && (
           <>
-            <Roads roads={slice.roads} />
+            <AssetBoundary label="roads">
+            <Roads roads={slice.roads} anchor={focus} />
+            </AssetBoundary>
             <MedianBarriers roads={slice.roads} />
             <Embankment roads={slice.roads} />
             <RoadPuddles roads={slice.roads} center={world} />
             <Snowbanks roads={slice.roads} />
             <Bridges roads={slice.roads} />
-            <StreamingBuildings fallback={buildingsNoTier1} center={center} />
+            <AssetBoundary label="buildings">
+            <StreamingBuildings fallback={buildingsNoTier1} center={focus} />
+            </AssetBoundary>
             {/* Build 002: real MassGIS roofprints for the New Bedford waterfront.
                 NB-only: Fall River's buildings come from its own slice. */}
             {isNB && <GisDistrict />}
@@ -358,12 +372,14 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
             is needed here — just the road + bridge geometry. */}
         {corridor && (
           <>
-            <Roads roads={corridor.roads} />
+            <Roads roads={corridor.roads} anchor={focus} />
             <Bridges roads={corridor.roads} />
           </>
         )}
         {/* Heroes use RigidBody colliders → must live inside <Physics> */}
-        <Heroes />
+        <AssetBoundary label="heroes">
+          <Heroes />
+        </AssetBoundary>
         {/* Rt 18 programme (2026-11-02, item 2): lamp, stop/meter and
             utility pole colliders are GONE — street furniture is
             drivable-through with a small damage hook in <Car> now, not a
@@ -403,7 +419,11 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       {DRESSING_ENABLED && slice && <AreaTrees areas={slice.wood} step={9} cap={800} />}
       {DRESSING_ENABLED && slice && <AreaTrees areas={slice.parks} step={16} cap={300} />}
       {slice && <Steeples points={slice.church} />}
-      {slice && slice.water?.length > 0 && <Water polys={slice.water} holes={slice.islands ?? []} />}
+      {slice && slice.water?.length > 0 && (
+        <AssetBoundary label="water">
+          <Water polys={slice.water} holes={slice.islands ?? []} />
+        </AssetBoundary>
+      )}
       {/* Corridor gap water (rivers/canals between districts) — no islands. */}
       {corridor && corridor.water?.length > 0 && <Water polys={corridor.water} holes={[]} />}
       {/* Harbor banks (riprap + inland grass): landscape readability, not
@@ -475,18 +495,22 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
           NB-only. */}
       {isNB && slice && <ParkedCars roads={slice.roads} center={MALL_WORLD} reportCount={false} hub="mall" />}
       {slice && <HurricaneBarrier paths={slice.barrier} />}
-      {slice && <StreetLife roads={slice.roads} center={world} />}
+      {slice && (
+        <AssetBoundary label="street-life">
+          <StreetLife roads={slice.roads} center={world} />
+        </AssetBoundary>
+      )}
       <StoryProps />
       {/* Tier-1 approved-model mount (batches 2 + 3): visual-only GLBs at
           their real Fall River footprints. OUTSIDE <Physics> (no colliders)
           and OUTSIDE <CullByDistance> (FR models sit kilometres from the NB
           core, beyond its radius) on purpose. FR-district only. */}
-      {!isNB && <Tier1Models />}
+      {!isNB && <AssetBoundary label="tier1"><Tier1Models /></AssetBoundary>}
       {/* New Bedford Tier-1 mount (batches 4–8, bulk job 2026-11-03):
           visual-only GLBs at their GIS/tile footprints. Same outside-
           Physics, outside-CullByDistance placement. NB-district only. */}
-      {isNB && <NbTier1Models />}
-      {isNB && <DowntownTier1Models />}
+      {isNB && <AssetBoundary label="nb-tier1"><NbTier1Models /></AssetBoundary>}
+      {isNB && <AssetBoundary label="downtown"><DowntownTier1Models /></AssetBoundary>}
       <Safehouse />
       <Hospital />
       <Businesses />
@@ -511,4 +535,17 @@ export function Experience({ onReady, onProgress }: { onReady?: (s: Slice) => vo
       <ShadowGate />
     </>
   );
+}
+
+function FocusTracker({ onMove }: { onMove: (next: [number, number]) => void }) {
+  const last = useRef<[number, number]>([1e9, 1e9]);
+  const cb = useRef(onMove);
+  cb.current = onMove;
+  useFrame(({ camera }) => {
+    const next: [number, number] = [camera.position.x, -camera.position.z];
+    if (Math.hypot(next[0] - last.current[0], next[1] - last.current[1]) < 140) return;
+    last.current = next;
+    cb.current(next);
+  });
+  return null;
 }

@@ -1,3 +1,5 @@
+import { parseSliceOffThread } from "./slice/parseOffThread";
+
 // Loader + types for the OSM-derived New Bedford blockout.
 // 2D coordinates are [east, north] meters in slice-local space (origin = bbox
 // center). In 3D we map east -> +x, north -> -z, up -> +y.
@@ -118,7 +120,9 @@ export async function loadSlice(
     let o = 0;
     for (const c of chunks) { buf.set(c, o); o += c.length; }
     try {
-      slice = JSON.parse(new TextDecoder().decode(buf)) as Slice;
+      // Parse off the main thread and apply roads/buildings in chunks.
+      // A bad file rejects the load. It does not throw inside the canvas.
+      slice = await parseSliceOffThread(new TextDecoder().decode(buf));
     } catch (e) {
       throw new Error(`slice "${url}" is not valid JSON (${got} bytes): ${e instanceof Error ? e.message : String(e)}`);
     }

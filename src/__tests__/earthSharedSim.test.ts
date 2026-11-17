@@ -22,8 +22,12 @@ describe("§2.11.4 both builds boot from the same sim", () => {
     expect(src).toContain("sim.bindSlice(slice)");
     expect(src).toContain("sim.loop.start()");
     expect(src).toContain("sim.clock.syncFromShared");
-    expect(src).toContain("sim.tickNav");
-    expect(src).toContain("sim.setNavGoal");
+    // Nav after a frame rebase is straight-line in the live local frame.
+    // The NB road graph (tickNav) only matches the slice origin, so the
+    // bridge does not feed rebased meters into it. The stylized build still
+    // calls tickNav on this same sim.
+    expect(src).toContain("straightGuide");
+    expect(typeof sim.tickNav).toBe("function");
     // And the stylized bootstrap boots the same sim (not a second one).
     const boot = await import("node:fs").then((fs) =>
       fs.readFileSync(new URL("../sim/SimBootstrap.tsx", import.meta.url), "utf-8"),

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { isDown, moveAxis } from "../input";
+import { anyHeld, moveAxis } from "../input";
 import { advanceIdle, tileActivityFor, type TileActivity } from "./frameLoop";
 
 function playInputHeld(): boolean {
   const axis = moveAxis();
   if (axis.x !== 0 || axis.y !== 0) return true;
-  return isDown("ShiftLeft") || isDown("ShiftRight") || isDown("Space") || isDown("KeyE") || isDown("KeyF");
+  return anyHeld();
 }
 
 const ALWAYS: TileActivity = { loop: "always", tilesEnabled: true };

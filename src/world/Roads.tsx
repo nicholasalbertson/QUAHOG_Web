@@ -3,6 +3,8 @@ import * as THREE from "three";
 import { useFrame, useThree } from "@react-three/fiber";
 import { makeNoiseNormal, makeSidewalkTexture, makeFreewayTexture } from "./textures";
 import { useGame } from "../store";
+import { isMobileDevice } from "../mobile/profile";
+import { sceneCaps, windowRoads } from "../perf/sceneBudget";
 import { winterRoadTexture } from "./districtMaterials";
 import { productionRoadMaps } from "./productionRoadMaps";
 import type { Road } from "../slice";
@@ -141,7 +143,7 @@ export function buildSidewalks(roads: Road[], top: number, inner: number, width:
   return g;
 }
 
-export function Roads({ roads }: { roads: Road[] }) {
+export function Roads({ roads, anchor }: { roads: Road[]; anchor?: [number, number] }) {
   const snowy = useGame((s) => s.weather === "snow");
   const snowRoad = useMemo(() => winterRoadTexture(), []);
   const surfaceTex = useMemo(() => vendorAsphaltTexture(false), []);
@@ -161,11 +163,16 @@ export function Roads({ roads }: { roads: Road[] }) {
   // tsc failure in both R4 packages). Declared before first use.
   const quality = useGame((s) => s.quality);
   const pbrRoad = useMemo(() => quality > 0 ? productionRoadMaps() : null, [quality]);
+  const view = useMemo(() => {
+    if (!anchor) return roads;
+    const caps = sceneCaps(quality, isMobileDevice());
+    return windowRoads(roads, anchor, caps.roadRadius, caps.roadCap, caps.highwayRadius);
+  }, [roads, anchor, quality]);
   const ns = useMemo(() => new THREE.Vector2(0.18, 0.18), []);
   const sidewalkTex = useMemo(() => { const t = makeSidewalkTexture(); t.repeat.set(1, 4); return t; }, []);
 
   // chunk roads into a spatial grid so off-screen/distant cells are culled
-  const corridor = useMemo(() => buildFreewayCorridor(roads), [roads]);
+  const corridor = useMemo(() => buildFreewayCorridor(view), [view]);
   // Rt 18 programme (2026-11-02): crossing-street ribbons are trimmed at
   // the freeway edge (item 6) BEFORE chunking, so through streets stop
   // drawing flat at-grade junctions into the motorway. Freeway records
@@ -175,8 +182,8 @@ export function Roads({ roads }: { roads: Road[] }) {
   // BEFORE the crossing street instead of running into it. Dead ends and
   // mid-street way-splits are never trimmed.
   const trimmed = useMemo(() => trimRoadEndsAtJunctions(
-    roads.flatMap((r) => trimRoadAtFreeway(r, corridor)), 2,
-  ), [roads, corridor]);
+    view.flatMap((r) => trimRoadAtFreeway(r, corridor)), 2,
+  ), [view, corridor]);
   const chunks = useMemo(() => {
     const land = trimmed.filter((r) => !r.bridge); // bridges handled by <Bridges/>
     const cells = new Map<string, {

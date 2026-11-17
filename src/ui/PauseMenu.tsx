@@ -7,6 +7,8 @@ import { sfx } from "../audio/sfx";
 import { radio } from "../audio/radioEngine";
 import { QUALITY_LABELS } from "../quality";
 import { shared } from "../shared";
+import { REGION_JOBS, currentJob, isJobDone, jobUnlocked, startJob } from "../earth/jobs";
+import { DiscoveryLog } from "./DiscoveryLog";
 
 // Pause / settings overlay (§26). Opens on Esc/P (handled in GameSystems).
 // Freezes the sim loops and exposes quick settings + a save reset.
@@ -56,6 +58,8 @@ export function PauseMenu() {
   const mDone = useMission((s) => s.done);
   const [vol, setVol] = useState(0.5);
   const [showCredits, setShowCredits] = useState(false);
+  const [showStory, setShowStory] = useState(false);
+  const [showLog, setShowLog] = useState(false);
   const [showStats, setShowStats] = useState(false);
   // Confirm-before-quit (2026-11-07, streamer-stability diagnosis Q2).
   // "Quit to title" is the ONLY in-app code path that returns to the title
@@ -132,6 +136,8 @@ export function PauseMenu() {
             style={{ width: "100%", marginTop: 4 }}
           />
         </div>
+        <button style={btn} onClick={() => setShowStory(true)}>Coast story</button>
+        <button style={btn} onClick={() => setShowLog(true)}>Discovery log</button>
         <button style={btn} onClick={() => setShowStats(true)}>📊 Stats</button>
         <button style={btn} onClick={() => setShowCredits(true)}>ⓘ Credits &amp; attribution</button>
         <button
@@ -204,6 +210,69 @@ export function PauseMenu() {
         </div>
       )}
 
+      {showStory && (
+        <div
+          id="coast-story"
+          style={{
+            position: "fixed", inset: 0, zIndex: 21,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: "rgba(6,8,16,.55)",
+          }}
+          onClick={() => setShowStory(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "min(420px, 100%)", maxHeight: "80vh", overflowY: "auto", padding: 18,
+              background: "rgba(12,15,26,.97)", border: "1px solid #3a2a5e", borderRadius: 14,
+            }}
+          >
+          <div style={{ color: "#cfc8e6", fontSize: 12, marginBottom: 8 }}>
+            {currentJob() ? `${currentJob()?.job.title} — ${currentJob()?.step.text}` : "Same chapters as the 3D Tiles build. Fall River opens first."}
+          </div>
+          {REGION_JOBS.map((job) => {
+            const open = jobUnlocked(job.id);
+            const finished = isJobDone(job.id);
+            return (
+              <button
+                key={job.id}
+                style={{ ...btn, opacity: finished || !open ? 0.45 : 1 }}
+                disabled={finished || !open || !!currentJob()}
+                onClick={() => { startJob(job.id); setShowStory(false); useGame.getState().setPaused(false); }}
+              >
+                {job.regionLabel}: {job.title}{finished ? " — done" : open ? "" : " — locked"}
+              </button>
+            );
+          })}
+          <button style={btn} onClick={() => setShowStory(false)}>Back</button>
+          </div>
+        </div>
+      )}
+
+      {showLog && (
+        <div
+          id="street-discovery"
+          style={{
+            position: "fixed", inset: 0, zIndex: 21,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            background: "rgba(6,8,16,.94)",
+          }}
+          onClick={() => setShowLog(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "min(420px, 100%)", maxHeight: "80vh", overflowY: "auto", padding: 18,
+              background: "rgba(12,15,26,.97)", border: "1px solid #3a2a5e", borderRadius: 14,
+              color: "#e7e0ff", fontFamily: "'Courier New', monospace", fontSize: 13,
+            }}
+          >
+            <DiscoveryLog />
+            <button style={btn} onClick={() => setShowLog(false)}>Back</button>
+          </div>
+        </div>
+      )}
+
       {showCredits && (
         <div
           style={{
@@ -238,11 +307,14 @@ export function PauseMenu() {
             <b style={{ color: "#e7e0ff" }}>3D characters</b><br />
             Franklin — Mount Hope production player rig.<br />
             “CesiumMan” © Cesium — CC-BY 4.0.<br />
+            Pedestrians, the officer at the station, and story guides use Quaternius
+            Universal Base Characters (CC0) when <code>npm run assets:fetch-licensed</code> has been run.<br />
             Lizzie &amp; Remington Borden — original Mount Hope content pack
-            (menu previews; in-world procedural body until human GLBs ship).<br /><br />
+            (menu previews; in-world they use that same CC0 body).<br /><br />
 
             <b style={{ color: "#e7e0ff" }}>CC0 vendor packs</b><br />
             Kenney.nl city / nature / car / watercraft kits — CC0.<br />
+            Poly Haven textures and the Kloofendal HDRI — CC0.<br /><br />
             Poly Haven asphalt, cobble, brick, plank, roof, sand maps — CC0.<br /><br />
 
             <b style={{ color: "#e7e0ff" }}>Engine &amp; libraries</b><br />

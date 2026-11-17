@@ -12,6 +12,7 @@ import {
   type CharacterModelId,
 } from "../assets/modelRegistry";
 import { Character } from "./Character";
+import { LicensedHuman } from "../actors/LicensedHuman";
 
 // Player / cast body. Franklin keeps the authored animated GLB. Borden cast
 useGLTF.preload(FRANKLIN_MODEL_URL);
@@ -36,7 +37,11 @@ export function ModelCharacter({ moving, sprinting, tint, modelId = "franklin" }
   if (castUsesPrimitiveBody(modelId) || meta?.usePrimitiveBody) {
     return (
       <group rotation-y={FACE} position={[0, Y_OFF, 0]} scale={scale}>
-        <Character shirt={tint} moving={moving} />
+        <LicensedHuman
+          slot={modelId === "lizzie" ? 0 : 1}
+          moving={moving}
+          fallback={<Character shirt={tint} moving={moving} />}
+        />
       </group>
     );
   }

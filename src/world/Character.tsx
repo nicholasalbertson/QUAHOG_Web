@@ -23,6 +23,10 @@ export interface CharacterProps {
   /** §2.7.1 — build (silhouette): "default" | "tall" | "stocky". Scales the
    *  root group about the ground so the feet stay planted. */
   build?: PedBuild;
+  /** Empty or omitted draws no hat. */
+  hat?: string;
+  /** A second torso block. Empty or omitted leaves the shirt as the outer layer. */
+  coat?: string;
 }
 
 export function Character({
@@ -34,6 +38,8 @@ export function Character({
   speed,
   airborne,
   build = "default",
+  hat = "",
+  coat = "",
 }: CharacterProps) {
   const legL = useRef<THREE.Group>(null);
   const legR = useRef<THREE.Group>(null);
@@ -78,6 +84,12 @@ export function Character({
         <boxGeometry args={[0.5, 0.72, 0.28]} />
         <meshStandardMaterial color={shirt} roughness={0.7} />
       </mesh>
+      {coat && (
+        <mesh position={[0, 1.28, 0.02]} castShadow>
+          <boxGeometry args={[0.56, 0.62, 0.32]} />
+          <meshStandardMaterial color={coat} roughness={0.75} />
+        </mesh>
+      )}
       </group>
 
       {/* arms (pivot at shoulders) */}
@@ -116,6 +128,12 @@ export function Character({
         <sphereGeometry args={[0.155, 12, 12, 0, Math.PI * 2, 0, Math.PI * 0.55]} />
         <meshStandardMaterial color={hair} roughness={0.85} />
       </mesh>
+      {hat && (
+        <mesh position={[0, 1.96, 0]} castShadow>
+          <cylinderGeometry args={[0.16, 0.16, 0.06, 10]} />
+          <meshStandardMaterial color={hat} roughness={0.8} />
+        </mesh>
+      )}
     </group>
   );
 }
